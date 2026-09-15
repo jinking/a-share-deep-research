@@ -179,6 +179,10 @@ python3 scripts/build_evidence.py register research_sz002897/evidence \
 python3 scripts/build_evidence.py verify research_sz002897/evidence
 python3 scripts/validate_evidence.py     research_sz002897/evidence
 
+# 已知不完整的样板（如 examples/ 里的 Golden Sample）：只把 P0/P2 视为失败
+# P0=0 且 P2=0 的含义是「已提交的证据原件都真实可校验」
+python3 scripts/validate_evidence.py examples/xxx_样板/evidence --fail-on P0,P2
+
 # 把本地已有原件绑到已登记的 Document 上，并补 locator + 原文摘录
 # 两阶段原子执行；文本类原件的 evidence_text 必须是文件真实子串，否则整体拒绝
 python3 scripts/attach_local_evidence.py research_sz002897/evidence --plan attach_plan.json
@@ -205,11 +209,16 @@ v3 新增的 P0 拦截：`EVIDENCE_DOC_MISSING`（文档不存在）、`EVIDENCE
 这是**预期中间态，不是故障**——接着用 `attach_local_evidence.py` 把手上已有的原件绑上去；
 绑不上的就构成了「待补原始资料清单」。示例见 `examples/意华股份002897_样板/待补原始资料清单.md`。
 
+**CI 断言什么**：CI 不会断言「样板必须 PASS」——样板是故意不完整的，那样的断言是假的。
+它只断言一条不变量：**已提交的证据原件必须真实可校验**（P0=0 且 P2=0）。
+这样「证据原件没被提交 / 被 .gitignore 吃掉 / 被事后替换」都会被构建挡住，
+而已归档的待补缺口（P1）只以 notice 形式提示，不阻断。
+
 开发与测试：
 
 ```bash
 pip install -r requirements-dev.txt
-pytest -q          # 157 个用例：模型/Store/归一化/证据错误码/独立性/manifest v3/迁移/Schema/绑定原件/确定性取数/端到端
+pytest -q          # 163 个用例：模型/Store/归一化/证据错误码/独立性/manifest v3/迁移/Schema/绑定原件/确定性取数/端到端
 ```
 
 ## 生成时间与文件名（精确到秒）

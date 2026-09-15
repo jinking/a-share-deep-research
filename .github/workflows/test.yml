@@ -29,13 +29,44 @@ jobs:
 
       - name: v3 Evidence 验收（样板存在时执行）
         run: |
-          if [ -d "examples/意华股份002897_样板/evidence" ]; then
-            python scripts/validate_evidence.py "examples/意华股份002897_样板/evidence"
-            python scripts/validate_report.py \
-              "examples/意华股份002897_深度研究_20260915_090532.html" \
-              --manifest "examples/意华股份002897_样板/research_manifest.v3.json" \
-              --evidence-dir "examples/意华股份002897_样板/evidence" \
-              --out /tmp/validation-v3
-          else
-            echo "::notice::v3 样板尚未迁移（examples/意华股份002897_样板/evidence 不存在），跳过 Evidence 验收"
+          if [ ! -d "examples/意华股份002897_样板/evidence" ]; then
+            echo "::notice::v3 样板尚未迁移，跳过 Evidence 验收"
+            exit 0
           fi
+
+          # 样板是「故意不完整」的 Golden Sample：P1 是已归档的待补缺口
+          # （见 examples/意华股份002897_样板/待补原始资料清单.md），不该阻断构建。
+          # CI 断言的不变量是「已提交的证据原件必须真实可校验」——
+          # 不允许 P0（文档缺失 / hash 不符），也不允许 P2（登记了本地文件却校验不到）。
+          # 这条正好拦住「证据原件没被提交」这类事故。
+          python scripts/validate_evidence.py "examples/意华股份002897_样板/evidence" \
+            --fail-on P0,P2 --out /tmp/evidence-v3
+
+          # 报告 + manifest + 证据库三段串联，同样只把 P0 视为失败
+          set +e
+          python scripts/validate_report.py \
+            "examples/意华股份002897_深度研究_20260915_090532.html" \
+            --manifest "examples/意华股份002897_样板/research_manifest.v3.json" \
+            --evidence-dir "examples/意华股份002897_样板/evidence" \
+            --out /tmp/validation-v3
+          rc=$?
+          set -e
+          if [ "$rc" = "2" ]; then
+            echo "::error::验收器自身执行失败（参数或文件错误），rc=$rc"
+            exit 1
+          fi
+
+          python - <<'PY'
+          import json
+          import sys
+
+          payload = json.load(open("/tmp/validation-v3/validation_report.json", encoding="utf-8"))
+          stats = payload["summary"]
+          print("v3 严格验收:", {k: stats.get(k, 0) for k in ("P0", "P1", "P2")})
+          if stats.get("P0", 0):
+              sys.exit(f"::error::样板出现 P0（证据链断裂），共 {stats['P0']} 条")
+          print(
+              f"::notice::P1={stats.get('P1', 0)} 为已归档的待补缺口，"
+              "见 examples/意华股份002897_样板/待补原始资料清单.md"
+          )
+          PY

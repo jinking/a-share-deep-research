@@ -13,7 +13,7 @@
 - `scripts/build_evidence.py`：`init` / `register`（自动算 sha256）/ `verify`（复核是否被替换）/ `validate` / `show`。
 - `scripts/validate_evidence.py`：Evidence Store 独立验收（不需要报告与 manifest）。
 - `scripts/migrate_manifest_v2_to_v3.py`：v2 → v3 迁移，产物一律标记 `needs_verification`。
-- `tests/`：pytest 用例（模型/Store/归一化/证据错误码/来源独立性/manifest v3/迁移/Schema/存量数学与结构/端到端 CLI）；**当前 157 个全部通过**。
+- `tests/`：pytest 用例（模型/Store/归一化/证据错误码/来源独立性/manifest v3/迁移/Schema/存量数学与结构/端到端 CLI）；**当前 163 个全部通过**。
 - `.github/workflows/test.yml`：CI 跑 `pytest` + 存量样板回归；v3 样板存在时追加 Evidence 验收。
 - `references/证据对象规范.md`：三层对象、ID 规范、等级与重要度、定位与独立性要求、错误码表、工作流。
 
@@ -45,10 +45,16 @@
 
 ### 新增脚本与测试
 - `scripts/attach_local_evidence.py`：把本地原件绑到已登记的 Document 上并补 locator / 原文摘录。**两阶段原子执行**（任一条校验失败则整体不落盘），带**防脑补硬闸**——文本类原件的 `evidence_text` 必须是该文件的真实子串，否则拒绝。
-- 测试新增：`tests/test_attach_local_evidence.py`（9）、`tests/test_fetch_stock_deterministic.py`（10）、`tests/integration/test_golden_sample_pipeline.py`（2）。**全量 157 用例通过**。
+- 测试新增：`tests/test_attach_local_evidence.py`（9）、`tests/test_fetch_stock_deterministic.py`（10）、`tests/integration/test_golden_sample_pipeline.py`（2）、`tests/integration/test_validate_evidence_cli.py`（6）。**全量 163 用例通过**。
 
 ### 修复
 - `validate_report.py`：v3 manifest 不再误报 `EVIDENCE_EMPTY`——该检查针对 v2 的 `evidence[]`，v3 证据完整性由 `evidence_validator` 负责。
+- `.gitignore`：`raw/` 收窄为 `research_*/raw/`。原先的裸 `raw/` 会把 `examples/**/evidence/raw/` 一并排除——证据原件不入库，他人克隆后登记过 hash 的文件全部取不到（P2），证据链在别人机器上直接断裂。
+
+### 修正（首次推送后）
+- `scripts/validate_evidence.py` 新增 `--fail-on LEVELS`：默认 `P0,P1`（行为与之前完全一致），允许调用方声明「哪些等级才算失败」。
+- CI 的 v3 验收改为断言**「已提交的证据原件必须真实可校验」**（P0=0 且 P2=0），而不是「样板必须 PASS」：意华样板是**故意不完整**的 Golden Sample，P1 是已归档的待补缺口，断言它完整等于断言一件假事。P0 / P2 仍会拦住构建，「证据原件没被提交」这类事故照样能被抓住。
+- 新增 `tests/integration/test_validate_evidence_cli.py`（6 例）：固定默认阻断等级、样板放宽语义、非法取值返回 2、以及「文件缺失=P2 / 文件被替换=P0」不可混淆。
 
 
 ## v2.4 — PDF 导出（无头浏览器）
