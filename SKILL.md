@@ -75,6 +75,14 @@ description: A股个股深度研究技能。用于“深度研究/分析某只A�
 
 关键数字同时记录：**数值、口径、报告期/时点、来源、发布时间、是否交叉验证**。
 
+**线索 ≠ 证据（v3.0.1 起）**。研究过程中最先出现的东西——搜索结果、neodata 摘要、券商转述、媒体转述——
+是**线索**，不是证据。线索先落成 `EvidenceCandidate`（`CAN_` 前缀），拿到原件、登记 Document、
+算出 SHA256、补上定位与原文摘录之后才能升格为证据。线索不能承担确认级结论、不能提供 critical Claim
+的定位与摘录、也不计入来源独立性。升级的唯一通道是 `scripts/promote_evidence_candidate.py`，**不要手写 Document 绕过去**。
+
+**时间要分清三个时点**：`as_of`（信息截止）/ `market_data_as_of`（行情截止）/ `generated_at`（报告生成）。
+证据的 `published_at` 不得晚于 `as_of`；行情不得晚于报告生成时间。
+
 ### 2. 多源取数（三源协同，一条命令跑完）
 
 ```bash
@@ -208,7 +216,7 @@ Validator 与研究生成过程职责分离，检查：
 
 **退出码 0 = PASS，只有 PASS 才能向用户标记「研究完成」。** 验收等级与阻断规则见 `references/产物验收规则.md`。
 
-#### v3.0：证据层校验（manifest_version = 3）
+#### v3：证据层校验（manifest_version = 3）
 
 当 manifest 为 v3（`"manifest_version": 3`）时，**必须**同时提交 Evidence Store，否则报 `EVIDENCE_STORE_MISSING`：
 
@@ -224,19 +232,43 @@ python3 scripts/validate_report.py <report.html> \
 9. Claim 指向的 Document 是否真实存在（`EVIDENCE_DOC_MISSING`，P0）；
 10. 证据文件 hash 是否与登记值一致——**证据是否被事后替换**（`EVIDENCE_HASH_MISMATCH`，P0）；
 11. 确认级结论是否由允许的一手来源支撑、是否存在 `direct` 证据（`EVIDENCE_PRIMARY_REQUIRED` / `EVIDENCE_DIRECT_REQUIRED`，P0）；
-12. critical Claim 是否有定位、是否有原文摘录（`EVIDENCE_LOCATOR_MISSING` / `EVIDENCE_TEXT_MISSING`，P1）；
-13. 所谓「双源」是否真正独立（同 `source_group` 的转载只算一个来源，`EVIDENCE_SOURCE_NOT_INDEPENDENT`，P1）；
-14. 证据发布时间是否晚于研究日期（`SOURCE_DATE_AFTER_RESEARCH_DATE`，P1）。
+12. 是否把**线索**（Candidate）当成正式证据引用（`CANDIDATE_USED_AS_EVIDENCE`，P0）；
+13. critical Claim 是否有定位、是否有原文摘录（`EVIDENCE_LOCATOR_MISSING` / `EVIDENCE_TEXT_MISSING`，P1）；
+14. 所谓「双源」是否真正独立（同 `source_group` 的转载只算一个来源，`EVIDENCE_SOURCE_NOT_INDEPENDENT`，P1）；
+15. 证据发布时间是否晚于 `as_of`（`SOURCE_DATE_AFTER_AS_OF`，P1）；行情是否晚于 `generated_at`（`MARKET_DATA_AFTER_GENERATED_AT`，P1）；
+16. `generated_at` 是否与报告文件名 `<YYYYMMDD_HHMMSS>` 及报告内「生成于 …」一致（`GENERATED_AT_MISMATCH`，P1）；
+17. `basis_claim_ids` 是否指向真实存在的 Claim（`CLAIM_BASIS_UNKNOWN`，P1）；`fact` 是否建立在未确认的推导之上（`CLAIM_BASIS_LEVEL_INVALID`，P1）；
+18. `unconfirmed` / `assumption` 等级的 Claim 是否被标成 critical-supported（`CLAIM_UNCONFIRMED_SUPPORTED`，P1）。
+
+**线索 → 证据（唯一通道）**：
+
+```bash
+# a) 先把搜索/摘要阶段的线索登记下来（线索 ≠ 证据，不参与验收通过口径）
+python3 scripts/build_evidence.py add-candidate <research_xxx/evidence> \
+  --url "<原件地址>" --type interim_report --title "<文档标题>" --provider cninfo
+python3 scripts/build_evidence.py candidates <research_xxx/evidence>
+
+# b) 拿到原件后 promote：确认来源 → 存原件 → 算 SHA256 → 绑 source_group → 补 locator → 抽原文摘录
+python3 scripts/promote_evidence_candidate.py <research_xxx/evidence> --plan promote_plan.json --dry-run
+python3 scripts/promote_evidence_candidate.py <research_xxx/evidence> --plan promote_plan.json
+```
+
+`promote_plan.json` 的 `links[]` 二选一：手写 `evidence_text`（会被子串校验），或只给
+`excerpt_anchor` + `excerpt_tail` **让脚本从原文里剪**——后者不需要被信任，只需要被复核。
+PDF 等二进制原件跳过硬闸（第一版不做 OCR），此时请把**官方文本层**一起留存并单独比对。
 
 证据库自身的构建与自检：
 
 ```bash
 python3 scripts/build_evidence.py init     <research_xxx/evidence>
 python3 scripts/build_evidence.py register <research_xxx/evidence> --file <原始文件> --type interim_report --title "..." --url "..." --group <同一上游标识>
+python3 scripts/build_evidence.py verify   <research_xxx/evidence>   # 检查原件是否被事后替换
 python3 scripts/validate_evidence.py       <research_xxx/evidence>
 ```
 
-> **纪律**：Validator 只检查、不修改产物；`evidence_text` 必须是原文摘录，不得改写或脑补；不得通过放宽规则或删数据让校验变绿。
+> **纪律**：Validator 只检查、不修改产物；`evidence_text` 必须是原文摘录，不得改写或脑补；
+> promote **永不写** `claims.jsonl`——Claim 能否 `supported` 只由 Document + EvidenceLink 决定；
+> 不得通过放宽规则或删数据让校验变绿。
 
 若返回 FAIL：
 - 按 `validation/validation_report.md` 的 P0/P1 逐项修正报告或 manifest；
@@ -362,7 +394,25 @@ Validator 与生成过程**职责分离，不允许自我放行**；P0/P1 未清
 
 需要 PDF 时用 `scripts/html_to_pdf.py`，**不得改用 weasyprint / wkhtmltopdf 等纯排版引擎**——它们不执行 JS，ECharts 的 canvas 图表拿不到，只会输出空白框。
 引擎优先 `chrome-headless-shell`（纯无头二进制），**不要依赖 Chrome.app 的 `--headless`**：它在无 GUI 会话的进程上下文里会静默卡死。
-PDF 产出的**最低合格线 = 内嵌图像数 > 0**（报告含 ECharts 时）；否则视为导出失败，不得交付。
+PDF 产出的**最低合格线 = 内嵌图像数 > 0**（报告含 ECharts 时）；否则视为交付失败，不得交付。
+
+### L. 线索 ≠ 证据：结论必须能顺着链路走回原文
+
+任何一条进入正文的关键结论，都要能顺着 **Claim → EvidenceLink → Document → 原件里的那一段** 走回来。
+走不回来的，只能写成 `【推断】` / `【假设】` / `【无法确认】`，**不能伪装成事实**。
+
+- 搜索结果、neodata 摘要、券商转述、媒体转述 = **线索**，先落 `EvidenceCandidate`，**不得直接当证据**；
+- 拿到原件后走唯一通道 `scripts/promote_evidence_candidate.py` 升格，**不得手写 Document 绕过**；
+- `evidence_text` 必须是原件的真实摘录（`extract_verbatim` 能「给锚点、机器剪」，优先用它）；
+- 拿不到一手原文时**宁可降级、宁可留空**：把 Claim 改成 `pending` / 降级等级，或整条撤回。
+  **不允许**为了报告好看而保留一个出处不可考的「事实」；
+- 对方是 PDF 等二进制、又没有官方文本层可比对时，如实记录「本摘录未经机器复核」，不要假装它经过了。
+
+### M. 时点必须分清：信息截止 ≠ 行情截止 ≠ 报告生成
+
+`as_of` / `market_data_as_of` / `generated_at` 三者各管一段。证据 `published_at` 不得晚于 `as_of`；
+行情不得晚于 `generated_at`；`generated_at` 必须与报告文件名及报告内「生成于 …」一致。
+**不得**用一个 `research_date` 含糊覆盖三种含义——那正是「证据晚于研究时点却查不出来」的根源。
 
 ---
 
@@ -374,6 +424,7 @@ PDF 产出的**最低合格线 = 内嵌图像数 > 0**（报告含 ECharts 时�
 | `references/搜索与证据规则.md` | 一手资料优先级、必搜清单、证据账本 |
 | `references/估值与公司类型适配.md` | 不同类型A股公司的建模/估值选择 |
 | `references/产物验收规则.md` | **P0/P1/P2 验收规则与阻断条件**（Validator 判定标准） |
+| `references/证据对象规范.md` | **v3 证据对象规范**：三层对象 + 线索层、ID 规范、错误码表、定位与独立性要求、线索→证据唯一通道 |
 | `references/样板案例-意华股份.md` | **首个通过独立验收（PASS）的完整产物**：三情景×三年建模逻辑、manifest 写法、6 个已踩坑位 |
 | `references/实战案例-立讯精密.md` | 双路取数、现金流归因、质押遗漏等复盘 |
 | `references/版本对比方法.md` | 同一标的多版研报对照（保留旧版 + SOP 版 + 7 章对比页） |
@@ -387,6 +438,10 @@ PDF 产出的**最低合格线 = 内嵌图像数 > 0**（报告含 ECharts 时�
 | `scripts/install_westock_cli.sh` | 安装腾讯官方 Go CLI 到技能私有目录 `tools/bin/`（不改系统 PATH、无需 sudo） |
 | `scripts/cross_validate.py` | 搜索值与结构化值交叉验证 |
 | `scripts/validate_report.py` | **独立产物验收器**：结构、数学、模型口径一致性、证据层级（`--manifest` 严格模式 / `--report-only` 体检） |
+| `scripts/build_evidence.py` | v3 证据库构建与自检：`init` / `register` / `verify` / `validate` / `show` / `add-candidate` / `candidates` |
+| `scripts/promote_evidence_candidate.py` | **线索 → 证据唯一通道**：两阶段原子执行，自动算 SHA256、补定位、抽原文摘录 |
+| `scripts/attach_local_evidence.py` | 把本地原件绑到已登记的 Document 上并补 locator / 摘录（防脑补硬闸） |
+| `scripts/validate_evidence.py` | v3 证据库独立验收（不需要报告与 manifest），支持 `--fail-on LEVELS` |
 | `scripts/build_kline.py` | `raw/kline.txt` → 研报内联 JS 数组（日 K，升序重排 + 统计校验） |
 | `scripts/apply_firstscreen.py` | 给已有报告注入「V1 版式首屏」（真实行情 + 近 3 个月日 K 线），正文不动；副标题自动带秒级生成时间 |
 | `scripts/stamp_report.py` | **生成时间盖章器**：四处时间戳统一刷新为 `YYYY-MM-DD HH:MM:SS`，幂等；`--check` 校验、`--rename` 同步文件名 |

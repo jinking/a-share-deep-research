@@ -1,5 +1,78 @@
 # Changelog
 
+## v3.0.1 — 证据链收口（线索层 / 时间模型 / 摄入通道 / 严格样板）
+
+v3.0 把证据变成了可校验对象，但留下四个后果严重的松口：**线索可以直接冒充证据**、
+**一个 `research_date` 分不清信息时点与行情时点**、**从线索到证据没有唯一通道**、
+**Golden Sample 长期停在「故意不完整」**。v3.0.1 逐个焊死，并把样板做到严格 PASS。
+
+### 新增：线索层（线索 ≠ 证据）
+
+- `core/models/candidate.py`：`EvidenceCandidate`（`CAN_<指纹前8位>`），状态机 `new / reviewed / promoted / rejected / duplicate`。
+- `candidates.jsonl`：线索独立落盘，**不参与任何证据校验的通过口径**。
+  它不能承担 `EVIDENCE_PRIMARY_REQUIRED` / `EVIDENCE_DIRECT_REQUIRED`，不能提供 critical Claim 的 locator 与摘录，
+  也不计入正式来源独立性。`status=promoted` 本身同样不构成证据。
+- 新错误码：P0 `CANDIDATE_USED_AS_EVIDENCE`（把线索当 Claim/Document 引用）、P1 `CANDIDATE_PROMOTED_WITHOUT_DOCUMENT`。
+- `scripts/build_evidence.py` 新增子命令 `add-candidate` / `candidates`。
+
+### 新增：摄入通道（线索 → 证据的唯一入口）
+
+- `scripts/promote_evidence_candidate.py`：候选 → 确认原始来源 → 保存原件 → register Document（自动算 sha256）
+  → 绑定 `source_group` → 生成 EvidenceLink（补 locator）→ 抽取 `evidence_text` → `status=promoted`。
+  两阶段原子执行（任一条不通过则整体不落盘，落盘阶段异常回滚内存状态）。
+- `core/evidence/verbatim.py`：摘录真伪的**唯一实现**。`text_supports_excerpt()` 做子串校验（防脑补硬闸），
+  `extract_verbatim()` 支持「给锚点、机器剪摘录」——把「需要被信任」换成「只需要被复核」。
+  `attach_local_evidence.py` 与 `promote_evidence_candidate.py` 共用同一份逻辑，不再各写一套。
+- 硬规则（代码化）：无 url 且无 local_file → 拒绝；文本原件摘录必须真实子串；promote 永不写 `claims.jsonl`
+  （Claim 能否 `supported` 只由 Document + EvidenceLink 决定）；重复 promote 到同一 Document 幂等放行，改指向明确拒绝。
+
+### 新增：时间模型（v3.0.1 §4）
+
+- `core/validation/time_model.py`：`as_of`（信息截止）/ `market_data_as_of`（行情截止）/ `generated_at`（报告生成）
+  取代语义模糊的 `research_date`。
+- 新错误码：P1 `SOURCE_DATE_AFTER_AS_OF` / `MARKET_DATA_AFTER_GENERATED_AT` / `GENERATED_AT_MISMATCH`，P2 `TIME_MODEL_LEGACY`。
+- 旧 v3（只有 `research_date`）继续可读，报一条 P2，不阻断迁移；v2 manifest 行为零变化。
+- `validate_report.py` 新增报告层时间一致性：`generated_at` 必须与文件名 `<YYYYMMDD_HHMMSS>` 及报告内「生成于 …」四处一致。
+
+### 新增：Claim 依据与未确认等级纪律
+
+- `Claim.basis_claim_ids`：结论可以显式声明自己建立在哪些 Claim 之上。
+- 新错误码：P1 `CLAIM_BASIS_UNKNOWN`（依据指向不存在的 Claim）、`CLAIM_BASIS_LEVEL_INVALID`
+  （`fact` 不能建立在 `inference` / `assumption` / `unconfirmed` 之上）、`CLAIM_UNCONFIRMED_SUPPORTED`
+  （`unconfirmed` / `assumption` 不得标成 critical-supported）。`management_statement` 是**已披露**信息，不算未确认。
+
+### 变更：Golden Sample 收紧为严格 PASS
+
+`examples/意华股份002897_样板/` 从「故意不完整」转为**严格 PASS 样本**（P0=P1=P2=0）：
+
+- **补齐官方原件并按唯一通道摄入**：3 份巨潮 PDF —— 2026 年半年度报告（163 页，sha256 `6c8c441a…`）、
+  2025 年年度权益分派实施公告（3 页）、关于部分限制性股票回购注销完成的公告（6 页）；4 份本地取数（kline / dividend / shareholder / profile）。
+- **混合 Claim 拆分**：原 E006 拆为 `C_MKT_CLOSE_20260914`（行情事实）/ `C_MKT_CAP_20260914`（推导，声明依据）/
+  `C_PE_TTM_20260914`（口径未定，`pending`，不绑证据）；E005 拆出 `C_FIN_FX_LOSS_2026H1`；
+  E009 拆出 `C_DIVIDEND_TOTAL_2025`（推导）；E011 拆出 `C_RELATED_PURCHASE_TOTAL_2026H1`（推导）；
+  新增 `C_SHARE_CAPITAL_20260630` / `C_SHARE_CAPITAL_20260910`。
+- **口径更正**：E007 原写作「送样阶段」，出处是深交所互动易问答的转述；本次复核**未能取得公司回复的官方原文**
+  （互动易详情接口不可读），按「不得脑补」改用半年报原文口径「在研 / 已进入实质性开发阶段」，
+  该问询本身转入 Candidate 留痕。
+- **降级而非掩饰**：E008（机构一致预期）无官方原件，出处是 neodata 聚合摘要 → 删除其 Document 与证据绑定，
+  Claim 降级为 `pending`，线索留在 Candidate 层。
+- 结果：**7 Documents / 19 Claims / 23 EvidenceLinks / 10 Candidates，23 条摘录全部命中原文**（17 条对官方文本层逐页核对、6 条对文本原件子串校验）。
+- **样例文件整理**：`evidence/attach_plan.json` 已删除——它引用的是拆分前的 `E006`，dry-run 直接报「引用了不存在的 Claim」，留着就是陷阱；
+  其职责已由覆盖全部 23 条链接的 `evidence/promote_plan.json` 取代。原《待补原始资料清单.md》改写为《原始资料补齐记录.md》。
+
+### 变更：CI 收敛为阻断式三闸门
+
+- Gate 1 `pytest -q`；Gate 2 存量 v2 样板回归；Gate 3a `validate_evidence.py`；Gate 3b 报告 + manifest + 证据库三段串联。
+- Gate 3a 把 **P2 一起纳入阻断**：按既定口径「文件在但摘要不符」= P0 `EVIDENCE_HASH_MISMATCH`，
+  而「登记了 hash 但原件没随仓库提交」= P2 `EVIDENCE_HASH_UNVERIFIED`，两者刻意分开、不可混改等级。
+  若只挡 P0/P1，**删掉一个证据原件构建仍会通过**——实测确认，故由闸门补齐这一刀。
+- 时间模型参数从 manifest 读出后透传给验收器，避免 CI 里出现第二份 `as_of` 而与 manifest 漂移。
+
+### 测试
+
+- 全量 **271 个用例通过**（v3.0 基线 163 → 新增 `test_candidate_promotion` 27、`test_claim_basis` 17、
+  `test_finish_rules` 17、`test_time_model`、`test_manifest_v3`、`test_report_time`、`test_candidate_rules` 等）。
+
 ## v3.0.0-alpha — Evidence Layer（可审计证据链）
 
 从「能生成深度研究报告」升级为「能生产可审计的投资研究资产」。核心动作是把 **Document → Claim → Evidence** 三层对象落到代码与磁盘，并让 Validator 能独立检查「这份证据是不是真的」。

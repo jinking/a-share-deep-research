@@ -17,44 +17,63 @@ jobs:
       - name: Install dev dependencies
         run: pip install -r requirements-dev.txt
 
-      - name: Unit / regression tests
+      # ── 闸门 1/3：单元 + 回归测试 ───────────────────────────────────────
+      - name: Gate 1 — unit / regression tests
         run: pytest -q
 
-      - name: 存量样板回归（v2 manifest 必须仍然 PASS）
+      # ── 闸门 2/3：存量 v2 样板回归（行为零变化） ────────────────────────
+      # v2 manifest 走兼容模式：只做引用完整性，不执行证据真实性校验。
+      # 它的作用是保证「新模型没有把老产物改坏」。
+      - name: Gate 2 — 存量样板回归（v2 manifest 必须仍然 PASS）
         run: |
           python scripts/validate_report.py \
             "examples/意华股份002897_深度研究_20260915_090532.html" \
             --manifest "examples/意华股份002897_样板/research_manifest.json" \
             --out /tmp/validation-v2
 
-      - name: v3 Evidence 验收（样板存在时执行）
+      # ── 闸门 3/3：v3 严格验收（P0、P1、P2 都必须为 0） ──────────────────
+      # v3.0.1 起 Golden Sample 已是「严格 PASS」样本：23 条 EvidenceLink 全部
+      # 绑定官方原件（3 份巨潮 PDF 带 SHA256 + 4 份本地取数），每条 critical
+      # Claim 都有 locator 与原文摘录。
+      #
+      # 为什么证据层连 P2 也要阻断（报告层仍按 P0/P1）：
+      #   按项目既定口径，「文件在但摘要不符」= P0 EVIDENCE_HASH_MISMATCH，
+      #   而「登记了 hash 但原件没随仓库提交」= P2 EVIDENCE_HASH_UNVERIFIED。
+      #   两者刻意分开，不能混改等级。但只挡 P0/P1 时，删掉一个原件只会产生
+      #   P2 而构建照过——正是「证据原件漏提交」这类事故。此处把 P2 纳入阻断，
+      #   既不改口径，又能守住「已登记的原件必须真实存在且未被替换」。
+      #
+      # 时间模型从 manifest 读出后透传给独立验收器，避免 CI 里出现第二份
+      # as_of / market_data_as_of / generated_at 而与 manifest 漂移。
+      - name: Gate 3a — v3 Evidence Store 严格验收（P0=P1=P2=0）
         run: |
-          if [ ! -d "examples/意华股份002897_样板/evidence" ]; then
-            echo "::notice::v3 样板尚未迁移，跳过 Evidence 验收"
-            exit 0
-          fi
+          python - <<'PY' > /tmp/evidence-args.sh
+          import json
 
-          # 样板是「故意不完整」的 Golden Sample：P1 是已归档的待补缺口
-          # （见 examples/意华股份002897_样板/待补原始资料清单.md），不该阻断构建。
-          # CI 断言的不变量是「已提交的证据原件必须真实可校验」——
-          # 不允许 P0（文档缺失 / hash 不符），也不允许 P2（登记了本地文件却校验不到）。
-          # 这条正好拦住「证据原件没被提交」这类事故。
+          meta = json.load(
+              open("examples/意华股份002897_样板/research_manifest.v3.json", encoding="utf-8")
+          )["meta"]
+          for flag, key in (
+              ("--as-of", "as_of"),
+              ("--market-data-as-of", "market_data_as_of"),
+              ("--generated-at", "generated_at"),
+          ):
+              value = meta.get(key)
+              if not value:
+                  raise SystemExit(f"::error::v3 manifest 缺少 meta.{key}，无法执行时效校验")
+              print(f"{flag} {value}")
+          PY
+          # shellcheck disable=SC2046
           python scripts/validate_evidence.py "examples/意华股份002897_样板/evidence" \
-            --fail-on P0,P2 --out /tmp/evidence-v3
+            $(cat /tmp/evidence-args.sh) --fail-on P0,P1,P2 --out /tmp/evidence-v3
 
-          # 报告 + manifest + 证据库三段串联，同样只把 P0 视为失败
-          set +e
+      - name: Gate 3b — 报告 + manifest + 证据库 三段串联严格验收
+        run: |
           python scripts/validate_report.py \
             "examples/意华股份002897_深度研究_20260915_090532.html" \
             --manifest "examples/意华股份002897_样板/research_manifest.v3.json" \
             --evidence-dir "examples/意华股份002897_样板/evidence" \
             --out /tmp/validation-v3
-          rc=$?
-          set -e
-          if [ "$rc" = "2" ]; then
-            echo "::error::验收器自身执行失败（参数或文件错误），rc=$rc"
-            exit 1
-          fi
 
           python - <<'PY'
           import json
@@ -62,11 +81,8 @@ jobs:
 
           payload = json.load(open("/tmp/validation-v3/validation_report.json", encoding="utf-8"))
           stats = payload["summary"]
-          print("v3 严格验收:", {k: stats.get(k, 0) for k in ("P0", "P1", "P2")})
-          if stats.get("P0", 0):
-              sys.exit(f"::error::样板出现 P0（证据链断裂），共 {stats['P0']} 条")
-          print(
-              f"::notice::P1={stats.get('P1', 0)} 为已归档的待补缺口，"
-              "见 examples/意华股份002897_样板/待补原始资料清单.md"
-          )
+          got = {k: stats.get(k, 0) for k in ("P0", "P1", "P2")}
+          print("v3 严格验收:", got)
+          if got["P0"] or got["P1"]:
+              sys.exit(f"::error::v3 严格验收未通过：P0={got['P0']} P1={got['P1']}")
           PY
