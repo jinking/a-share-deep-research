@@ -1,0 +1,10 @@
+{
+  "claim_id": "C_FIN_REV_2026H1",
+  "claim": "2026H1 营业收入 28.63 亿元（同比 -5.97%）",
+  "category": "financial",
+  "level": "fact",
+  "materiality": "critical",
+  "status": "supported",
+  "requires_two_sources": false,
+  "basis_claim_ids": []
+}

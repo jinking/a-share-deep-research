@@ -81,11 +81,10 @@ description: A股个股深度研究技能。用于“深度研究/分析某只A�
 python3 scripts/fetch_stock.py <代码> --name <名称> [--out <输出目录>]
 ```
 
-> ⚠️ **`<代码>` 必须带市场前缀**（`sh600584` / `sz002897` / `bj430047`）。
-> 传纯数字（如 `601208`）时：core 源（westock-npm）会报「不支持的市场类型」、**三大报表与 K 线全部取空、`annual_years=0`**，
-> 而 search 源（neodata）**仍会正常返回**——于是脚本不报错、只在尾部提示「关键结构化数据缺失」，
-> 极易被误判成"数据源不可用"而放弃 core 源。输出目录同样会变成 `research_<无前缀代码>`。
-> 判断方法：`取数元信息.json` 里 `sources.core` 的任务全为 `"ok": false` 且 `len` 极小（6–28）即为症状，**重跑并补上前缀即可**。
+> `<代码>` 可传 `sz002897` / `002897` / `002897.SZ` 等任意常见形式——由 `core/normalize.py`
+> 统一归一化，并据此决定输出目录（`research_sz002897`）。
+> **无法判断所属市场时脚本直接报错退出（退出码 2），不再静默兜底**——
+> 过去"把纯数字当成无前缀代码继续跑、三大报表与 K 线全取空却只留一行提示"的行为已移除。
 
 脚本自动探测并协同三个数据源，**任一不可用都不中断研究**：
 
@@ -97,13 +96,11 @@ python3 scripts/fetch_stock.py <代码> --name <名称> [--out <输出目录>]
 
 输出：`raw/*.txt`（各源原始返回）、`01~05` 结构化 CSV/MD、`06_检索结果.md`（neodata 汇总，若可用）、`待搜索清单.txt`、`取数元信息.json`。
 
-**日 K 线取数回退（core 源 kline 为空时）**：`fetch_stock.py` 偶发 kline 取空（`raw/kline.txt` 仅几十字节、`ok=false`），此时用 npm 包直取，**不要中断研究**：
+**日 K 线**：`fetch_stock.py` 第⑤步已内置「主源校验 → 不达标自动 fallback（npm 直取）→ 再校验」，
+彻底失败时会在 `取数元信息.json` 写入 `DATA_KLINE_UNAVAILABLE`。
+**这一步不需要任何手工干预**，也不要用 `npx` 自己去补。
 
-```bash
-npx -y westock-data-clawhub@1.0.4 kline <代码> --period day --limit 62   # 代码形如 sh603259
-```
-
-拿到表格后剔除**当日未收盘的不完整行**（如 `grep -v "^| 2026-09-15 "`），再本地构建图表数组：
+拿到 `raw/kline.txt` 后本地构建图表数组：
 
 ```bash
 python3 scripts/build_kline.py --days 60 --out kline.js
@@ -210,6 +207,36 @@ Validator 与研究生成过程职责分离，检查：
 8. 最终状态与证伪条件是否完整。
 
 **退出码 0 = PASS，只有 PASS 才能向用户标记「研究完成」。** 验收等级与阻断规则见 `references/产物验收规则.md`。
+
+#### v3.0：证据层校验（manifest_version = 3）
+
+当 manifest 为 v3（`"manifest_version": 3`）时，**必须**同时提交 Evidence Store，否则报 `EVIDENCE_STORE_MISSING`：
+
+```bash
+python3 scripts/validate_report.py <report.html> \
+  --manifest <research_manifest.v3.json> \
+  --evidence-dir <research_xxx/evidence> \
+  --out <validation目录>
+```
+
+新增检查项（完整错误码见 `references/证据对象规范.md`）：
+
+9. Claim 指向的 Document 是否真实存在（`EVIDENCE_DOC_MISSING`，P0）；
+10. 证据文件 hash 是否与登记值一致——**证据是否被事后替换**（`EVIDENCE_HASH_MISMATCH`，P0）；
+11. 确认级结论是否由允许的一手来源支撑、是否存在 `direct` 证据（`EVIDENCE_PRIMARY_REQUIRED` / `EVIDENCE_DIRECT_REQUIRED`，P0）；
+12. critical Claim 是否有定位、是否有原文摘录（`EVIDENCE_LOCATOR_MISSING` / `EVIDENCE_TEXT_MISSING`，P1）；
+13. 所谓「双源」是否真正独立（同 `source_group` 的转载只算一个来源，`EVIDENCE_SOURCE_NOT_INDEPENDENT`，P1）；
+14. 证据发布时间是否晚于研究日期（`SOURCE_DATE_AFTER_RESEARCH_DATE`，P1）。
+
+证据库自身的构建与自检：
+
+```bash
+python3 scripts/build_evidence.py init     <research_xxx/evidence>
+python3 scripts/build_evidence.py register <research_xxx/evidence> --file <原始文件> --type interim_report --title "..." --url "..." --group <同一上游标识>
+python3 scripts/validate_evidence.py       <research_xxx/evidence>
+```
+
+> **纪律**：Validator 只检查、不修改产物；`evidence_text` 必须是原文摘录，不得改写或脑补；不得通过放宽规则或删数据让校验变绿。
 
 若返回 FAIL：
 - 按 `validation/validation_report.md` 的 P0/P1 逐项修正报告或 manifest；

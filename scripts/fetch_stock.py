@@ -37,6 +37,8 @@ SOP 取数工具 —— WorkBuddy 专用版（三源协同）
 
 import argparse
 import json
+import re
+import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -44,6 +46,7 @@ from pathlib import Path
 # 允许从任意工作目录直接运行本脚本：把技能根加入模块搜索路径
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from core.normalize import StockCodeError, normalize_stock_code  # noqa: E402
 from providers import first_for, list_providers  # noqa: E402
 from providers.base import SEARCH_TASKS, TASK_SPECS  # noqa: E402
 
@@ -82,6 +85,92 @@ def plain_code(code: str) -> str:
         if c.startswith(p) and c[len(p):].isdigit():
             return c[len(p):]
     return c
+
+
+# ---------------------------------------------------------------- K 线取数与回退
+# 原先「主源取空 → npx 直取 → 校验 → build_kline」是写在 SKILL.md 里由 Agent 手工执行的；
+# v3.0 §11.2 起这些确定性步骤由程序负责，Skill 不再指导人工修复。
+KLINE_MIN_ROWS = 40
+KLINE_FALLBACK_PKG = "westock-data-clawhub@1.0.4"
+KLINE_RAW_NAME = "kline.txt"
+_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
+def validate_kline_text(text, *, min_rows: int = KLINE_MIN_ROWS):
+    """校验 K 线文本是否可用（v3.0 §11.2）。纯函数，可离线测试。
+
+    返回 (ok, rows, reason)：
+        ok     —— 是否满足最低可用标准
+        rows   —— 解析出的 [{'date', 'close'}] 列表
+        reason —— 人类可读的判定说明
+
+    规则：有效数据行 >= min_rows；日期形如 YYYY-MM-DD；收盘价为正数。
+    单行非法会被跳过并计入 reason，但不单独判整体失败。
+    """
+    _, raw_rows = parse_md_table(text or "")
+    rows = []
+    bad_date = bad_close = 0
+    for r in raw_rows:
+        date = str(r.get("date") or "").strip()
+        close = str(r.get("last") or "").strip()
+        if not _DATE_RE.match(date):
+            bad_date += 1
+            continue
+        try:
+            value = float(close)
+        except (TypeError, ValueError):
+            bad_close += 1
+            continue
+        if value <= 0:
+            bad_close += 1
+            continue
+        rows.append({"date": date, "close": value})
+
+    if len(rows) < min_rows:
+        return False, rows, f"有效行数 {len(rows)} < 最低要求 {min_rows}"
+    if bad_date or bad_close:
+        return True, rows, f"可用，跳过 {bad_date} 行日期非法 / {bad_close} 行收盘价非法"
+    return True, rows, "OK"
+
+
+def _run_kline_fallback(code: str, *, limit: int = 62, timeout: int = TIMEOUT) -> str:
+    """用 npm 包直取日 K（等价于原先 SKILL.md 里的手工命令）。"""
+    cmd = ["npx", "-y", KLINE_FALLBACK_PKG, "kline", code, "--period", "day", "--limit", str(limit)]
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        print(f"  ⚠️  fallback 取数命令无法执行: {exc}")
+        return ""
+    return proc.stdout or ""
+
+
+def fetch_kline_with_fallback(code, outdir, *, min_rows: int = KLINE_MIN_ROWS, runner=None):
+    """取日 K：先校验主源产物，不达标则 fallback 直取并再次校验。
+
+    返回 (ok, note, row_count)。失败时调用方应把 DATA_KLINE_UNAVAILABLE 写进元信息。
+    """
+    raw_dir = Path(outdir) / "raw"
+    path = raw_dir / KLINE_RAW_NAME
+
+    def read():
+        return path.read_text(encoding="utf-8") if path.exists() else ""
+
+    ok, rows, why = validate_kline_text(read(), min_rows=min_rows)
+    if ok:
+        return True, f"主源可用（{len(rows)} 行；{why}）", len(rows)
+
+    print(f"  ⚠️  主源 K 线不达标：{why} → 启动 fallback（npx {KLINE_FALLBACK_PKG}）")
+    text = (runner or _run_kline_fallback)(code, limit=max(min_rows + 2, 62))
+    if not text:
+        return False, f"主源不达标（{why}），fallback 未返回数据", 0
+
+    ok2, rows2, why2 = validate_kline_text(text, min_rows=min_rows)
+    if not ok2:
+        return False, f"fallback 仍不达标：{why2}", len(rows2)
+
+    raw_dir.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+    return True, f"fallback 成功（{len(rows2)} 行；{why2}）", len(rows2)
 
 
 # ---------------------------------------------------------------- 数据源探测
@@ -393,7 +482,17 @@ def main():
     if not args.code:
         ap.error("需要提供股票代码（或用 --list-providers 查看数据源）")
 
-    code = args.code.lower().strip()
+    # 代码归一化：由 core/normalize.py 统一判断市场，不再静默兜底（v3.0 §11.1）
+    try:
+        code = normalize_stock_code(args.code)
+    except StockCodeError as exc:
+        print()
+        print(f"❌ 无法判断股票代码所属市场: {args.code!r}")
+        print(f"   {exc}")
+        print("   支持形式: sz002897 / 002897 / 002897.SZ / SZ002897 / 600584 / bj430047")
+        print("   规则: 60/68→sh，00/30→sz，4/8/92→bj；其余一律报错，不做猜测。")
+        return 2
+
     name = args.name or code
     outdir = Path(args.out) if args.out else Path(f"research_{code}")
     outdir.mkdir(parents=True, exist_ok=True)
@@ -450,6 +549,16 @@ def main():
     # ④ 质量校验
     warns = quality_checks(annual, bs, cf, code)
 
+    # ⑤ K 线校验与自动回退（确定性逻辑，v3.0 §11.2 起不再交给 Agent 手工处理）
+    print()
+    print("=" * 70)
+    print("【第⑤步】K 线校验与回退")
+    print("=" * 70)
+    kline_ok, kline_note, _ = fetch_kline_with_fallback(code, outdir)
+    print(f"  {'✅' if kline_ok else '❌'} {kline_note}")
+    if not kline_ok:
+        warns.append("DATA_KLINE_UNAVAILABLE")
+
     core_missing = [
         core_res[t]["desc"]
         for t, spec in TASK_SPECS.items()
@@ -487,4 +596,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

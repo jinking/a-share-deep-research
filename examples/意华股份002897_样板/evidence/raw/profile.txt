@@ -1,0 +1,3 @@
+| code | name | listedDate | business | website | industry | sector | issuePrice | regCapital | establishDate | chairman | regAddress | officeAddress | tel | email |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| sz002897 | 意华股份 | 2017-09-07 | 以通讯为主的连接器及其组件产品研发、生产和销售。 | http://www.czt.cn | 通信 | 通信 | 20.68 | 19385.8976 | 1995-12-23 00:00:00 +0800 CST | 蔡胜才 | 浙江省温州市乐清市翁垟街道意华科技园华星路2号 | 浙江省温州市乐清市翁垟工业区翁垟街道意华科技园华星路2号 | 0577-57100785 | ir@czt.com.cn |

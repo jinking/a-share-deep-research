@@ -1,0 +1,4 @@
+# v3.0 开发/测试依赖
+# 用法：pip install -r requirements-dev.txt && pytest -q
+pytest>=8.0
+jsonschema>=4.0

@@ -141,6 +141,12 @@ python3 scripts/stamp_report.py <report.html> --rename     # 顺手把文件名�
 python3 scripts/stamp_report.py <report.html> --check      # 交付前校验（退出码 1 = 不合格）
 ```
 
+> ⚠️ **脚本只认两个锚点**：`生成于`（title / h1 small）与 `报告生成时间：`（footer / 顶部注释块）。
+> 顶部注释块里**必须直接写「报告生成时间：YYYY-MM-DD HH:MM:SS」**；若写成「生成时间：」这类近似措辞，
+> 脚本匹配不到，会**在注释块尾部追加一行**新锚点 → 旧时间留在块里、与另外三处不一致。
+> 注释块里也不要留具体文件名（`--rename` 之后文件名会变），写 `<公司简称><代码>_深度研究_YYYYMMDD_HHMMSS.html` 模板即可。
+> 交付前可用一条命令核验四处一致：`grep -o "报告生成时间：.*\|生成于 .*" <report.html>`。
+
 **文件名同样精确到秒**：`<公司简称><代码>_深度研究_YYYYMMDD_HHMMSS.html`
 （例：`意华股份002897_深度研究_20260915_090532.html`）。同日多版并存时一眼看出先后。
 

@@ -1,0 +1,8 @@
+{
+  "claim_id": "C_ORDER_224G_STATUS",
+  "claim": "224G 高速连接器已批量交付",
+  "category": "order",
+  "level": "已确认订单",
+  "materiality": "critical",
+  "status": "supported"
+}

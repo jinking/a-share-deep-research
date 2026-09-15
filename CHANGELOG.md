@@ -1,5 +1,56 @@
 # Changelog
 
+## v3.0.0-alpha — Evidence Layer（可审计证据链）
+
+从「能生成深度研究报告」升级为「能生产可审计的投资研究资产」。核心动作是把 **Document → Claim → Evidence** 三层对象落到代码与磁盘，并让 Validator 能独立检查「这份证据是不是真的」。
+
+### 新增
+- `core/models/`：`SourceDocument` / `Claim` / `EvidenceLink` / `ResearchState`（三层对象模型 + 聚合与完整性检查）。
+- `core/evidence/`：`store.py`（JSONL 证据库读写）、`hasher.py`（sha256 与稳定 `document_id`）、`locator.py`（定位校验）、`independence.py`（来源独立性）。
+- `core/validation/`：`evidence_validator.py`（证据校验规则）、`manifest_validator.py`（v2/v3 结构校验与版本识别）、`codes.py`（固定错误码目录）。
+- `core/normalize.py`：股票代码归一化（`002897 → sz002897`），无法判断时 **raise 而非 silent failure**。
+- `schemas/`：`document` / `claim` / `evidence_link` / `research_manifest.v3` 四份 JSON Schema。
+- `scripts/build_evidence.py`：`init` / `register`（自动算 sha256）/ `verify`（复核是否被替换）/ `validate` / `show`。
+- `scripts/validate_evidence.py`：Evidence Store 独立验收（不需要报告与 manifest）。
+- `scripts/migrate_manifest_v2_to_v3.py`：v2 → v3 迁移，产物一律标记 `needs_verification`。
+- `tests/`：pytest 用例（模型/Store/归一化/证据错误码/来源独立性/manifest v3/迁移/Schema/存量数学与结构/端到端 CLI）；**当前 157 个全部通过**。
+- `.github/workflows/test.yml`：CI 跑 `pytest` + 存量样板回归；v3 样板存在时追加 Evidence 验收。
+- `references/证据对象规范.md`：三层对象、ID 规范、等级与重要度、定位与独立性要求、错误码表、工作流。
+
+### 变更
+- `scripts/validate_report.py`：新增 `--evidence-dir` 与 `--strict-evidence`；v3 manifest 未提供 Evidence Store 直接报 `EVIDENCE_STORE_MISSING`（P1）；验收报告新增 Evidence 层汇总。**v2 产物行为完全不变**。
+- Validator 版本号 → `2.0.0`。
+
+### 新增校验能力（P0）
+`EVIDENCE_DOC_MISSING`（引用不存在的文档）、`EVIDENCE_HASH_MISMATCH`（本地文件被替换）、`EVIDENCE_PRIMARY_REQUIRED`（确认级结论缺一手来源）、`EVIDENCE_DIRECT_REQUIRED`（已确认订单/收入/量产无 direct 证据）。
+### 新增校验能力（P1）
+`EVIDENCE_LOCATOR_MISSING` / `EVIDENCE_LOCATOR_INVALID` / `EVIDENCE_TEXT_MISSING` / `EVIDENCE_SOURCE_NOT_INDEPENDENT` / `EVIDENCE_NO_SOURCE` / `EVIDENCE_CLAIM_MISSING` / `EVIDENCE_CLAIM_ORPHAN` / `EVIDENCE_SUPPORT_BROKEN` / `EVIDENCE_DUPLICATE_ID` / `EVIDENCE_MODEL_INVALID` / `EVIDENCE_PARSE` / `EVIDENCE_REF_UNKNOWN` / `EVIDENCE_REFS_EMPTY` / `SOURCE_DATE_AFTER_RESEARCH_DATE` / `EVIDENCE_STORE_MISSING` / `MANIFEST_VERSION_UNSUPPORTED` / `MANIFEST_V3_STRUCTURE`。
+
+### 兼容性
+- v2 manifest 仍可读取，Evidence 校验自动降级为「引用完整性 + 一条 P2 说明」；
+- 存量样板（意华股份 002897）在改版后重跑仍为 `PASS / P0=0 / P1=0`。
+
+### Sprint 4a：意华股份 Golden Sample —— 迁移与证据绑定
+- `examples/意华股份002897_样板/` 新增：`research_manifest.v3.json`、`evidence/`（12 Claims / 8 Documents / 15 Links）、`evidence/raw/`（4 份本地原件）、`evidence/attach_plan.json`、`待补原始资料清单.md`。
+- 本地能拿到原件的一律做实：`E006`（2026-09-14 收盘 71.39、前收 64.90）绑 `kline.txt`；`E009`（10 派 5.000 元 / 9694 万）绑 `dividend.txt`；`E010`（意华控股 38.28%）绑 `shareholder.txt`；另用 `profile.txt` 提供股本以复算市值。
+- 严格模式 P1 由 **19 → 15**，`E006` 的定位与摘录缺口已消除。
+- **仍未 PASS**：`E001/E002/E004/E005/E007` 五条 critical Claim 依赖 2026 半年报 PDF 与互动易原文（本地只有到 2025 年报的结构化财务数据），另有 4 份 Document 缺来源地址、1 处日期矛盾（`research_date=2026-09-14` vs 机构预期 `2026-09-15`）。逐条列在 `待补原始资料清单.md`，**未做任何"让它变绿"的修饰**。
+
+### Sprint 5：确定性逻辑下沉
+- `scripts/fetch_stock.py`：
+  - 入口统一调 `core/normalize.py`；无法判断市场时**报错并以退出码 2 结束**（原先是静默兜底继续跑，三大报表与 K 线全空却只留一行提示）；
+  - 新增 `validate_kline_text()`（行数 / 日期 / 收盘价三项校验，纯函数）与 `fetch_kline_with_fallback()`（主源 → 校验 → npm 直取 → 再校验 → 失败标 `DATA_KLINE_UNAVAILABLE`）；
+  - `main()` 改为 `sys.exit(main())`，退出码语义生效。
+- `SKILL.md`：删除「代码前缀判断」与「K 线手工回退」两段操作性说明；`build_kline.py` 用法与列序警告保留。
+
+### 新增脚本与测试
+- `scripts/attach_local_evidence.py`：把本地原件绑到已登记的 Document 上并补 locator / 原文摘录。**两阶段原子执行**（任一条校验失败则整体不落盘），带**防脑补硬闸**——文本类原件的 `evidence_text` 必须是该文件的真实子串，否则拒绝。
+- 测试新增：`tests/test_attach_local_evidence.py`（9）、`tests/test_fetch_stock_deterministic.py`（10）、`tests/integration/test_golden_sample_pipeline.py`（2）。**全量 157 用例通过**。
+
+### 修复
+- `validate_report.py`：v3 manifest 不再误报 `EVIDENCE_EMPTY`——该检查针对 v2 的 `evidence[]`，v3 证据完整性由 `evidence_validator` 负责。
+
+
 ## v2.4 — PDF 导出（无头浏览器）
 
 新增可选的 PDF 交付格式。**核心坑**：ECharts 图表是运行时画在 canvas 上的，纯排版引擎（weasyprint / wkhtmltopdf）不执行 JS，导出来是空白框——必须用真浏览器。

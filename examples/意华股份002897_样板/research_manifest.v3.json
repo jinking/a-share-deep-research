@@ -1,0 +1,208 @@
+{
+  "manifest_version": 3,
+  "meta": {
+    "company": "意华股份",
+    "code": "002897.SZ",
+    "research_date": "2026-09-14",
+    "current_price": 71.39,
+    "shares_billion": 1.9386,
+    "market_cap_billion": 138.4,
+    "evidence_dir": "evidence"
+  },
+  "forecast": {
+    "悲观": [
+      {
+        "year": 2026,
+        "revenue_billion": 60.0,
+        "net_profit_billion": 2.8,
+        "eps": 1.44
+      },
+      {
+        "year": 2027,
+        "revenue_billion": 62.0,
+        "net_profit_billion": 3.3,
+        "eps": 1.7
+      },
+      {
+        "year": 2028,
+        "revenue_billion": 63.0,
+        "net_profit_billion": 3.55,
+        "eps": 1.83
+      }
+    ],
+    "中性": [
+      {
+        "year": 2026,
+        "revenue_billion": 65.0,
+        "net_profit_billion": 3.2,
+        "eps": 1.65
+      },
+      {
+        "year": 2027,
+        "revenue_billion": 76.0,
+        "net_profit_billion": 4.6,
+        "eps": 2.37
+      },
+      {
+        "year": 2028,
+        "revenue_billion": 86.0,
+        "net_profit_billion": 5.8,
+        "eps": 2.99
+      }
+    ],
+    "乐观": [
+      {
+        "year": 2026,
+        "revenue_billion": 72.0,
+        "net_profit_billion": 4.2,
+        "eps": 2.17
+      },
+      {
+        "year": 2027,
+        "revenue_billion": 87.0,
+        "net_profit_billion": 6.2,
+        "eps": 3.2
+      },
+      {
+        "year": 2028,
+        "revenue_billion": 103.0,
+        "net_profit_billion": 8.0,
+        "eps": 4.13
+      }
+    ]
+  },
+  "valuation": {
+    "method": "PE",
+    "target_year": 2026,
+    "linked_metric": "net_profit_billion",
+    "linked_value": 3.2,
+    "multiple": 35,
+    "equity_value_billion": 112.0,
+    "price_per_share": 57.8,
+    "note": "以自建中性 2026E 归母 3.20 亿元 × 成长制造同业中位 35× PE，对应市值 112.0 亿元、目标价 57.8 元（低于报告日 71.39 元约 19%）。不采用 PEG（盈利波动大）与 DCF（现金流受汇兑与营运资本干扰）。悲观 25× / 乐观 40× 见报告第 11 章。"
+  },
+  "sotp": {},
+  "quarterly_tracking": [
+    {
+      "indicator": "营收增速",
+      "latest": "-5.97%（2026H1）",
+      "invalidation_or_signal": "连续两期低于 -5% → 总量逻辑持续减弱"
+    },
+    {
+      "indicator": "归母增速",
+      "latest": "-37.87%（2026H1）",
+      "invalidation_or_signal": "单季归母环比不再改善 → 中性预测需下修"
+    },
+    {
+      "indicator": "扣非增速",
+      "latest": "-38.14%（2026H1）",
+      "invalidation_or_signal": "扣非与归母背离超 5pct → 利润质量失真"
+    },
+    {
+      "indicator": "通讯连接器增速",
+      "latest": "+36.76%（2026H1）",
+      "invalidation_or_signal": "连续两季度低于 15% → AI 算力受益逻辑证伪"
+    },
+    {
+      "indicator": "连接器毛利率",
+      "latest": "24.44%（2026H1，同比 -3.10pct）",
+      "invalidation_or_signal": "跌破 20% → 量价齐升被成本/价格战抵消"
+    },
+    {
+      "indicator": "综合毛利率",
+      "latest": "18.77%（2026H1）",
+      "invalidation_or_signal": "回落至 18% 以下 → 结构优化停滞"
+    },
+    {
+      "indicator": "经营现金流",
+      "latest": "2.70 亿元（2026H1，+159.59%）",
+      "invalidation_or_signal": "净现比持续低于 100% 或转负 → 回款/备货异常"
+    },
+    {
+      "indicator": "财务费用",
+      "latest": "0.93 亿元（2026H1，+219.03%）",
+      "invalidation_or_signal": "单季汇兑损失超 0.5 亿元 → 重估财务费用假设"
+    },
+    {
+      "indicator": "研发费用率",
+      "latest": "4.96%（2026H1）",
+      "invalidation_or_signal": "回落至 4% 以下 → 高速产品迭代投入不足"
+    },
+    {
+      "indicator": "资产负债率",
+      "latest": "57.57%（2026H1）",
+      "invalidation_or_signal": "回升至 60% 以上 → 偿债余量进一步收紧"
+    },
+    {
+      "indicator": "分业务结构",
+      "latest": "连接器 +21.38% / 支架 -30.53%（2026H1）",
+      "invalidation_or_signal": "连接器收入占比不再提升 → 换挡失败"
+    },
+    {
+      "indicator": "股东户数",
+      "latest": "44,376（2026-06-30）",
+      "invalidation_or_signal": "单季再增超 20% → 筹码持续分散、抛压积聚"
+    }
+  ],
+  "final": {
+    "status": "观察",
+    "core_invalidation": [
+      "通讯连接器收入增速连续两个季度低于 15%（当前 36.76%）——AI 算力受益逻辑不成立",
+      "连接器业务毛利率跌破 20%（当前 24.44%，已同比 -3.10pct）——量价齐升被成本或价格战抵消",
+      "液冷 / 224G 至 2026 年报与 2027 中报仍停留在「送样 / 在研」——估值中的期权部分需剔除",
+      "经营现金流由正转负或净现比持续低于 100%（当前 270%）——回款或备货异常",
+      "意华新能源商誉计提减值（任意金额）——光伏侧价值假设需整体重估",
+      "三季报单季归母低于 0.75 亿元（当前 Q1 0.40 亿、Q2 0.60 亿）——全年 3.20 亿中性线难达成"
+    ]
+  },
+  "evidence_refs": [
+    {
+      "claim_id": "E001",
+      "importance": "critical"
+    },
+    {
+      "claim_id": "E002",
+      "importance": "critical"
+    },
+    {
+      "claim_id": "E003",
+      "importance": "normal"
+    },
+    {
+      "claim_id": "E004",
+      "importance": "critical"
+    },
+    {
+      "claim_id": "E005",
+      "importance": "critical"
+    },
+    {
+      "claim_id": "E006",
+      "importance": "critical"
+    },
+    {
+      "claim_id": "E007",
+      "importance": "critical"
+    },
+    {
+      "claim_id": "E008",
+      "importance": "normal"
+    },
+    {
+      "claim_id": "E009",
+      "importance": "normal"
+    },
+    {
+      "claim_id": "E010",
+      "importance": "normal"
+    },
+    {
+      "claim_id": "E011",
+      "importance": "normal"
+    },
+    {
+      "claim_id": "E012",
+      "importance": "normal"
+    }
+  ]
+}

@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/jinking/a-share-deep-research/schemas/document.schema.json",
+  "title": "SourceDocument",
+  "description": "证据来源文档（evidence/documents.jsonl 的一行）",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["document_id", "source_type", "title", "retrieved_at"],
+  "properties": {
+    "document_id": {
+      "type": "string",
+      "pattern": "^DOC_[A-Za-z0-9_]+$",
+      "description": "格式 DOC_<hash前8位>，不使用递增 ID"
+    },
+    "source_type": {
+      "type": "string",
+      "enum": [
+        "annual_report",
+        "interim_report",
+        "quarterly_report",
+        "company_announcement",
+        "exchange_filing",
+        "company_ir",
+        "customer_announcement",
+        "government",
+        "official_database",
+        "broker_report",
+        "media",
+        "social_media",
+        "data_vendor",
+        "third_party_database"
+      ]
+    },
+    "title": { "type": "string", "minLength": 1 },
+    "issuer": { "type": ["string", "null"] },
+    "published_at": {
+      "type": ["string", "null"],
+      "pattern": "^\\d{4}-?\\d{2}-?\\d{2}$",
+      "description": "证据发布时间；晚于研究日期将触发 SOURCE_DATE_AFTER_RESEARCH_DATE"
+    },
+    "retrieved_at": {
+      "type": "string",
+      "minLength": 4,
+      "description": "取回时间（ISO8601，建议带 +08:00）"
+    },
+    "url": { "type": ["string", "null"] },
+    "local_path": {
+      "type": ["string", "null"],
+      "description": "相对 evidence/ 的路径（如 raw/2026H1.pdf）或绝对路径"
+    },
+    "sha256": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9a-fA-F]{64}$"
+    },
+    "source_group": {
+      "type": ["string", "null"],
+      "description": "同一上游来源的转载共享同一 source_group，只算一个独立来源"
+    },
+    "page_count": { "type": ["integer", "null"], "minimum": 1 },
+    "sections": { "type": "array", "items": { "type": "string" } },
+    "migration_status": { "type": ["string", "null"] },
+    "note": { "type": ["string", "null"] }
+  },
+  "anyOf": [
+    { "required": ["url"], "properties": { "url": { "type": "string", "minLength": 1 } } },
+    { "required": ["local_path"], "properties": { "local_path": { "type": "string", "minLength": 1 } } }
+  ]
+}

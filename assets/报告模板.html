@@ -555,7 +555,7 @@ document.getElementById('t8').innerHTML='<table><thead><tr><th>指标</th><th>Y-
  '</tbody></table>';
 
 window.addEventListener('resize',function(){
-  ['ck','c5','c8'].forEach(function(id){
+  ['fsKline','c5','c8'].forEach(function(id){
     var d=document.getElementById(id); var i=echarts.getInstanceByDom(d); if(i){i.resize();}
   });
 });

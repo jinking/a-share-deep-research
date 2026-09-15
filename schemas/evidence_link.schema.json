@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/jinking/a-share-deep-research/schemas/evidence_link.schema.json",
+  "title": "EvidenceLink",
+  "description": "Claim → Document 的带定位证据链接（evidence/evidence_links.jsonl 的一行）",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["evidence_id", "claim_id", "document_id", "support_type"],
+  "properties": {
+    "evidence_id": {
+      "type": "string",
+      "pattern": "^EV_[A-Za-z0-9_]+$",
+      "description": "建议格式 EV_<claim_id>_<序号>"
+    },
+    "claim_id": { "type": "string", "minLength": 1 },
+    "document_id": { "type": "string", "pattern": "^DOC_[A-Za-z0-9_]+$" },
+    "page": { "type": ["integer", "null"], "minimum": 1 },
+    "section": { "type": ["string", "null"] },
+    "paragraph": { "type": ["string", "null"] },
+    "table": { "type": ["string", "null"] },
+    "evidence_text": {
+      "type": ["string", "null"],
+      "description": "原文摘录；critical Claim 必填，供人工复核"
+    },
+    "support_type": {
+      "type": "string",
+      "enum": ["direct", "partial", "contradict", "context"]
+    },
+    "confidence": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+    "migration_status": { "type": ["string", "null"] },
+    "note": { "type": ["string", "null"] }
+  }
+}

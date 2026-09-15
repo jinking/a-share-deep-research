@@ -1,0 +1,389 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""Evidence Validator（v3.0 §8）。
+
+职责单一：检查 Evidence Store 与 manifest 的证据绑定关系，输出 P0/P1/P2 结论。
+禁止：自动补 Claim、自动改证据等级、自动修正内容、写回任何产物（§19.2）。
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Any, Callable, Dict, Iterable, List, Optional
+
+from ..evidence.hasher import sha256_file
+from ..evidence.independence import describe_groups, group_documents, shared_upstream_hint
+from ..evidence.locator import describe_locator, validate_locator
+from ..issue import Issue
+from ..models.base import clean_str, parse_date
+from ..models.claim import PRIMARY_REQUIRED_LEVELS, STRICT_MATERIALITIES, Claim
+from ..models.document import SourceDocument
+from ..models.evidence import EvidenceLink
+from ..models.research_state import ResearchState
+from .codes import severity_of
+
+__all__ = ["Emit", "validate_evidence", "validate_evidence_store"]
+
+Emit = Callable[..., None]
+
+# 仅用于「文档缺失时」判断是否一手来源（缺失必然不是），不参与任何写入。
+_MISSING_DOC = SourceDocument(
+    document_id="DOC_missing", source_type="media", title="(missing)", retrieved_at="1970-01-01"
+)
+
+
+def _emit(emit: Emit, severity: str, code: str, message: str, detail: str = "") -> None:
+    emit(severity, code, message, detail)
+
+
+def _emit_issue(emit: Emit, issue: Issue) -> None:
+    _emit(emit, issue.severity, issue.code, issue.message, issue.detail)
+
+
+def _check_documents(
+    state: ResearchState,
+    *,
+    emit: Emit,
+    base_dir: Optional[Path],
+    research_date,
+) -> None:
+    for doc in state.documents.values():
+        # 1) 可追溯入口
+        if not doc.has_source:
+            _emit(
+                emit,
+                severity_of("EVIDENCE_NO_SOURCE"),
+                "EVIDENCE_NO_SOURCE",
+                f"Document 既无 url 也无 local_path: {doc.document_id}",
+                doc.describe(),
+            )
+
+        # 2) 原始版本是否被替换
+        if doc.local_path:
+            path = Path(doc.local_path)
+            if base_dir is not None and not path.is_absolute():
+                path = Path(base_dir) / path
+            if doc.sha256:
+                if not path.is_file():
+                    _emit(
+                        emit,
+                        severity_of("EVIDENCE_HASH_UNVERIFIED"),
+                        "EVIDENCE_HASH_UNVERIFIED",
+                        f"登记了 sha256 但本地文件缺失，无法证明未被替换: {doc.document_id}",
+                        f"local_path={doc.local_path}；解析路径={path}",
+                    )
+                else:
+                    actual = sha256_file(path)
+                    if actual.lower() != str(doc.sha256).strip().lower():
+                        _emit(
+                            emit,
+                            severity_of("EVIDENCE_HASH_MISMATCH"),
+                            "EVIDENCE_HASH_MISMATCH",
+                            f"Document 本地文件 hash 与登记值不同: {doc.document_id}",
+                            f"登记={doc.sha256}；实际={actual}；文件={path}",
+                        )
+            else:
+                _emit(
+                    emit,
+                    severity_of("EVIDENCE_HASH_UNVERIFIED"),
+                    "EVIDENCE_HASH_UNVERIFIED",
+                    f"Document 未登记 sha256，无法校验原始版本: {doc.document_id}",
+                    f"local_path={doc.local_path}",
+                )
+        elif doc.url:
+            _emit(
+                emit,
+                severity_of("EVIDENCE_HASH_UNVERIFIED"),
+                "EVIDENCE_HASH_UNVERIFIED",
+                f"Document 仅有 URL 无本地副本，无法校验原始版本: {doc.document_id}",
+                doc.url,
+            )
+
+        # 3) 时间一致性
+        if research_date is not None and doc.published_date is not None:
+            if doc.published_date > research_date:
+                _emit(
+                    emit,
+                    severity_of("SOURCE_DATE_AFTER_RESEARCH_DATE"),
+                    "SOURCE_DATE_AFTER_RESEARCH_DATE",
+                    f"证据发布时间晚于研究日期: {doc.document_id}",
+                    f"published_at={doc.published_at}；research_date={research_date}",
+                )
+
+
+def _claim_level_policy(
+    state: ResearchState,
+    claim: Claim,
+    links: List[EvidenceLink],
+    *,
+    emit: Emit,
+) -> None:
+    docs = [state.documents.get(l.document_id) for l in links]
+    docs = [d for d in docs if d is not None]
+
+    # 确认级：必须有一手来源
+    if claim.level in PRIMARY_REQUIRED_LEVELS and claim.materiality in STRICT_MATERIALITIES:
+        if not any(d.is_primary for d in docs):
+            _emit(
+                emit,
+                severity_of("EVIDENCE_PRIMARY_REQUIRED"),
+                "EVIDENCE_PRIMARY_REQUIRED",
+                f"确认级 Claim 缺少一手来源: {claim.claim_id}",
+                f"level={claim.level}；现有来源={[d.source_type for d in docs] or '无'}",
+            )
+
+    # 已确认订单/收入/量产等：必须存在 direct 证据
+    if claim.requires_direct:
+        direct = [l for l in links if l.support_type == "direct"]
+        direct_primary = [
+            l
+            for l in direct
+            if (state.documents.get(l.document_id) or _MISSING_DOC).is_primary
+        ]
+        if not direct:
+            _emit(
+                emit,
+                severity_of("EVIDENCE_DIRECT_REQUIRED"),
+                "EVIDENCE_DIRECT_REQUIRED",
+                f"{claim.level} 必须有 support_type=direct 的证据: {claim.claim_id}",
+                f"现有 support_type={[l.support_type for l in links] or '无'}",
+            )
+        elif not direct_primary:
+            source_types = [
+                state.documents[l.document_id].source_type
+                if l.document_id in state.documents
+                else "文档缺失"
+                for l in direct
+            ]
+            _emit(
+                emit,
+                severity_of("EVIDENCE_DIRECT_REQUIRED"),
+                "EVIDENCE_DIRECT_REQUIRED",
+                f"{claim.level} 的 direct 证据不来自一手来源: {claim.claim_id}",
+                f"direct 证据来源={source_types}",
+            )
+
+    # critical 额外要求：定位 + 可审查摘录
+    if claim.materiality == "critical":
+        if not any(l.has_locator for l in links):
+            _emit(
+                emit,
+                severity_of("EVIDENCE_LOCATOR_MISSING"),
+                "EVIDENCE_LOCATOR_MISSING",
+                f"critical Claim 的证据没有任何定位: {claim.claim_id}",
+                f"evidence={[l.evidence_id for l in links]}；需要 page/section/paragraph/table 至少一种",
+            )
+        if not any(clean_str(l.evidence_text) for l in links):
+            _emit(
+                emit,
+                severity_of("EVIDENCE_TEXT_MISSING"),
+                "EVIDENCE_TEXT_MISSING",
+                f"critical Claim 缺少可供人工审查的证据摘录: {claim.claim_id}",
+                "evidence_text 为必填（原文摘录，便于人工复核）",
+            )
+
+    # 定位越界 / 章节不存在
+    for link in links:
+        doc = state.documents.get(link.document_id)
+        problems = validate_locator(link, doc)
+        hard = [p for p in problems if not p.startswith("page / section")]
+        if hard:
+            _emit(
+                emit,
+                severity_of("EVIDENCE_LOCATOR_INVALID"),
+                "EVIDENCE_LOCATOR_INVALID",
+                f"证据定位非法: {link.evidence_id}",
+                f"{describe_locator(link)}；问题={hard}",
+            )
+
+
+def _check_independence(
+    state: ResearchState, claim: Claim, links: List[EvidenceLink], *, emit: Emit
+) -> None:
+    if not claim.requires_two_sources:
+        return
+    docs = [d for d in (state.documents.get(l.document_id) for l in links) if d is not None]
+    groups = group_documents(docs)
+    if len(groups) >= 2:
+        return
+    detail = describe_groups(groups)
+    hint = shared_upstream_hint(groups)
+    _emit(
+        emit,
+        severity_of("EVIDENCE_SOURCE_NOT_INDEPENDENT"),
+        "EVIDENCE_SOURCE_NOT_INDEPENDENT",
+        f"需要双源确认的 Claim 不满足独立性: {claim.claim_id}",
+        f"独立来源数={len(groups)}；{detail}" + (f"；{hint}" if hint else ""),
+    )
+
+
+def _check_claims(state: ResearchState, *, emit: Emit) -> None:
+    for claim in state.claims.values():
+        links = state.links_of(claim.claim_id)
+        alive = [l for l in links if l.document_id in state.documents]
+
+        if claim.materiality in STRICT_MATERIALITIES and not links:
+            _emit(
+                emit,
+                severity_of("EVIDENCE_CLAIM_ORPHAN"),
+                "EVIDENCE_CLAIM_ORPHAN",
+                f"{claim.materiality} Claim 没有任何证据绑定: {claim.claim_id}",
+                claim.describe(),
+            )
+
+        if claim.status == "supported" and not alive:
+            _emit(
+                emit,
+                severity_of("EVIDENCE_SUPPORT_BROKEN"),
+                "EVIDENCE_SUPPORT_BROKEN",
+                f"Claim 标记为 supported 但支持证据全部失效: {claim.claim_id}",
+                f"links={[l.evidence_id for l in links]}；有效链接={len(alive)}",
+            )
+
+        _claim_level_policy(state, claim, links, emit=emit)
+        _check_independence(state, claim, links, emit=emit)
+
+
+def _check_manifest_refs(
+    state: ResearchState, manifest: Dict[str, Any], *, emit: Emit
+) -> None:
+    refs = manifest.get("evidence_refs")
+    if refs is None:
+        _emit(
+            emit,
+            severity_of("EVIDENCE_REFS_EMPTY"),
+            "EVIDENCE_REFS_EMPTY",
+            "v3 manifest 未声明 evidence_refs（关键 Claim 引用）",
+            "请在 manifest 中登记 claim_id + importance",
+        )
+        return
+    if not isinstance(refs, list) or not refs:
+        _emit(
+            emit,
+            severity_of("EVIDENCE_REFS_EMPTY"),
+            "EVIDENCE_REFS_EMPTY",
+            "v3 manifest 的 evidence_refs 为空",
+            f"当前值={refs!r}",
+        )
+        return
+
+    for i, ref in enumerate(refs, start=1):
+        if not isinstance(ref, dict):
+            _emit(
+                emit,
+                severity_of("MANIFEST_EVIDENCE_REFS_FORMAT"),
+                "MANIFEST_EVIDENCE_REFS_FORMAT",
+                f"evidence_refs 第 {i} 项不是对象",
+                repr(ref)[:120],
+            )
+            continue
+        claim_id = clean_str(ref.get("claim_id"))
+        importance = clean_str(ref.get("importance"))
+        if not claim_id:
+            _emit(
+                emit,
+                severity_of("MANIFEST_EVIDENCE_REFS_FORMAT"),
+                "MANIFEST_EVIDENCE_REFS_FORMAT",
+                f"evidence_refs 第 {i} 项缺少 claim_id",
+                repr(ref)[:120],
+            )
+            continue
+        claim = state.claims.get(claim_id)
+        if claim is None:
+            _emit(
+                emit,
+                severity_of("EVIDENCE_REF_UNKNOWN"),
+                "EVIDENCE_REF_UNKNOWN",
+                f"manifest 引用了不存在的 Claim: {claim_id}",
+                f"evidence_refs[{i}]；claims.jsonl 中无此 claim_id",
+            )
+            continue
+        if importance and importance != claim.materiality:
+            _emit(
+                emit,
+                severity_of("EVIDENCE_IMPORTANCE_MISMATCH"),
+                "EVIDENCE_IMPORTANCE_MISMATCH",
+                f"manifest importance 与 Claim materiality 不一致: {claim_id}",
+                f"manifest={importance}；claims.jsonl={claim.materiality}",
+            )
+
+
+def validate_evidence(
+    state: ResearchState,
+    *,
+    emit: Emit,
+    manifest: Optional[Dict[str, Any]] = None,
+    research_date: Optional[str] = None,
+    strict: bool = True,
+    store_issues: Iterable[Issue] = (),
+    documents_base_dir: Optional[str] = None,
+) -> Dict[str, int]:
+    """校验一个研究的 Evidence 层。
+
+    strict=False 时只做引用完整性（v2 兼容模式），语义校验降级为一条 P2 说明。
+    """
+    summary: Dict[str, int] = {"P0": 0, "P1": 0, "P2": 0}
+
+    def counting_emit(severity: str, code: str, message: str, detail: str = "") -> None:
+        summary[severity] = summary.get(severity, 0) + 1
+        emit(severity, code, message, detail)
+
+    for issue in list(store_issues):
+        _emit(counting_emit, issue.severity, issue.code, issue.message, issue.detail)
+    for issue in state.check_integrity():
+        _emit(counting_emit, issue.severity, issue.code, issue.message, issue.detail)
+
+    if not strict:
+        _emit(
+            counting_emit,
+            severity_of("EVIDENCE_STORE_SKIPPED"),
+            "EVIDENCE_STORE_SKIPPED",
+            "兼容模式：只完成 Evidence Store 引用完整性检查，未执行证据真实性/等级校验",
+            "v2 manifest 不承载 Evidence 绑定关系；如需完整校验请迁移到 manifest_version=3",
+        )
+        return summary
+
+    base_dir = Path(documents_base_dir) if documents_base_dir else None
+
+    if research_date is None:
+        research_date = state.research_date
+    if research_date is None and manifest:
+        research_date = clean_str((manifest.get("meta") or {}).get("research_date"))
+    if isinstance(research_date, str):
+        research_date = parse_date(research_date)
+
+    _check_documents(
+        state, emit=counting_emit, base_dir=base_dir, research_date=research_date
+    )
+    _check_claims(state, emit=counting_emit)
+    if manifest:
+        _check_manifest_refs(state, manifest, emit=counting_emit)
+
+    _emit(
+        counting_emit,
+        "INFO",
+        "EVIDENCE_SUMMARY",
+        "Evidence 校验完成",
+        f"documents={len(state.documents)}；claims={len(state.claims)}；links={len(state.links)}",
+    )
+    return summary
+
+
+def validate_evidence_store(
+    state: ResearchState,
+    *,
+    emit: Emit,
+    research_date: Optional[str] = None,
+    documents_base_dir: Optional[str] = None,
+    store_issues: Iterable[Issue] = (),
+) -> Dict[str, int]:
+    """只校验 Evidence Store 本身（不需要 manifest / 报告）。"""
+    return validate_evidence(
+        state,
+        emit=emit,
+        manifest=None,
+        research_date=research_date,
+        strict=True,
+        store_issues=store_issues,
+        documents_base_dir=documents_base_dir,
+    )

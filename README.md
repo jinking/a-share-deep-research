@@ -28,18 +28,31 @@ a-share-stock-deep-research/
 │   ├── westock_npm.py            #   core：npm 包
 │   ├── westock_cli.py            #   enhanced：Go CLI
 │   └── neodata.py                #   search：平台检索 + 凭证管理
+├── core/                         # v3.0 核心包（不依赖 scripts/providers，可独立单测）
+│   ├── normalize.py              #   股票代码归一化（无法判断时 raise，不静默兜底）
+│   ├── issue.py                  #   验收问题的中性载体
+│   ├── models/                   #   SourceDocument / Claim / EvidenceLink / ResearchState
+│   ├── evidence/                 #   store（JSONL 证据库）/ hasher / locator / independence
+│   └── validation/               #   evidence_validator / manifest_validator / codes（错误码目录）
+├── schemas/                      # document / claim / evidence_link / research_manifest.v3
+├── tests/                        # pytest 回归（validator / providers / evidence / integration）
 ├── scripts/
 │   ├── fetch_stock.py            #   三源协同取数 + 搜索清单
 │   ├── cross_validate.py         #   搜索值与结构化值交叉验证
 │   ├── validate_report.py        #   独立产物验收器（结构/数学/模型口径/证据层级）
+│   ├── build_evidence.py         #   v3.0 证据库构建与自检（init/register/verify/validate/show）
+│   ├── attach_local_evidence.py  #   v3.0 绑定本地原件 + 补定位/摘录（防脑补硬闸）
+│   ├── validate_evidence.py      #   v3.0 证据库独立验收（不需要报告与 manifest）
+│   ├── migrate_manifest_v2_to_v3.py  # v2 → v3 迁移（产物标记 needs_verification）
 │   ├── build_kline.py            #   raw/kline.txt → 研报内联 JS 数组
 │   ├── apply_firstscreen.py      #   注入「V1 版式首屏」
 │   ├── stamp_report.py           #   生成时间盖章（精确到秒，幂等）
 │   ├── html_to_pdf.py            #   HTML 研报 → PDF（无头浏览器，引擎自动降级）
 │   └── install_westock_cli.sh    #   安装 Go CLI 到技能私有目录
-├── references/                   # 研究 SOP、证据规则、估值适配、HTML 规范、产物验收规则、案例
+├── references/                   # 研究 SOP、证据规则、证据对象规范、估值适配、HTML 规范、产物验收规则、案例
 ├── assets/                       # 报告模板（.md 内容结构 + .html 统一版式）+ manifest 模板
 ├── examples/                     # 示例产物：意华股份成品报告 + 样板（manifest + 验收结果）
+├── .github/workflows/test.yml    # CI：pytest + 存量样板回归（+ v3 证据验收）
 └── tools/bin/                    # 私有二进制（安装后生成，可随时删除；不入库，见 .gitignore）
 ```
 
@@ -136,6 +149,68 @@ python3 scripts/validate_report.py old_report.html --report-only --out validatio
 ```
 
 > `--report-only` 的通过**不视为正式验收通过**。详细等级与阻断规则见 `references/产物验收规则.md`。
+
+## 证据层：Document → Claim → Evidence（v3.0）
+
+v2 的 `evidence[]` 只是一段描述，Validator 无法判断「这份文档是否真实存在、第 12 页是否真写了这句话、所谓双源是否其实同源」。v3.0 把证据变成**可机器校验的对象**：
+
+```text
+Research Conclusion → Claim → EvidenceLink → SourceDocument → page/section/paragraph → 原文
+```
+
+```text
+research_sz002897/
+└── evidence/
+    ├── documents.jsonl        # DOC_<指纹前8位>，含 source_type / source_group / sha256
+    ├── claims.jsonl           # C_FIN_REV_2026H1 这类语义稳定 ID
+    ├── evidence_links.jsonl   # 定位 + 原文摘录 + support_type
+    └── raw/                   # 原始证据文件
+```
+
+```bash
+# 建库 / 登记原始文档（自动复制进 raw/ 并算 sha256）
+python3 scripts/build_evidence.py init     research_sz002897/evidence
+python3 scripts/build_evidence.py register research_sz002897/evidence \
+  --file ~/Downloads/2026H1.pdf --type interim_report \
+  --title "意华股份2026年半年度报告" --published-at 2026-08-25 \
+  --url "https://www.cninfo.com.cn/..." --group CNINFO_002897_2026H1 --pages 168
+
+# 复核证据是否被事后替换 / 只校验证据库
+python3 scripts/build_evidence.py verify research_sz002897/evidence
+python3 scripts/validate_evidence.py     research_sz002897/evidence
+
+# 把本地已有原件绑到已登记的 Document 上，并补 locator + 原文摘录
+# 两阶段原子执行；文本类原件的 evidence_text 必须是文件真实子串，否则整体拒绝
+python3 scripts/attach_local_evidence.py research_sz002897/evidence --plan attach_plan.json
+python3 scripts/attach_local_evidence.py research_sz002897/evidence --plan attach_plan.json --dry-run
+
+# v3 正式验收（报告 + v3 manifest + 证据库）
+python3 scripts/validate_report.py report.html \
+  --manifest research_manifest.v3.json \
+  --evidence-dir research_sz002897/evidence \
+  --out validation
+
+# v2 → v3 迁移（产物一律标记 needs_verification，绝不自动宣称「已验证」）
+python3 scripts/migrate_manifest_v2_to_v3.py research_manifest.json \
+  --out research_manifest.v3.json --evidence-dir research_sz002897/evidence --critical E001,E007
+```
+
+v3 新增的 P0 拦截：`EVIDENCE_DOC_MISSING`（文档不存在）、`EVIDENCE_HASH_MISMATCH`（文件被替换）、`EVIDENCE_PRIMARY_REQUIRED`（确认级缺一手来源）、`EVIDENCE_DIRECT_REQUIRED`（已确认订单/收入/量产无 direct 证据）。
+完整错误码、等级与 materiality 规则、来源独立性判定见 **`references/证据对象规范.md`**；Schema 见 `schemas/`。
+
+**兼容性**：v2 manifest 继续可用，证据校验自动降级为「引用完整性 + 一条 P2 说明」。
+
+**迁移后的典型形态**：`migrate_manifest_v2_to_v3.py` 只做结构化搬运，产物必然带 `EVIDENCE_NO_SOURCE`
+（Document 既无 url 也无 local_path）以及 critical Claim 的 `EVIDENCE_LOCATOR_MISSING` / `EVIDENCE_TEXT_MISSING`。
+这是**预期中间态，不是故障**——接着用 `attach_local_evidence.py` 把手上已有的原件绑上去；
+绑不上的就构成了「待补原始资料清单」。示例见 `examples/意华股份002897_样板/待补原始资料清单.md`。
+
+开发与测试：
+
+```bash
+pip install -r requirements-dev.txt
+pytest -q          # 157 个用例：模型/Store/归一化/证据错误码/独立性/manifest v3/迁移/Schema/绑定原件/确定性取数/端到端
+```
 
 ## 生成时间与文件名（精确到秒）
 

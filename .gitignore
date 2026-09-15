@@ -11,6 +11,7 @@ __pycache__/
 .venv/
 venv/
 .pytest_cache/
+.pytest-tmp/
 
 # === 本地凭证（永不入库）===
 .env
@@ -22,7 +23,11 @@ venv/
 !assets/research_manifest.template.json
 
 # === 运行产物 ===
-raw/
+# fetch_stock.py 的取数输出目录（research_<code>/raw/）不入库。
+# ⚠️ 不要写成裸 `raw/`：那会把证据原件 examples/**/evidence/raw/ 一并排除，
+#    导致他人在 clone 后跑证据校验直接报 EVIDENCE_DOC_MISSING(P0)——证据链断裂。
+research_*/raw/
+/raw/
 *.log
 
 # === macOS / 编辑器 ===

@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/jinking/a-share-deep-research/schemas/research_manifest.v3.schema.json",
+  "title": "research_manifest v3",
+  "description": "可追溯研究清单：只保存研究模型与关键 Claim 引用，完整证据对象存放在 Evidence Store",
+  "type": "object",
+  "required": ["manifest_version", "meta", "forecast", "valuation", "final", "evidence_refs"],
+  "properties": {
+    "manifest_version": { "const": 3 },
+    "meta": {
+      "type": "object",
+      "required": ["company", "code", "research_date", "current_price", "shares_billion", "market_cap_billion"],
+      "properties": {
+        "company": { "type": "string" },
+        "code": { "type": "string" },
+        "research_date": { "type": "string", "pattern": "^\\d{4}-?\\d{2}-?\\d{2}$" },
+        "current_price": { "type": "number", "exclusiveMinimum": 0 },
+        "shares_billion": { "type": "number", "exclusiveMinimum": 0 },
+        "market_cap_billion": { "type": "number", "exclusiveMinimum": 0 },
+        "evidence_dir": { "type": "string", "description": "Evidence Store 相对路径，通常为 evidence" }
+      }
+    },
+    "forecast": {
+      "type": "object",
+      "description": "三情景 × 三年；结构与 v2 一致，数学一致性由 validate_report.py 校验",
+      "additionalProperties": {
+        "type": "array",
+        "minItems": 3,
+        "maxItems": 3,
+        "items": {
+          "type": "object",
+          "required": ["year", "revenue_billion", "net_profit_billion", "eps"],
+          "properties": {
+            "year": { "type": "integer" },
+            "revenue_billion": { "type": "number" },
+            "net_profit_billion": { "type": "number" },
+            "eps": { "type": "number" }
+          }
+        }
+      }
+    },
+    "valuation": {
+      "type": "object",
+      "required": ["method", "target_year", "equity_value_billion", "price_per_share"],
+      "properties": {
+        "method": { "type": "string" },
+        "target_year": { "type": "integer" },
+        "linked_metric": { "type": ["string", "null"] },
+        "linked_value": { "type": ["number", "null"] },
+        "multiple": { "type": ["number", "null"] },
+        "equity_value_billion": { "type": "number" },
+        "price_per_share": { "type": "number" },
+        "note": { "type": ["string", "null"] }
+      }
+    },
+    "sotp": { "type": ["object", "null"] },
+    "evidence_refs": {
+      "type": "array",
+      "minItems": 1,
+      "description": "关键 Claim 引用；完整证据对象见 evidence/claims.jsonl 与 evidence_links.jsonl",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["claim_id", "importance"],
+        "properties": {
+          "claim_id": { "type": "string" },
+          "importance": { "type": "string", "enum": ["critical", "major", "normal"] }
+        }
+      }
+    },
+    "quarterly_tracking": { "type": "array" },
+    "final": {
+      "type": "object",
+      "required": ["status", "core_invalidation"],
+      "properties": {
+        "status": { "type": "string" },
+        "core_invalidation": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}

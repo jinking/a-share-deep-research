@@ -1,0 +1,31 @@
+{
+  "manifest_version": 3,
+  "meta": {
+    "company": "测试公司",
+    "code": "002897.SZ",
+    "research_date": "2026-09-14",
+    "current_price": 71.39,
+    "shares_billion": 1.9386,
+    "market_cap_billion": 138.4
+  },
+  "forecast": {
+    "中性": [
+      { "year": 2026, "revenue_billion": 65.0, "net_profit_billion": 3.2, "eps": 1.65 },
+      { "year": 2027, "revenue_billion": 76.0, "net_profit_billion": 4.6, "eps": 2.37 },
+      { "year": 2028, "revenue_billion": 86.0, "net_profit_billion": 5.8, "eps": 2.99 }
+    ]
+  },
+  "valuation": {
+    "method": "PE",
+    "target_year": 2026,
+    "linked_metric": "net_profit_billion",
+    "linked_value": 3.2,
+    "multiple": 35,
+    "equity_value_billion": 112.0,
+    "price_per_share": 57.8
+  },
+  "final": {
+    "status": "观察",
+    "core_invalidation": ["证伪1", "证伪2", "证伪3"]
+  }
+}

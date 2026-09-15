@@ -10,6 +10,12 @@ A股个股深度研究产物独立检查器（Research Artifact Validator）
       --manifest research_manifest.json \
       --out validation
 
+v3 产物（manifest_version = 3）必须同时提供 Evidence Store：
+    python3 scripts/validate_report.py report.html \
+      --manifest research_manifest.json \
+      --evidence-dir research_sz002897/evidence \
+      --out validation
+
 只检查旧报告结构（无法完成数学/证据强校验）：
     python3 scripts/validate_report.py old_report.html --report-only --out validation
 
@@ -31,8 +37,19 @@ from dataclasses import dataclass, asdict
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+_ROOT = Path(__file__).resolve().parents[1]
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
 
-VERSION = "1.0.0"
+from core.evidence import EvidenceStore, EvidenceStoreError  # noqa: E402
+from core.validation import (  # noqa: E402
+    detect_manifest_version,
+    validate_evidence,
+    validate_manifest_v3,
+)
+
+VERSION = "2.0.0"
+
 SCENARIO_ALIASES = {
     "bear": "悲观", "pessimistic": "悲观", "悲观": "悲观",
     "base": "中性", "neutral": "中性", "中性": "中性",
@@ -327,8 +344,13 @@ def validate_manifest(data: Dict[str, Any], findings: List[Finding]):
                     fail(findings, "P0", "SOTP_FORECAST_MISMATCH", "SOTP 对账利润与同年中性盈利预测不一致", f"SOTP={reconciled}亿，预测={fc_np}亿")
 
     # E. 证据层级：确认级结论必须有一手源
+    # v3 manifest 用 evidence_refs + Evidence Store 承载证据，不再保留 v2 的 evidence[]；
+    # 该场景下的证据完整性由 core/validation/evidence_validator.py 负责
+    # （EVIDENCE_REFS_EMPTY / EVIDENCE_STORE_MISSING），此处不得重复误报。
+    _version = data.get("manifest_version")
+    _is_v3 = _version == 3 or (_version is None and "evidence_refs" in data)
     evidence = data.get("evidence") or []
-    if not evidence:
+    if not evidence and not _is_v3:
         fail(findings, "P1", "EVIDENCE_EMPTY", "manifest 未提供 evidence 证据清单")
     for i, ev in enumerate(evidence):
         if not isinstance(ev, dict):
@@ -362,6 +384,75 @@ def validate_manifest(data: Dict[str, Any], findings: List[Finding]):
         fail(findings, "P1", "FINAL_INVALIDATION", "核心证伪条件建议3–7个", f"当前={len(invalid)}")
 
 
+def _emit_into(findings: List[Finding]):
+    """把 core 层的 (severity, code, message, detail) 适配成 Finding。"""
+
+    def emit(severity: str, code: str, message: str, detail: str = "") -> None:
+        fail(findings, severity, code, message, detail)
+
+    return emit
+
+
+def validate_manifest_layer(data: Dict[str, Any], findings: List[Finding]) -> int:
+    """v2 / v3 manifest 结构校验；返回识别到的 manifest_version。"""
+    version = detect_manifest_version(data)
+    validate_manifest_v3(data, emit=_emit_into(findings), version=version)
+    return version
+
+
+def validate_evidence_layer(
+    findings: List[Finding],
+    *,
+    manifest_data: Optional[Dict[str, Any]],
+    evidence_dir: Optional[str],
+    force_strict: bool = False,
+) -> Optional[Dict[str, int]]:
+    """Evidence 层校验。
+
+    - 未提供 --evidence-dir：v3 manifest 直接报错（无法验证 Claim 绑定）；v2 保持原行为。
+    - 提供 --evidence-dir：v3（或显式 --strict-evidence）执行完整证据校验，
+      v2 走兼容模式，只做引用完整性。
+    """
+    version = detect_manifest_version(manifest_data) if manifest_data else 2
+
+    if evidence_dir is None:
+        if version >= 3:
+            fail(
+                findings,
+                "P1",
+                "EVIDENCE_STORE_MISSING",
+                "v3 manifest 未提供 --evidence-dir",
+                "缺少 Evidence Store 时无法验证 Claim → Document → 定位 的绑定关系",
+            )
+        return None
+
+    path = Path(evidence_dir)
+    if not path.exists():
+        fail(findings, "P0", "EVIDENCE_STORE_MISSING", "Evidence Store 目录不存在", str(path))
+        return None
+
+    try:
+        store = EvidenceStore.open(path)
+    except EvidenceStoreError as exc:
+        fail(findings, "P0", "EVIDENCE_STORE_MISSING", "Evidence Store 无法读取", str(exc))
+        return None
+
+    research_date = None
+    if manifest_data:
+        research_date = (manifest_data.get("meta") or {}).get("research_date")
+
+    strict = force_strict or version >= 3
+    return validate_evidence(
+        store.state(research_date=research_date),
+        emit=_emit_into(findings),
+        manifest=manifest_data,
+        research_date=research_date,
+        strict=strict,
+        store_issues=store.issues,
+        documents_base_dir=str(path),
+    )
+
+
 def summarize(findings: List[Finding]) -> Dict[str, int]:
     out = {"P0": 0, "P1": 0, "P2": 0, "INFO": 0}
     for f in findings:
@@ -369,7 +460,14 @@ def summarize(findings: List[Finding]) -> Dict[str, int]:
     return out
 
 
-def write_outputs(outdir: Path, report: Path, manifest: Optional[Path], findings: List[Finding]):
+def write_outputs(
+    outdir: Path,
+    report: Path,
+    manifest: Optional[Path],
+    findings: List[Finding],
+    evidence_dir: Optional[str] = None,
+    evidence_summary: Optional[Dict[str, int]] = None,
+):
     outdir.mkdir(parents=True, exist_ok=True)
     stats = summarize(findings)
     passed = stats.get("P0", 0) == 0 and stats.get("P1", 0) == 0
@@ -377,6 +475,8 @@ def write_outputs(outdir: Path, report: Path, manifest: Optional[Path], findings
         "validator_version": VERSION,
         "report": str(report),
         "manifest": str(manifest) if manifest else None,
+        "evidence_dir": evidence_dir,
+        "evidence_summary": evidence_summary,
         "status": "PASS" if passed else "FAIL",
         "summary": stats,
         "findings": [asdict(x) for x in findings],
@@ -389,8 +489,14 @@ def write_outputs(outdir: Path, report: Path, manifest: Optional[Path], findings
         f"- Validator: v{VERSION}",
         f"- 研究报告: `{report}`",
         f"- Manifest: `{manifest if manifest else '无（report-only）'}`",
+        f"- Evidence Store: `{evidence_dir or '无'}`",
         f"- **最终状态: {'PASS' if passed else 'FAIL'}**",
         f"- P0: {stats.get('P0',0)} ｜ P1: {stats.get('P1',0)} ｜ P2: {stats.get('P2',0)} ｜ INFO: {stats.get('INFO',0)}",
+        (
+            f"- Evidence 层: P0={evidence_summary.get('P0',0)} ｜ P1={evidence_summary.get('P1',0)} ｜ P2={evidence_summary.get('P2',0)}"
+            if evidence_summary
+            else "- Evidence 层: 未执行（未提供 --evidence-dir）"
+        ),
         "",
         "## 验收结果",
         "",
@@ -418,6 +524,8 @@ def main():
     ap = argparse.ArgumentParser(description="A股个股深度研究产物独立检查器")
     ap.add_argument("report", help="研究报告（HTML / Markdown）")
     ap.add_argument("--manifest", help="结构化 research_manifest.json（正式研究强制）")
+    ap.add_argument("--evidence-dir", dest="evidence_dir", help="v3 Evidence Store 目录（含 documents.jsonl / claims.jsonl / evidence_links.jsonl）")
+    ap.add_argument("--strict-evidence", dest="strict_evidence", action="store_true", help="即使 manifest 是 v2，也执行完整证据校验")
     ap.add_argument("--report-only", action="store_true", help="只检查旧报告文本；不能证明模型数学/证据一致性")
     ap.add_argument("--out", default="validation", help="验收报告输出目录，默认 validation")
     args = ap.parse_args()
@@ -439,6 +547,7 @@ def main():
     raw, text = report_text(report)
     validate_report_structure(report, raw, text, findings, strict_manifest_expected=not args.report_only)
 
+    manifest_data: Optional[Dict[str, Any]] = None
     if manifest_path is not None:
         try:
             data = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -446,14 +555,34 @@ def main():
             fail(findings, "P0", "MANIFEST_PARSE", "manifest JSON 无法解析", str(e))
             data = {}
         if data:
+            manifest_data = data
             validate_manifest(data, findings)
+            validate_manifest_layer(data, findings)
 
-    passed, payload = write_outputs(Path(args.out), report, manifest_path, findings)
+    evidence_summary = validate_evidence_layer(
+        findings,
+        manifest_data=manifest_data,
+        evidence_dir=args.evidence_dir,
+        force_strict=args.strict_evidence,
+    )
+
+    passed, payload = write_outputs(
+        Path(args.out),
+        report,
+        manifest_path,
+        findings,
+        evidence_dir=args.evidence_dir,
+        evidence_summary=evidence_summary,
+    )
     stats = payload["summary"]
     print("=" * 72)
     print(f"Research Artifact Validator v{VERSION}")
     print(f"状态: {'✅ PASS' if passed else '❌ FAIL'}")
     print(f"P0={stats.get('P0',0)}  P1={stats.get('P1',0)}  P2={stats.get('P2',0)}  INFO={stats.get('INFO',0)}")
+    if evidence_summary is not None:
+        print(
+            f"Evidence 层: P0={evidence_summary.get('P0',0)}  P1={evidence_summary.get('P1',0)}  P2={evidence_summary.get('P2',0)}"
+        )
     for f in findings:
         if f.severity in {"P0", "P1"}:
             print(f"  [{f.severity}] {f.code}: {f.message}" + (f" | {f.detail}" if f.detail else ""))

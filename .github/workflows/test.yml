@@ -1,0 +1,41 @@
+name: test
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dev dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Unit / regression tests
+        run: pytest -q
+
+      - name: 存量样板回归（v2 manifest 必须仍然 PASS）
+        run: |
+          python scripts/validate_report.py \
+            "examples/意华股份002897_深度研究_20260915_090532.html" \
+            --manifest "examples/意华股份002897_样板/research_manifest.json" \
+            --out /tmp/validation-v2
+
+      - name: v3 Evidence 验收（样板存在时执行）
+        run: |
+          if [ -d "examples/意华股份002897_样板/evidence" ]; then
+            python scripts/validate_evidence.py "examples/意华股份002897_样板/evidence"
+            python scripts/validate_report.py \
+              "examples/意华股份002897_深度研究_20260915_090532.html" \
+              --manifest "examples/意华股份002897_样板/research_manifest.v3.json" \
+              --evidence-dir "examples/意华股份002897_样板/evidence" \
+              --out /tmp/validation-v3
+          else
+            echo "::notice::v3 样板尚未迁移（examples/意华股份002897_样板/evidence 不存在），跳过 Evidence 验收"
+          fi
