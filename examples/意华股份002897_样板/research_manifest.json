@@ -1,0 +1,172 @@
+{
+  "meta": {
+    "company": "意华股份",
+    "code": "002897.SZ",
+    "research_date": "2026-09-14",
+    "current_price": 71.39,
+    "shares_billion": 1.9386,
+    "market_cap_billion": 138.40
+  },
+  "forecast": {
+    "悲观": [
+      { "year": 2026, "revenue_billion": 60.0, "net_profit_billion": 2.80, "eps": 1.44 },
+      { "year": 2027, "revenue_billion": 62.0, "net_profit_billion": 3.30, "eps": 1.70 },
+      { "year": 2028, "revenue_billion": 63.0, "net_profit_billion": 3.55, "eps": 1.83 }
+    ],
+    "中性": [
+      { "year": 2026, "revenue_billion": 65.0, "net_profit_billion": 3.20, "eps": 1.65 },
+      { "year": 2027, "revenue_billion": 76.0, "net_profit_billion": 4.60, "eps": 2.37 },
+      { "year": 2028, "revenue_billion": 86.0, "net_profit_billion": 5.80, "eps": 2.99 }
+    ],
+    "乐观": [
+      { "year": 2026, "revenue_billion": 72.0, "net_profit_billion": 4.20, "eps": 2.17 },
+      { "year": 2027, "revenue_billion": 87.0, "net_profit_billion": 6.20, "eps": 3.20 },
+      { "year": 2028, "revenue_billion": 103.0, "net_profit_billion": 8.00, "eps": 4.13 }
+    ]
+  },
+  "valuation": {
+    "method": "PE",
+    "target_year": 2026,
+    "linked_metric": "net_profit_billion",
+    "linked_value": 3.20,
+    "multiple": 35,
+    "equity_value_billion": 112.0,
+    "price_per_share": 57.8,
+    "note": "以自建中性 2026E 归母 3.20 亿元 × 成长制造同业中位 35× PE，对应市值 112.0 亿元、目标价 57.8 元（低于报告日 71.39 元约 19%）。不采用 PEG（盈利波动大）与 DCF（现金流受汇兑与营运资本干扰）。悲观 25× / 乐观 40× 见报告第 11 章。"
+  },
+  "evidence": [
+    {
+      "claim_id": "E001",
+      "claim": "2026H1 营业收入 28.63 亿元（同比 -5.97%）、归母净利润 1.00 亿元（同比 -37.87%）",
+      "level": "事实",
+      "source_type": "interim_report",
+      "source_title": "意华股份 2026 年半年度报告（未经审计）",
+      "source_date": "2026-08-25",
+      "source_ref": "巨潮资讯网 002897 2026 年半年度报告·主要会计数据"
+    },
+    {
+      "claim_id": "E002",
+      "claim": "2026H1 通讯连接器收入 8.22 亿元（同比 +36.76%），毛利率 26.50%",
+      "level": "事实",
+      "source_type": "interim_report",
+      "source_title": "意华股份 2026 年半年度报告·分行业经营情况",
+      "source_date": "2026-08-25",
+      "source_ref": "2026 年半年度报告·主营业务分行业情况"
+    },
+    {
+      "claim_id": "E003",
+      "claim": "2026H1 太阳能支架收入 12.23 亿元（同比 -30.53%），毛利率 10.99%",
+      "level": "事实",
+      "source_type": "interim_report",
+      "source_title": "意华股份 2026 年半年度报告·分行业经营情况",
+      "source_date": "2026-08-25",
+      "source_ref": "2026 年半年度报告·主营业务分行业情况"
+    },
+    {
+      "claim_id": "E004",
+      "claim": "2026H1 经营活动现金流净额 2.70 亿元（同比 +159.59%）",
+      "level": "事实",
+      "source_type": "interim_report",
+      "source_title": "意华股份 2026 年半年度报告·现金流量表",
+      "source_date": "2026-08-25",
+      "source_ref": "2026 年半年度报告·合并现金流量表"
+    },
+    {
+      "claim_id": "E005",
+      "claim": "2026H1 汇兑损失 6262 万元，财务费用 0.93 亿元（同比 +219.03%）",
+      "level": "事实",
+      "source_type": "interim_report",
+      "source_title": "意华股份 2026 年半年度报告·财务费用附注",
+      "source_date": "2026-08-25",
+      "source_ref": "2026 年半年度报告·财务费用与汇兑损益附注"
+    },
+    {
+      "claim_id": "E006",
+      "claim": "2026-09-14 收盘 71.39 元（涨停 +10.00%），总市值 138.40 亿元，PE(TTM) 53.83×",
+      "level": "事实",
+      "source_type": "official_database",
+      "source_title": "交易所行情数据（westock-data 日行情）",
+      "source_date": "2026-09-14",
+      "source_ref": "westock-data kline/technical sz002897 2026-09-14 收盘口径"
+    },
+    {
+      "claim_id": "E007",
+      "claim": "液冷 CAGE 与 224G 高速连接器处于送样阶段，尚未批量供货",
+      "level": "管理层口径",
+      "source_type": "company_ir",
+      "source_title": "深圳证券交易所互动易公司回复",
+      "source_date": "2026-09-14",
+      "source_ref": "深交所互动易 sz002897 投资者问答（公司原话「送样阶段」）"
+    },
+    {
+      "claim_id": "E008",
+      "claim": "机构一致预期归母 2026E 4.22 亿元（9 家）/ 2027E 6.10 亿元（5 家）/ 2028E 7.46 亿元，综合目标价 80.46 元",
+      "level": "第三方一致预期",
+      "source_type": "broker_report",
+      "source_title": "neodata 汇总机构评级与盈利预测",
+      "source_date": "2026-09-15",
+      "source_ref": "neodata 检索「意华股份 机构一致预期 盈利预测」（数据更新时间 2026-09-15 00:40 CST）"
+    },
+    {
+      "claim_id": "E009",
+      "claim": "2025 年度权益分派 10 派 5.000 元（含税），合计派现 9694 万元，除权除息日 2026-06-01",
+      "level": "事实",
+      "source_type": "company_announcement",
+      "source_title": "意华股份 2025 年年度权益分派实施公告",
+      "source_date": "2026-05-29",
+      "source_ref": "深交所 002897 分红派息公告（westock-data dividend 佐证：cashDiviRMB=5.00，rightRegDate=20260529）"
+    },
+    {
+      "claim_id": "E010",
+      "claim": "2026-06-30 意华控股集团有限公司持股 7420.83 万股（38.28%），为第一大股东",
+      "level": "事实",
+      "source_type": "interim_report",
+      "source_title": "意华股份 2026 年半年度报告·股东情况",
+      "source_date": "2026-08-25",
+      "source_ref": "2026 年半年度报告·前十大股东（westock-data shareholder 佐证）"
+    },
+    {
+      "claim_id": "E011",
+      "claim": "2026H1 关联采购：8 家关联供应商合计约 0.72 亿元（含控股股东意华控股集团 0.16 亿元）",
+      "level": "事实",
+      "source_type": "interim_report",
+      "source_title": "意华股份 2026 年半年度报告·关联方交易附注",
+      "source_date": "2026-08-25",
+      "source_ref": "半年报关联方交易附注（neodata 供应链关系检索逐笔佐证，报告期 20260630）"
+    },
+    {
+      "claim_id": "E012",
+      "claim": "2026H1 意华新能源商誉账面价值约 2.85 亿元，尚未计提减值",
+      "level": "事实",
+      "source_type": "interim_report",
+      "source_title": "意华股份 2026 年半年度报告·商誉附注",
+      "source_date": "2026-08-25",
+      "source_ref": "2026 年半年度报告·合并资产负债表与商誉减值测试附注"
+    }
+  ],
+  "quarterly_tracking": [
+    { "indicator": "营收增速", "latest": "-5.97%（2026H1）", "invalidation_or_signal": "连续两期低于 -5% → 总量逻辑持续减弱" },
+    { "indicator": "归母增速", "latest": "-37.87%（2026H1）", "invalidation_or_signal": "单季归母环比不再改善 → 中性预测需下修" },
+    { "indicator": "扣非增速", "latest": "-38.14%（2026H1）", "invalidation_or_signal": "扣非与归母背离超 5pct → 利润质量失真" },
+    { "indicator": "通讯连接器增速", "latest": "+36.76%（2026H1）", "invalidation_or_signal": "连续两季度低于 15% → AI 算力受益逻辑证伪" },
+    { "indicator": "连接器毛利率", "latest": "24.44%（2026H1，同比 -3.10pct）", "invalidation_or_signal": "跌破 20% → 量价齐升被成本/价格战抵消" },
+    { "indicator": "综合毛利率", "latest": "18.77%（2026H1）", "invalidation_or_signal": "回落至 18% 以下 → 结构优化停滞" },
+    { "indicator": "经营现金流", "latest": "2.70 亿元（2026H1，+159.59%）", "invalidation_or_signal": "净现比持续低于 100% 或转负 → 回款/备货异常" },
+    { "indicator": "财务费用", "latest": "0.93 亿元（2026H1，+219.03%）", "invalidation_or_signal": "单季汇兑损失超 0.5 亿元 → 重估财务费用假设" },
+    { "indicator": "研发费用率", "latest": "4.96%（2026H1）", "invalidation_or_signal": "回落至 4% 以下 → 高速产品迭代投入不足" },
+    { "indicator": "资产负债率", "latest": "57.57%（2026H1）", "invalidation_or_signal": "回升至 60% 以上 → 偿债余量进一步收紧" },
+    { "indicator": "分业务结构", "latest": "连接器 +21.38% / 支架 -30.53%（2026H1）", "invalidation_or_signal": "连接器收入占比不再提升 → 换挡失败" },
+    { "indicator": "股东户数", "latest": "44,376（2026-06-30）", "invalidation_or_signal": "单季再增超 20% → 筹码持续分散、抛压积聚" }
+  ],
+  "final": {
+    "status": "观察",
+    "core_invalidation": [
+      "通讯连接器收入增速连续两个季度低于 15%（当前 36.76%）——AI 算力受益逻辑不成立",
+      "连接器业务毛利率跌破 20%（当前 24.44%，已同比 -3.10pct）——量价齐升被成本或价格战抵消",
+      "液冷 / 224G 至 2026 年报与 2027 中报仍停留在「送样 / 在研」——估值中的期权部分需剔除",
+      "经营现金流由正转负或净现比持续低于 100%（当前 270%）——回款或备货异常",
+      "意华新能源商誉计提减值（任意金额）——光伏侧价值假设需整体重估",
+      "三季报单季归母低于 0.75 亿元（当前 Q1 0.40 亿、Q2 0.60 亿）——全年 3.20 亿中性线难达成"
+    ]
+  }
+}

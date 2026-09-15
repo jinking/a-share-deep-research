@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<!--
+  药明康德（603259.SH）A股个股深度研究 · 2026-09-14
+  ==================================================
+  · 生成方式：a-share-stock-deep-research 技能 —— 复制 assets/报告模板.html 填充，版式锁定
+  · 章节骨架 = assets/报告模板.md 的 0–16 章；视觉令牌沿用模板 :root，未另设配色与类名
+  · 数据口径：westock-data / neodata（行情截至 2026-09-14 收盘）+ 公司 2026 年半年报（未经审计）
+  · 首屏行情与日 K 全部取自 research_sh603259/raw/kline.txt（60 个交易日），红涨绿跌
+  · 报告生成时间：2026-09-15 09:40:08
+-->
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>药明康德（603259）A股个股深度研究 ｜ 数据截至 2026-09-14 ｜ 生成于 2026-09-15 09:40:08</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+<style>
+  /* ===== 统一设计令牌（锁定，取自 V1 基准） ===== */
+  :root{
+    --bg:#f5f6f8; --card:#ffffff; --ink:#1a1d24; --ink2:#4a5160; --ink3:#8a92a3;
+    --line:#e4e7ee; --red:#d5342b; --green:#1f9c62; --blue:#2563c9; --amber:#c8871a;
+    --purple:#6b4fc4;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    font-size:15px;line-height:1.75;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:1080px;margin:0 auto;padding:32px 22px 80px;}
+  header.top{margin-bottom:22px;}
+  .kicker{display:inline-block;font-size:12px;letter-spacing:.14em;color:var(--blue);
+    background:#e8effb;border-radius:4px;padding:3px 10px;font-weight:600;}
+  h1{font-size:31px;margin:14px 0 6px;letter-spacing:-.4px;line-height:1.25;}
+  h1 small{display:block;font-size:14px;font-weight:400;color:var(--ink3);letter-spacing:0;margin-top:8px;}
+  h2{font-size:20px;margin:44px 0 14px;padding-left:12px;border-left:4px solid var(--blue);letter-spacing:-.2px;}
+  h2 .n{color:var(--blue);font-weight:700;margin-right:9px;}
+  h3{font-size:16px;margin:26px 0 10px;color:var(--ink);}
+  p{margin:10px 0;color:var(--ink2);}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px 22px;
+    box-shadow:0 1px 3px rgba(20,25,40,.04);}
+  .grid{display:grid;gap:14px;}
+  .g4{grid-template-columns:repeat(4,1fr);}
+  .g3{grid-template-columns:repeat(3,1fr);}
+  .g2{grid-template-columns:repeat(2,1fr);}
+  @media(max-width:860px){.g4,.g3,.g2{grid-template-columns:1fr 1fr;}}
+  @media(max-width:560px){.g4,.g3,.g2{grid-template-columns:1fr;}}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;}
+  .kpi .lb{font-size:12px;color:var(--ink3);margin-bottom:4px;}
+  .kpi .vl{font-size:22px;font-weight:700;letter-spacing:-.5px;}
+  .kpi .sub{font-size:12px;color:var(--ink3);margin-top:3px;}
+  .up{color:var(--red);} .down{color:var(--green);} .neu{color:var(--ink2);}
+  table{width:100%;border-collapse:collapse;font-size:13.5px;margin:12px 0;}
+  th,td{padding:9px 10px;text-align:right;border-bottom:1px solid var(--line);}
+  th{background:#f0f2f7;color:var(--ink2);font-weight:600;font-size:12.5px;text-align:right;}
+  th:first-child,td:first-child{text-align:left;}
+  tbody tr:hover{background:#fafbfd;}
+  .tag{display:inline-block;font-size:12px;padding:2px 9px;border-radius:20px;margin:2px 4px 2px 0;
+    background:#eef1f7;color:var(--ink2);}
+  .tag.r{background:#fdecea;color:var(--red);} .tag.g{background:#e7f6ee;color:var(--green);}
+  .tag.b{background:#e8effb;color:var(--blue);} .tag.a{background:#fdf3e3;color:var(--amber);}
+  .tag.p{background:#efeafb;color:var(--purple);}
+  .note{font-size:12.5px;color:var(--ink3);margin-top:8px;line-height:1.6;}
+  .callout{border-left:4px solid var(--amber);background:#fffaf0;border-radius:0 8px 8px 0;
+    padding:14px 18px;margin:16px 0;}
+  .callout.blue{border-color:var(--blue);background:#f2f7fe;}
+  .callout.red{border-color:var(--red);background:#fef5f4;}
+  .callout h4{margin:0 0 6px;font-size:14.5px;}
+  .callout p{margin:6px 0;font-size:13.5px;}
+  .chart{width:100%;height:360px;}
+  .chart-wrap{position:relative;}
+  .switch{position:absolute;right:8px;top:-4px;z-index:5;}
+  .switch button{font-size:12px;padding:3px 11px;border:1px solid var(--line);background:#fff;
+    color:var(--ink2);border-radius:6px;cursor:pointer;font-family:inherit;}
+  .switch button.on{background:var(--blue);border-color:var(--blue);color:#fff;}
+  .hidden{display:none;}
+  /* 产业链盒子 */
+  .chain{display:flex;flex-direction:column;gap:10px;margin:16px 0;}
+  .chain-row{display:flex;align-items:stretch;gap:10px;}
+  .layer{flex:0 0 118px;background:#eef1f7;border-radius:8px;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;font-size:12.5px;font-weight:600;color:var(--ink2);
+    padding:10px 6px;text-align:center;line-height:1.4;}
+  .boxes{flex:1;display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
+  .box{background:#fff;border:1px solid var(--line);border-radius:8px;padding:8px 12px;
+    font-size:12.5px;color:var(--ink2);line-height:1.4;}
+  .box.hi{border-color:var(--red);background:#fef5f4;color:var(--red);font-weight:700;
+    box-shadow:0 2px 8px rgba(213,52,43,.12);}
+  .box.dim{color:var(--ink3);background:#fafbfd;}
+  footer{margin-top:56px;padding-top:18px;border-top:1px solid var(--line);
+    font-size:12px;color:var(--ink3);line-height:1.8;}
+  .src{font-size:11.5px;color:var(--ink3);margin-top:6px;}
+  ul{padding-left:20px;color:var(--ink2);} li{margin:5px 0;}
+  .lead{font-size:15.5px;color:var(--ink2);}
+  .num-big{font-size:26px;font-weight:700;letter-spacing:-.6px;}
+  
+/* FS-CSS:BEGIN（单一来源=本文件 CSS 常量；勿手改模板，用 --sync-template 同步） */
+
+/* ===== 首屏（ V1 版式；配色一律继承宿主报告的主题令牌，缺令牌时回退 V1 色 ） ===== */
+.fs-head{margin-bottom:22px}
+.fs-kicker{display:inline-block;font-size:12px;letter-spacing:.14em;font-weight:600;border-radius:4px;padding:3px 10px;
+  color:var(--brand,var(--blue,#2563c9));background:#e8effb;
+  background:color-mix(in srgb,var(--brand,var(--blue,#2563c9)) 12%,#fff)}
+.fs-head h1{font-size:31px;margin:14px 0 6px;letter-spacing:-.4px;line-height:1.25;font-weight:700;color:var(--ink,#1a1d24)}
+.fs-head h1 small{display:block;font-size:14px;font-weight:400;color:var(--ink3,#8a92a3);letter-spacing:0;margin-top:8px}
+.fs-card{background:var(--card,#fff);border:1px solid var(--line,#e4e7ee);border-radius:12px;padding:20px 22px;box-shadow:0 1px 3px rgba(20,25,40,.04);margin-bottom:16px}
+.fs-intro{background:#f2f7fe;background:color-mix(in srgb,var(--brand,var(--blue,#2563c9)) 6%,#fff);
+  border:1px solid var(--line,#e4e7ee);border-left:4px solid var(--brand,var(--blue,#2563c9));border-radius:0 12px 12px 0;padding:14px 20px;margin-bottom:16px}
+.fs-intro .fs-lb{font-size:12px;color:var(--brand,var(--blue,#2563c9));letter-spacing:.1em;font-weight:700;margin-bottom:6px}
+.fs-intro p{font-size:15px;color:var(--ink2,#4a5160);margin:0;line-height:1.8;max-width:880px}
+.fs-intro b{color:var(--ink,#1a1d24)}
+/* 结论 + 行情：两列网格（不是 flex-wrap）——价格块恒钉右侧，永不换行；窄屏才转单列 */
+.fs-top{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:20px;align-items:start}
+.fs-concl{min-width:0}
+.fs-lbl{font-size:12px;color:var(--ink3,#8a92a3);letter-spacing:.1em;font-weight:600}
+.fs-concl p{font-size:15.5px;color:var(--ink2,#4a5160);margin:8px 0 0;max-width:760px;line-height:1.75}
+.fs-pill{display:inline-block;font-size:12px;font-weight:700;border-radius:20px;padding:2px 10px;margin-left:6px;vertical-align:middle;
+  color:var(--brand,var(--blue,#2563c9));background:#e8effb;
+  background:color-mix(in srgb,var(--brand,var(--blue,#2563c9)) 12%,#fff)}
+.fs-quote{text-align:right;justify-self:end;min-width:200px}
+.fs-lbl2{font-size:12px;color:var(--ink3,#8a92a3)}
+.fs-big{font-size:26px;font-weight:700;letter-spacing:-.6px;color:var(--ink,#1a1d24)}
+.fs-big span{font-size:15px}
+.fs-big.r{color:var(--up,var(--red,#d5342b))}
+.fs-big.g{color:var(--down,var(--green,#1f9c62))}
+.fs-chg{font-size:12px;font-weight:700;color:var(--ink2,#4a5160)}
+.fs-chg.r{color:var(--up,var(--red,#d5342b))}
+.fs-chg.g{color:var(--down,var(--green,#1f9c62))}
+.fs-mc{font-size:12px;color:var(--ink3,#8a92a3);margin-top:6px}
+.fs-ohlc{font-size:11.5px;color:var(--ink3,#8a92a3);margin-top:4px}
+.fs-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-top:18px}
+.fs-kpi{min-width:0;border:1px solid var(--line,#e4e7ee);border-radius:10px;padding:14px 16px;background:var(--card,#fff)}
+.fs-kpi .lb{font-size:12px;color:var(--ink3,#8a92a3);margin-bottom:4px}
+.fs-kpi .vl{font-size:22px;font-weight:700;letter-spacing:-.5px;color:var(--ink,#1a1d24);font-variant-numeric:tabular-nums}
+.fs-kpi .vl.r{color:var(--up,var(--red,#d5342b))}
+.fs-kpi .vl.g{color:var(--down,var(--green,#1f9c62))}
+.fs-kpi .sub{font-size:12px;color:var(--ink3,#8a92a3);margin-top:3px}
+.fs-kpi .sub.r{color:var(--up,var(--red,#d5342b))}
+.fs-kpi .sub.g{color:var(--down,var(--green,#1f9c62))}
+.fs-src{font-size:11.5px;color:var(--ink3,#8a92a3);margin-top:12px}
+.fs-chart{width:100%;height:340px}
+@media(max-width:860px){
+  .fs-top{grid-template-columns:1fr;gap:14px}
+  .fs-quote{text-align:left;justify-self:start}
+  .fs-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:560px){.fs-kpis{grid-template-columns:1fr}}
+/* FS-CSS:END */
+
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="fs-head">
+  <span class="fs-kicker">个股深度研究 · 医疗服务（CRDMO）</span>
+  <h1>药明康德（603259）
+    <small>全球一体化 CRDMO 平台 ｜ 小分子 D&amp;M + TIDES 双引擎 ｜ 数据截至 2026-09-14 收盘 ｜ 生成于 2026-09-15 09:40:08</small>
+  </h1>
+</header>
+
+<!-- ============ 公司简介（首屏固定要素，位于核心结论之前） ============ -->
+<div class="fs-intro">
+  <div class="fs-lb">— 公司简介 —</div>
+  <p>药明康德是<b>全球领先的一体化、端到端 CRDMO</b>（合同研究、开发与生产）平台，2000 年 12 月成立于江苏无锡，2018-05-08 在上交所主板上市（603259.SH），同年 12 月在港交所上市（2359.HK）。公司为全球制药与生物科技企业提供从药物发现、临床前研究到商业化生产的全流程外包服务，业务分<b>化学（WuXi Chemistry，含小分子 D&amp;M 与 TIDES 多肽／寡核苷酸）、测试（WuXi Testing）、生物学（WuXi Biology）</b>三大板块。2025 年营业收入 454.56 亿元、归母净利润 191.51 亿元；2026H1 营业收入 288.97 亿元（同比 +38.93%）、归母净利润 110.80 亿元（同比 +29.43%），市值规模居 A 股医药研发外包板块首位。公司平台承载来自全球 30 多个国家约 6,000 家合作伙伴的研发创新项目。</p>
+</div>
+
+<!-- ============ 首屏结论（报告日真实行情 + 关键指标） ============ -->
+<div class="fs-card">
+  <div class="fs-top">
+    <div class="fs-concl">
+      <div class="fs-lbl">— 核心结论 —</div>
+      <p>基本面处于近年最强兑现期，最大的不确定性却来自体外而非体内。2026H1 营收 288.97 亿元（+38.93%）、扣非归母 105.72 亿元（+89.39%），6 月末持续经营在手订单 664.3 亿元（+25.2%），公司把全年收入指引从 513–530 亿元上调到 <b>585–605 亿元</b>——上调后的<b>下限比此前最乐观的卖方预测还高约 26 亿元</b>。但美国客户贡献约 72% 的持续经营收入，2026-06-08 的 1260H 认定虽已于 08-07 被美国法院初步禁令拦下，OMB 仍可在 <b>2026-12-18</b> 前依《生物安全法案》另一条不依赖 1260H 的路径独立认定。当前 158.86 元对应 PE(TTM) 22.2 倍（近 5 年约 47% 分位），中性情景合理价 190.2 元。<span class="fs-pill">研究状态：试仓</span></p>
+    </div>
+    <div class="fs-quote">
+      <div class="fs-lbl2">最新收盘价（报告日）</div>
+      <div class="fs-big r">158.86<span>元</span></div>
+      <div class="fs-chg r">+5.04%（2026-09-14）</div>
+      <div class="fs-mc">总市值 4,815 亿元</div>
+      <div class="fs-ohlc">开 151.23 ｜ 高 158.88 ｜ 低 150.00 ｜ 额 68.69 亿 ｜ 换手 1.78%</div>
+    </div>
+  </div>
+  <div class="fs-kpis">
+    <div class="fs-kpi"><div class="lb">2026H1 营业收入</div><div class="vl r">288.97亿</div><div class="sub r">同比 +38.93%</div></div>
+    <div class="fs-kpi"><div class="lb">2026H1 归母净利润</div><div class="vl r">110.80亿</div><div class="sub r">同比 +29.43%</div></div>
+    <div class="fs-kpi"><div class="lb">2026H1 扣非归母</div><div class="vl r">105.72亿</div><div class="sub r">同比 +89.39%</div></div>
+    <div class="fs-kpi"><div class="lb">2026H1 毛利率</div><div class="vl r">53.91%</div><div class="sub r">同比 +9.46pct</div></div>
+    <div class="fs-kpi"><div class="lb">在手订单（6 月末）</div><div class="vl r">664.3亿</div><div class="sub r">同比 +25.2%</div></div>
+    <div class="fs-kpi"><div class="lb">PE（TTM）</div><div class="vl">22.22</div><div class="sub">近 5 年约 47% 分位</div></div>
+    <div class="fs-kpi"><div class="lb">PB（MRQ）</div><div class="vl">5.52</div><div class="sub">每股净资产 28.77 元</div></div>
+    <div class="fs-kpi"><div class="lb">2026 收入指引</div><div class="vl r">585–605亿</div><div class="sub r">由 513–530 亿上调</div></div>
+  </div>
+  <div class="fs-src">数据来源：westock-data 行情与财报（行情截至 2026-09-14 收盘，总股本 30.31 亿股）；PE 分位与估值数据取自公开行情终端；公司 2026 年半年度报告（2026-08-03 披露，未经审计）。</div>
+</div>
+
+<!-- ============ 近 3 个月日 K 线 ============ -->
+<div class="fs-card">
+  <h3 style="margin:0 0 6px;font-size:15px;color:var(--ink,#1a1d24);">近 3 个月日 K 线（截至 2026-09-14）</h3>
+  <div class="fs-chart" id="fsKline"></div>
+  <div class="fs-src">来源：westock-data 日 K 线（近 60 个交易日，raw/kline.txt）；MA5/MA10/MA20 自算。A 股口径红涨绿跌。区间（2026-06-23 ~ 2026-09-14）累计 +49.18%，区间最高 173.09、最低 105.25。</div>
+</div>
+
+<!-- ============ 0. 重要声明与资料来源 ============ -->
+<h2><span class="n">0</span>重要声明与资料来源</h2>
+<div class="card">
+  <table>
+    <thead><tr><th>数据类别</th><th>最新时点</th><th>主要来源</th><th>可信度</th><th>备注</th></tr></thead>
+    <tbody>
+      <tr><td>行情 / 估值（收盘价、市值、PE/PB）</td><td>2026-09-14 收盘</td><td><b>core</b> westock-npm 行情 ＋ 公开行情终端</td><td>高</td><td>总股本 30.31 亿股（含零息可转债逐次转股部分，处于小幅变动中）</td></tr>
+      <tr><td>历史财务序列（2018–2025）</td><td>2025 年报（2026-03-24 披露）</td><td><b>core</b> westock-npm 三大报表</td><td>高</td><td>最新一期财报入库滞后，2026H1 另行核实</td></tr>
+      <tr><td>2026H1 经营与分部数据</td><td>2026-06-30（2026-08-03 披露）</td><td><b>search</b> neodata ＋ 公司 2026 年半年度报告</td><td>高</td><td>未经审计</td></tr>
+      <tr><td>全年业绩指引与中期分红</td><td>2026-08-03</td><td>公司公告与中期业绩交流电话会</td><td>高</td><td>属管理层口径，非已兑现</td></tr>
+      <tr><td>1260H 名单与初步禁令</td><td>2026-06-08 / 2026-08-07</td><td>美国联邦公报 91 FR 35189；公司自愿性公告；D.D.C. 案号 1:26-cv-02069</td><td>高</td><td>诉讼仍在进行，非终局</td></tr>
+      <tr><td>机构一致预期与目标价</td><td>2026-09-14</td><td><b>search</b> neodata 汇总（37 位分析师）</td><td>中</td><td>仅作对照，不得当事实；本报告另行自建三情景</td></tr>
+    </tbody>
+  </table>
+  <p><b>无法确认项</b>：<span class="tag">无法确认</span>① OMB 是否会在 2026-12-18 前依《生物安全法案》第二路径将公司认定为「受关注生物技术公司」——该路径的认定标准与时间表均未公开；② 美国大药企因 1260H 认定分流至韩国／欧洲替代 CDMO 的<b>具体订单金额与份额转移比例</b>，公司未披露、第三方亦无可靠口径；③ 2026H2 分季度的汇率影响幅度——公司以美元结算、以人民币报表，海外收入占比超七成，管理层仅表示会「高效前置管理汇率波动」，未给出量化对冲后的区间。上述①②直接影响悲观情景的成立概率，是本报告结论边界所在。</p>
+  <div class="note">证据标签：<span class="tag g">事实</span><span class="tag a">管理层口径</span><span class="tag b">推断</span><span class="tag p">假设</span><span class="tag">无法确认</span></div>
+</div>
+
+<!-- ============ 1. 核心结论 ============ -->
+<h2><span class="n">1</span>核心结论</h2>
+<div class="card"><p>药明康德当前处于<b>「经营强兑现 + 地缘未解除」的组合状态</b>，因此本报告给出的状态是<b>试仓</b>而非加仓。核心理由：2026H1 营收 288.97 亿元（+38.93%）、归母 110.80 亿元（+29.43%）、扣非 105.72 亿元（+89.39%）——扣非增速远高于归母，看似矛盾，实则是去年同期出售药明合联股权形成 36.69 亿元投资收益的高基数所致，<b>2026H1 投资收益仅 2.28 亿元，扣非 ＋89% 才是主营业务的真实成色</b>。同时公司把全年收入指引由 513–530 亿元上调至 585–605 亿元，上调幅度 14%–17%，且新指引下限高于此前最乐观卖方预测约 26 亿元。最大争议：七成以上收入来自海外、其中美国客户约占持续经营收入的 72%，2026-06-08 被列入美国国防部 1260H 名单后，虽在 2026-08-07 获得法院初步禁令（认定国防部证据存在事实缺陷），但禁令属程序性救济，《生物安全法案》另有不依赖 1260H 名单的独立认定路径，OMB 的认定截止日为 <b>2026-12-18</b>。最关键前提：在手订单增速能否维持在 20% 以上——截至 6 月末为 664.3 亿元、同比 +25.2%，约为上半年收入的 2.3 倍，这是全年指引兑现的可观测保障，也是本报告把状态定为「试仓」而非「回避」的量化依据。</p></div>
+
+<!-- ============ 2. 一句话投资逻辑 ============ -->
+<h2><span class="n">2</span>一句话投资逻辑</h2>
+<div class="grid g2">
+  <div class="card" style="border-left:4px solid var(--red);">
+    <h3 style="margin-top:0;">多头逻辑</h3>
+    <ol style="color:var(--ink2);">
+      <li><b>一体化 CRDMO 的转化漏斗在真实兑现。</b>2026H1 化学业务收入 249.86 亿元（+53.28%），其中小分子 D&amp;M 149.9 亿元（+72.7%），驱动力是管线分子向后期与商业化推进叠加 2024 年新增产能逐季释放——增长来自已进入财报的收入，而非订单预期。</li>
+      <li><b>TIDES 是绑定全球最热门的现金流资产。</b>2026H1 TIDES 收入 72.6 亿元（+44.3%），服务客户数同比 +39%、服务分子数同比 +68%，公司指引 TIDES 全年增长约 45%；多肽固相合成反应釜总体积仍向 13 万升扩张。GLP-1 需求是外生变量，而产能与工艺是公司已投入的实物资产。</li>
+      <li><b>订单与现金流指引同时上调，是最硬的信心证据。</b>6 月末持续经营在手订单 664.3 亿元（+25.2%，约为上半年收入 2.3 倍）；全年经调整自由现金流指引由 105–115 亿元上调至 135–145 亿元，资本开支由 65–75 亿元上调至 75–85 亿元。</li>
+    </ol>
+  </div>
+  <div class="card" style="border-left:4px solid var(--green);">
+    <h3 style="margin-top:0;">空头逻辑</h3>
+    <ol style="color:var(--ink2);">
+      <li><b>地缘政治只被程序性推迟，未被解决。</b>2026-08-07 的初步禁令禁止国防部执行 1260H 认定，但禁令是程序救济，OMB 依《生物安全法案》Section 851(f)(2)(B) 另有<b>不依赖 1260H 名单</b>的独立认定路径，截止日 2026-12-18；法院也明确允许在补正证据后重新认定。美国客户约占持续经营收入 72%。</li>
+      <li><b>增长的「含金量」有裂缝。</b>2026H1 应收票据及账款较期初增长约 44%，快于营收增速 38.93%；经营现金流净额 96.99 亿元（+30.52%），比扣非净利增速（+89.39%）低约 59pct，且比当期净利润少约 13.81 亿元。同期交易性金融资产 109.14 亿元（较期初 +87.98%），并新增有息负债约 80 亿元。</li>
+      <li><b>业务结构在收紧而非分散。</b>化学业务占营收 86.5%，化学内部 TIDES 与 D&amp;M 合计占约 89%；前端生物学业务仅 +11.21%，新项目导入若跟不上后端消耗，漏斗上游会变窄。单一赛道（GLP-1 相关需求）与单一区域（美国）的风险高度重叠。</li>
+    </ol>
+  </div>
+</div>
+<div class="callout"><h4>最关键争议</h4><p style="margin-bottom:0;">地缘风险究竟是「已被 22 倍 PE 充分定价的情绪压制」，还是「尚未体现在报表里的订单流失」？截至 2026-06-30，在手订单同比仍增长 25.2%、合同负债由 27 亿元升至 37.5 亿元，说明<b>新增需求仍强于流失部分</b>；但同期也有大药企主动将部分新分子订单分流至韩国、欧洲替代 CDMO，中小生物科技公司则在合同中加入更长合规缓冲期条款。这两股力量的净效果，要到 2026Q3–Q4 的新签订单增速才能被证伪或证实——这也是本报告把状态定为「试仓」而非「加仓」的直接原因。</p></div>
+
+<!-- ============ 3. 核心争议与预期差（量化） ============ -->
+<h2><span class="n">3</span>核心争议与预期差（量化）</h2>
+<div class="card">
+  <table>
+    <thead><tr><th>分歧点</th><th>市场观点</th><th>本报告判断</th><th>量化影响</th><th>证据状态</th></tr></thead>
+    <tbody>
+      <tr><td>全年业绩能否兑现新指引</td><td>公司上调后指引 585–605 亿元；此前 30 家机构预测均值 530.07 亿元、最乐观 559.36 亿元</td><td>指引下限比最乐观卖方高约 26 亿元，属「公司比市场更乐观」的反常信号；但 6 月末在手订单 664.3 亿元（约为上半年收入 2.3 倍）提供可观测保障，本报告中性情景取 595 亿元</td><td>若落在 595 亿元（中性）而非 530 亿元（旧一致预期），按 37% 扣非净利率计，归母差约 24 亿元，对应市值差约 530 亿元（约当当前市值 11%）</td><td><span class="tag g">事实</span>+<span class="tag b">推断</span></td></tr>
+      <tr><td>1260H / BIOSECURE 的最终走向</td><td>2026-08-07 法院批准初步禁令后，市场情绪明显修复，8-04 与 9-14 CRO 板块两次集体大涨</td><td>禁令是程序性暂停、非终局胜诉；OMB 的独立认定路径不受该判决约束，截止日 2026-12-18。本报告把这视为<b>尚未解除的尾部风险</b>，并在悲观情景中显性定价</td><td>若被认定为 BCC，悲观情景下 2027 年归母降至 200 亿元、给 19 倍 PE，对应市值 3,800 亿元、股价 125.4 元，较现价 <b>-21.1%</b></td><td><span class="tag g">事实</span>+<span class="tag p">假设</span></td></tr>
+      <tr><td>扣非 +89% 的可持续性</td><td>市场普遍用「净利润增 29%」的口径讨论，对扣非增速的关注度不足</td><td>扣非高增的相当部分来自低基数（2025H1 扣非仅 55.87 亿元）与毛利率提升 9.46pct，2026H2 起基数抬升，增速必然回落；本报告中性情景假设 2026 全年扣非约 224 亿元（+69%）</td><td>若 2026H2 扣非持平 H1（约 106 亿元），全年扣非仅 212 亿元，2027 年增速需重新下修，中性目标价将下移约 8–10 元</td><td><span class="tag b">推断</span></td></tr>
+      <tr><td>增长的现金含量</td><td>媒体与卖方对中报的评价以「大超预期」为主，对应收与现金流关注较少</td><td>应收增速持续跑赢营收、经营现金流增速跑输扣非，属<b>增长质量的边际警示</b>；但货币资金 357.26 亿元、资产负债率 27.85%，尚无流动性压力</td><td>若应收／营收比值再上行 5pct 且经营现金流／扣非净利跌破 0.7，按当前估值给 10% 折价，相当于目标价下调约 19 元</td><td><span class="tag b">推断</span></td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ============ 4. 行业与产业链 ============ -->
+<h2><span class="n">4</span>行业与产业链</h2>
+<div class="card">
+  <p><b>行业性质。</b>药明康德所处的是医药研发与生产外包（CXO）行业中的 <b>CRDMO 一体化</b>形态——把合同研究（CRO）与合同研发生产（CDMO）打通，客户从药物发现阶段进入，逐步向临床后期与商业化生产推进，形成「前端引流、后端变现」的漏斗。这与单一环节的 CRO（如临床 CRO）或单一产能型 CDMO 的商业模式有本质区别：<b>公司赚的是分子跨阶段推进的复利，而不是单一环节的产能租金</b>。<span class="tag g">事实</span></p>
+  <p><b>需求驱动与传导。</b>终端需求来自全球药企的研发投入与新分子管线，短期最直接的增量来自 GLP-1 类多肽药物的全球放量，它把多肽 CDMO 的产能变成稀缺资源。传导链条清晰且时滞短：药企研发／商业化需求 → 外包订单 → 在手订单与合同负债 → 收入确认。公司 2026H1 化学业务收入 +53.28%、TIDES +44.3%、在手订单 +25.2%、合同负债由 2025 年末 27 亿元升至 37.5 亿元，即这条链路在报表端的连续验证。<span class="tag g">事实</span>（GLP-1 驱动多肽 CDMO 需求的行业判断来自第三方券商研究，<span class="tag">非一手</span>）</p>
+  <p><b>政策与地缘是最大的外生变量。</b>美国《生物安全法案》（P.L. 119-60，2025-12-18 生效）建立了「受关注生物技术公司」（BCC）认定机制，其中一条路径以 1260H 名单为前提，另一条路径（Section 851(f)(2)(B)）允许 OMB 在实体受外国对手政府控制且构成国家安全风险时独立认定。2026-06 另有《生物技术投资国家安全法案》（BINSA）草案提出，拟将生物技术纳入对华投资审查，截至研究日未见进一步立法推进。<span class="tag g">事实</span></p>
+  <p><b>真增长还是主题炒作？本报告判断：行业是真增长，但增长的「政治折价」也是真的。</b>理由是三条同时成立：① 收入已进入财报而非停留在订单意向；② 毛利率同步改善（化学 56.55%，+7.48pct；测试 37.95%，+11.32pct）说明不是低价换量；③ 客户数与分子数同步扩张（TIDES 服务客户数 +39%、服务分子数 +68%）。但行业的海外客户结构决定了它必须承受地缘政治定价——这是本行业与普通制造业最大的不同。</p>
+  <div class="chain">
+    <div class="chain-row"><div class="layer">上游<br>原料与设备</div>
+      <div class="boxes"><div class="box dim">氨基酸 / 树脂 / 溶剂等化学原料</div><div class="box dim">试剂与耗材</div><div class="box dim">多肽固相合成反应釜与纯化设备</div><div class="box dim">实验室与厂房工程</div></div></div>
+    <div class="chain-row"><div class="layer">中游<br>研发与生产外包</div>
+      <div class="boxes"><div class="box hi">药明康德 · 一体化 CRDMO（发现 → 临床前 → 临床 → 商业化生产）</div><div class="box dim">Lonza / 三星生物 / 康龙化成 / 凯莱英 / 泰格医药（分段或区域竞品）</div></div></div>
+    <div class="chain-row"><div class="layer">下游<br>需求方</div>
+      <div class="boxes"><div class="box dim">全球大型制药企业（MNC）</div><div class="box dim">生物科技公司（Biotech）</div><div class="box dim">科研机构 / 学术中心</div></div></div>
+  </div>
+  <div class="src">结构梳理来源：公司定期报告分业务披露＋公开报道与券商研报综合，<b>非一手</b>；竞品清单为定性列举，未涉及份额数据，市占率类数字若使用须核实原文。</div>
+</div>
+
+<!-- ============ 5. 公司业务地图 ============ -->
+<h2><span class="n">5</span>公司业务地图</h2>
+<div class="card">
+  <div class="chart-wrap">
+    <div class="switch"><button class="on" onclick="tg('b5')">图</button><button onclick="tg('b5')">表</button></div>
+    <div class="chart" id="c5"></div>
+    <div id="t5" class="hidden" style="overflow-x:auto;"></div>
+  </div>
+  <div class="src">来源：公司 2026 年半年度报告分部披露；neodata 主营业务构成（2026 中报，2026-08-04 入库）。</div>
+  <table>
+    <thead><tr><th>业务</th><th>收入</th><th>占比</th><th>增速</th><th>毛利率</th><th>证据</th></tr></thead>
+    <tbody>
+      <tr><td><b>化学业务（WuXi Chemistry）</b></td><td>249.86 亿</td><td>86.5%</td><td class="up">+53.28%</td><td>56.55%（+7.48pct）</td><td><span class="tag g">事实</span></td></tr>
+      <tr><td>　└ 小分子 D&amp;M</td><td>149.90 亿</td><td>51.9%</td><td class="up">+72.7%</td><td>—</td><td><span class="tag g">事实</span></td></tr>
+      <tr><td>　└ TIDES（多肽／寡核苷酸）</td><td>72.60 亿</td><td>25.1%</td><td class="up">+44.3%</td><td>—</td><td><span class="tag g">事实</span></td></tr>
+      <tr><td><b>测试业务（WuXi Testing）</b></td><td>24.81 亿</td><td>8.6%</td><td class="up">+31.53%</td><td>37.95%（+11.32pct）</td><td><span class="tag g">事实</span></td></tr>
+      <tr><td><b>生物学业务（WuXi Biology）</b></td><td>13.92 亿</td><td>4.8%</td><td class="up">+11.21%</td><td>34.92%（-0.12pct）</td><td><span class="tag g">事实</span></td></tr>
+      <tr><td>其他业务</td><td>0.39 亿</td><td>0.1%</td><td class="down">-54.93%</td><td>—</td><td><span class="tag g">事实</span></td></tr>
+      <tr><td><b>合计</b></td><td><b>288.97 亿</b></td><td>100%</td><td class="up"><b>+38.93%</b></td><td><b>53.91%（+9.46pct）</b></td><td><span class="tag g">事实</span></td></tr>
+    </tbody>
+  </table>
+  <div class="note"><b>结构与口径提示：</b>① 化学业务占营收 86.5%，化学内部 TIDES 与小分子 D&amp;M 合计约占 89%，收入结构高度集中，这是本报告在空头逻辑中列出的核心结构性风险；② 测试业务的药物安全性评价收入同比 +42.8%，是测试板块毛利率提升 11.32pct 的主要来源；③ 生物学业务毛利率下降 0.12pct 系公司明确归因于汇率波动——海外收入占比超七成的汇率敏感度在此可见一斑；④ 原「高端治疗（ATU）」业务已于 2025 年完成剥离，不再单独列示，2025 年终止经营业务收入 20.35 亿元为可比口径差异来源。</div>
+</div>
+
+<!-- ============ 6. 竞争格局与护城河 ============ -->
+<h2><span class="n">6</span>竞争格局与护城河</h2>
+<div class="card">
+  <p>本报告不在正文中使用未获一手来源支撑的市占率数字。<b>可比公司的相对位置以可核验的市值规模与已披露经营数据为准</b>，能力对比为定性判断。</p>
+  <table>
+    <thead><tr><th>公司／业务</th><th>相对位置（可核验口径）</th><th>能力特征</th><th>客户结构</th><th>结论</th></tr></thead>
+    <tbody>
+      <tr><td><b>药明康德</b>（本公司）</td><td>A 股医药研发外包板块市值首位（4,815 亿元，2026-09-14）；康龙化成约 701 亿元、凯莱英约 600 亿元（2026-09-10 口径）</td><td>一体化 CRDMO：发现→临床前→临床→商业化生产全链条；多肽固相合成反应釜总体积向 13 万升扩张</td><td>全球 30 多个国家约 6,000 家合作伙伴；美国客户占持续经营收入约 72%</td><td>板块龙头，规模与技术平台宽度领先；但客户区域集中度也最高</td></tr>
+      <tr><td>康龙化成</td><td>2026H1 新签订单同比增长超 30%（公司业绩预告口径）</td><td>全流程 CRO ＋ CDMO，实验室服务与 CMC 一体</td><td>以中小型生物科技与 MNC 并重</td><td>订单同样高增，说明 2026 年行业需求是普涨而非公司独享</td></tr>
+      <tr><td>凯莱英</td><td>2026Q1 在手订单金额同比增长 127.59%（公司披露口径）</td><td>小分子 CDMO 为主，化学大分子与临床 CRO 延伸</td><td>大客户依赖度相对较高</td><td>小分子 CDMO 需求同步走强，印证行业景气</td></tr>
+      <tr><td>海外替代产能（Lonza、三星生物等）</td><td>无可核验份额数据</td><td>产能与合规体系成熟，成本高于中国同业</td><td>MNC 分流订单的承接方</td><td>地缘风险下的直接受益方——这是本报告悲观情景的现实落点</td></tr>
+    </tbody>
+  </table>
+  <h3 style="font-size:15px;">护城河拆解</h3>
+  <ul>
+    <li><b>一体化漏斗的转换成本（最强的一条）。</b>分子在药物发现阶段进入平台后，越往后推进、迁移成本越高；公司披露 2026H1 实现 155 个 R（发现）到 D（开发）的分子转化，前端引流转化为后端收入。这一条的价值在于：即使新签客户放缓，<b>存量管线仍会自然向后推进</b>，形成收入的滞后支撑。<span class="tag g">事实</span>（分子转化数据来自公司半年报）</li>
+    <li><b>产能规模与前置投入。</b>2026 年资本开支指引由 65–75 亿元上调至 75–85 亿元，常州新基地提前启动。多肽固相合成反应釜总体积向 13 万升扩张——在 GLP-1 需求高峰期，产能本身即壁垒。<span class="tag g">事实</span>（指引为公司公告）</li>
+    <li><b>合规资质与审计记录。</b>2026H1 通过全部 465 次全球合规审计，蝉联 MSCI ESG AAA 评级。在客户合规审查趋严的背景下，这条记录的商业价值在上升。<span class="tag g">事实</span>（公司公告口径）</li>
+    <li><b>护城河的边界。</b>上述三条都是<b>经营层面</b>的壁垒，它们无法防御<b>非经营层面</b>的行政认定（1260H、BCC）。这是本报告与「护城河坚固因此可以无视地缘风险」这类乐观论述的分歧点。</li>
+  </ul>
+  <div class="callout"><h4>护城河可证伪信号</h4><p style="margin-bottom:0;">① 客户总数（目前约 6,000 家）出现绝对值下降，而非仅增速放缓；② 分子转化量（2026H1 为 155 个 R→D）连续两期下降，意味着漏斗上游收窄；③ 单位产能收入下滑（资本开支大幅上升而收入未同步），说明新增产能无法被需求消化；④ 全球合规审计出现实质性失败项。以上任一出现，应重估护城河评级。<span class="tag b">推断</span></p></div>
+</div>
+
+<!-- ============ 7. 客户与真实需求（状态分层） ============ -->
+<h2><span class="n">7</span>客户与真实需求（状态分层）</h2>
+<div class="card">
+  <table>
+    <thead><tr><th>事项</th><th>层级</th><th>内容</th><th>规模 / 时间</th><th>证据</th></tr></thead>
+    <tbody>
+      <tr><td>化学业务收入</td><td><span class="tag g">已确认收入</span></td><td>已进入财报的主营收入，含小分子 D&amp;M 149.90 亿元、TIDES 72.60 亿元</td><td>249.86 亿元，同比 +53.28%，2026H1</td><td>2026 年半年报分部披露</td></tr>
+      <tr><td>测试／生物学业务收入</td><td><span class="tag g">已确认收入</span></td><td>测试 24.81 亿元（+31.53%）；生物学 13.92 亿元（+11.21%）</td><td>合计 38.73 亿元，2026H1</td><td>2026 年半年报分部披露</td></tr>
+      <tr><td>持续经营业务在手订单</td><td><span class="tag g">事实</span></td><td>财报附注披露的订单储备，约为 2026H1 收入的 2.3 倍</td><td>664.3 亿元，同比 +25.2%，2026-06-30</td><td>2026 年半年报业务回顾</td></tr>
+      <tr><td>合同负债</td><td><span class="tag g">事实</span></td><td>客户预付款项，是收入的领先指标</td><td>由 2025 年末 27 亿元升至 37.5 亿元，2026-06-30</td><td>2026 年半年报资产负债表</td></tr>
+      <tr><td>2026 年全年收入指引</td><td><span class="tag a">管理层口径</span></td><td>收入 585–605 亿元；持续经营收入增速 35%–39%；经调整自由现金流 135–145 亿元</td><td>2026-08-03 上调，<b>非已兑现</b></td><td>公司公告与中期业绩电话会</td></tr>
+      <tr><td>TIDES 全年增速指引</td><td><span class="tag a">管理层口径</span></td><td>公司预计 TIDES 全年实现约 45% 的增长</td><td>2026-08-03，<b>非已兑现</b></td><td>中期业绩交流电话会</td></tr>
+      <tr><td>1260H 名单认定</td><td><span class="tag g">事实</span></td><td>被美国国防部列入 1260H「中国军事企业」名单；2026-08-07 获法院初步禁令</td><td>列入 2026-06-08；禁令 2026-08-07（<b>程序性，非终局</b>）</td><td>联邦公报 91 FR 35189；D.D.C. 案号 1:26-cv-02069</td></tr>
+      <tr><td>OMB 的 BCC 认定</td><td><span class="tag">无法确认</span></td><td>依《生物安全法案》Section 851(f)(2)(B) 可独立认定，不依赖 1260H 名单；认定标准与时间表未公开</td><td>首个认定截止日 2026-12-18</td><td>法律文本；<b>尚未发生</b></td></tr>
+      <tr><td>客户分流至韩国／欧洲替代 CDMO</td><td><span class="tag">无法确认</span></td><td>媒体与行业人士称部分大药企拉长决策周期、部分中小 biotech 增加合规缓冲期条款；<b>无订单金额与份额口径</b></td><td>2026 年内，规模不明</td><td>媒体报道，<b>非一手、不可量化</b></td></tr>
+    </tbody>
+  </table>
+  <div class="note">层级严格区分：已确认收入 &gt; 已确认订单/定点 &gt; 管理层口径 &gt; 在研/送样/小试 &gt; 市场预期。<b>不可跨层表达</b>——本报告不把「在手订单」写作「已锁定收入」，不把「客户分流」写作「订单流失」，也不把「全年指引」写作「已实现业绩」。<b>截至 2026-06-30，在手订单同比仍 +25.2%、合同负债环比上升，说明新增需求仍强于流失部分；但这一结论的验证窗口在 2026Q3–Q4。</b></div>
+</div>
+
+<!-- ============ 8. 财务质量 ============ -->
+<h2><span class="n">8</span>财务质量（近5年 + 最新一期）</h2>
+<div class="card">
+  <div class="chart-wrap">
+    <div class="switch"><button class="on" onclick="tg('b8')">图</button><button onclick="tg('b8')">表</button></div>
+    <div class="chart" id="c8"></div>
+    <div id="t8" class="hidden" style="overflow-x:auto;"></div>
+  </div>
+  <div class="src">来源：westock-data 历史财报（2018–2025 年报序列，营业成本与毛利率本报告自算：1 − 营业成本 ÷ 营业收入）；2026H1 取自公司半年度报告与 neodata 综合财务指标（未经审计）。</div>
+  <table>
+    <thead><tr><th>指标</th><th>2021</th><th>2022</th><th>2023</th><th>2024</th><th>2025</th><th>2026H1</th></tr></thead>
+    <tbody>
+      <tr><td>营业收入（亿元）</td><td>229.02</td><td>393.55</td><td>403.41</td><td>392.41</td><td>454.56</td><td>288.97</td></tr>
+      <tr><td>营收同比</td><td class="up">+38.51%</td><td class="up">+71.84%</td><td class="up">+2.51%</td><td class="down">-2.73%</td><td class="up">+15.84%</td><td class="up">+38.93%</td></tr>
+      <tr><td>归母净利润（亿元）</td><td>50.97</td><td>88.14</td><td>96.07</td><td>94.50</td><td>191.51</td><td>110.80</td></tr>
+      <tr><td>归母同比</td><td class="up">+72.20%</td><td class="up">+72.93%</td><td class="up">+9.00%</td><td class="down">-1.63%</td><td class="up">+102.66%</td><td class="up">+29.43%</td></tr>
+      <tr><td>扣非归母（亿元）</td><td>—</td><td>—</td><td>—</td><td>—</td><td>132.41</td><td>105.72</td></tr>
+      <tr><td>销售毛利率</td><td>36.28%</td><td>37.30%</td><td>41.18%</td><td>41.48%</td><td>47.64%</td><td>53.91%</td></tr>
+      <tr><td>研发费用（亿元）</td><td>9.42</td><td>16.14</td><td>14.41</td><td>12.39</td><td>11.19</td><td>6.05</td></tr>
+      <tr><td>经营现金流净额（亿元）</td><td>—</td><td>—</td><td>—</td><td>—</td><td>172.03</td><td>96.99</td></tr>
+    </tbody>
+  </table>
+  <div class="note">口径说明：<b>扣非归母</b>历史序列未从结构化源取得完整 5 年数据，本报告仅列示可核验的 2025 年（132.41 亿元，同比 +32.56%）与 2026H1（105.72 亿元，同比 +89.39%）两个时点，其余年份留空而不做推算，以免引入未经核实的数字。<b>经营现金流</b>同理仅在取得双源确认的年度列示。<span class="tag">无法确认</span>标注项为数据可及性限制，非结论性判断。</div>
+  <div class="grid g2" style="margin-top:16px;">
+    <div class="card"><h3 style="margin-top:0;">利润质量归因</h3>
+      <p style="font-size:13.5px;"><b>1）2025 年归母翻倍主要由资产处置贡献，而非主营。</b>2025 年归母 191.51 亿元（+102.66%），但扣非归母仅 132.41 亿元（+32.56%），差距来自 <b>85.88 亿元投资收益</b>（同比 +13.21 倍），其中出售药明合联部分股权确认投资收益约 52.08 亿元。全年非流动性资产处置损益 73.13 亿元，扣除约 16.46 亿元所得税影响后，两笔交易合计贡献归母净利约 <b>55.95 亿元</b>——即 2025 年净利润翻倍中，约 54% 的增量来自资产出售。<span class="tag g">事实</span></p>
+      <p style="font-size:13.5px;"><b>2）2026H1 是「剥离一次性因素后的真实成色」。</b>2026H1 投资收益仅 2.28 亿元（同比 -93.79%，因去年同期含出售药明合联的高基数），因此归母增速（+29.43%）与扣非增速（+89.39%）出现约 60pct 的背离。<b>这个背离不是坏消息，恰恰相反</b>：它说明本期利润几乎全部来自主营，且毛利率同比提升 9.46pct 至 53.91%。<span class="tag g">事实</span></p>
+      <p style="font-size:13.5px;"><b>3）费用端总体可控。</b>2026H1 销售费用 3.91 亿元（-0.91%）、管理费用 14.91 亿元（+26.81%，系业务规模扩大带来的人员费用）、财务费用 2.13 亿元（+3.42%）、研发费用 6.05 亿元（+17.61%），期间费用合计约 26 亿元、费用率约 9.0%。研发费用绝对额与费用率（2025 年 11.19 亿元、费用率约 2.46%）长期偏低，这是 CRDMO 商业模式的特征——<b>公司的「研发」投入大量体现在产能与工艺中，而非费用化研发科目</b>，因此不宜用研发费用率衡量其技术投入强度。<span class="tag b">推断</span></p>
+      <p style="font-size:13.5px;"><b>4）2026 年仍有一笔一次性收益待确认。</b>公司于 2026-08-27 公告出售药明合联股票资产，预计影响 2026 年税前利润约 <b>31.43 亿元</b>；本报告按 2025 年处置收益的实际税负比例（约 22.5%）折算税后约 24.4 亿元，计入 2026 年归母但<b>不计入扣非</b>。<span class="tag p">假设</span></p>
+    </div>
+    <div class="card"><h3 style="margin-top:0;">现金流拆解与资产负债</h3>
+      <p style="font-size:13.5px;"><b>经营现金流跑输利润增速，是本期最值得跟踪的裂缝。</b>2026H1 经营现金流净额 96.99 亿元（+30.52%），比营收增速（+38.93%）低约 8pct，比扣非净利增速（+89.39%）低约 59pct，且比当期净利润少约 13.81 亿元。现金含量（经营现金流 ÷ 扣非净利）约 <b>0.92 倍</b>，尚在可接受区间，但趋势方向不利。<span class="tag g">事实</span></p>
+      <p style="font-size:13.5px;"><b>应收账款首次突破百亿。</b>期末应收账款及票据 104.72 亿元，较期初增长约 44%，高出营收增速 5.26pct。公司解释为业务规模扩大带动，但<b>应收增速持续跑赢营收，意味着部分增长尚未转化为现金</b>。海外业务占比超七成、账期较长是结构性原因，同时也使回款对外部环境（含地缘政治）更敏感。<span class="tag g">事实</span>＋<span class="tag b">推断</span></p>
+      <p style="font-size:13.5px;"><b>投资活动大幅净流出，资金在「买理财 ＋ 借债」之间并存。</b>2026H1 投资活动现金流净额 -108.56 亿元（去年同期 +18.1 亿元），主因增加短期理财配置且去年同期有出售联营企业股权的一次性现金流入；期末交易性金融资产 109.14 亿元（较期初 +87.98%）。同时短期借款 61.82 亿元、长期借款 17.99 亿元，有息负债合计约 80 亿元，并发行 <b>67.8 亿元零息可转换债券</b>（这是总负债较年初 +41.6% 与资产负债率由 22.18% 升至 27.85% 的主因）。零息债降低了当期利息负担，但带来未来的股本稀释——总股本已因可转债转股持续小幅增加。<span class="tag g">事实</span></p>
+      <p style="font-size:13.5px;"><b>资产负债表本身仍有充足缓冲。</b>期末货币资金 357.26 亿元，流动比率 2.54，资产负债率 27.85%（行业低位），利息收入 5.27 亿元（+18.75%）远高于利息费用 0.90 亿元（-38.66%）。<b>结论：现金流与应收的边际恶化值得跟踪，但尚未构成财务风险；真正的风险仍在地缘政治，而非资产负债表。</b><span class="tag b">推断</span></p>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 9. 核心业务/子公司拆分 ============ -->
+<h2><span class="n">9</span>核心业务 / 子公司拆分</h2>
+<div class="card">
+  <p>公司价值高度集中在<b>化学业务</b>（2026H1 占营收 86.5%），因此本节的拆分以三大业务板块为第一层，再向下拆 TIDES 与小分子 D&amp;M。</p>
+  <table>
+    <thead><tr><th>主体</th><th>收入（2026H1）</th><th>测算利润（2026E，亿元）</th><th>增速</th><th>并表/内生</th><th>关键说明</th></tr></thead>
+    <tbody>
+      <tr><td><b>化学业务（WuXi Chemistry）</b></td><td>249.86 亿元</td><td>约 174</td><td class="up">+53.28%</td><td>内生</td><td>毛利率 56.55%（+7.48pct）；含小分子 D&amp;M 与 TIDES，是利润的绝对主体</td></tr>
+      <tr><td>　└ TIDES（多肽／寡核苷酸）</td><td>72.60 亿元</td><td>—</td><td class="up">+44.3%</td><td>内生</td><td>公司预计全年增长约 45%；服务客户数 +39%、服务分子数 +68%；反应釜总体积向 13 万升扩张</td></tr>
+      <tr><td>　└ 小分子 D&amp;M</td><td>149.90 亿元</td><td>—</td><td class="up">+72.7%</td><td>内生</td><td>管线分子向后期推进 ＋ 2024 年新增产能逐季释放</td></tr>
+      <tr><td><b>测试业务（WuXi Testing）</b></td><td>24.81 亿元</td><td>约 8.7</td><td class="up">+31.53%</td><td>内生</td><td>毛利率 37.95%（+11.32pct）；药物安全性评价收入 +42.8%</td></tr>
+      <tr><td><b>生物学业务（WuXi Biology）</b></td><td>13.92 亿元</td><td>约 4.5</td><td class="up">+11.21%</td><td>内生</td><td>毛利率 34.92%（-0.12pct，公司归因汇率）；是漏斗最前端，增速最慢需关注</td></tr>
+      <tr><td><b>高端治疗（WuXi ATU）</b></td><td>—</td><td>—</td><td>—</td><td>已剥离</td><td>2025 年完成剥离，不再并表；2025 年终止经营业务收入 20.35 亿元</td></tr>
+      <tr><td><b>临床 CRO／SMO</b></td><td>—</td><td>—</td><td>—</td><td>已剥离</td><td>康德弘翼与津石医药于 2025-12-16 交割给高瓴旗下基金，基准对价 28 亿元，两家 2024 年收入合计约 18.1 亿元</td></tr>
+    </tbody>
+  </table>
+  <div class="note"><b>口径提示（重要）：</b>表中「测算利润（2026E）」为本报告基于分部毛利率与费用分摊的<b>粗略估算</b>，仅用于在 §10 的 SOTP 估值中对回公司中性利润，<b>公司并未按业务板块披露净利润</b>，因此该数字不是公司披露口径。<span class="tag p">假设</span><br><b>少数股东权益影响很小：</b>2025 年少数股东损益 1.82 亿元（占净利润 0.94%），2026H1 少数股东权益占股东权益合计比例不足 2%，合并报表基本等同于母公司股东利益。这意味着<b>不宜用「归母与净利润差额」来解释公司利润波动</b>，与部分含大量少数股东权益的多业务公司不同。</div>
+</div>
+
+<!-- ============ 10. 自建盈利预测（三情景 × 连续3年） ============ -->
+<h2><span class="n">10</span>自建盈利预测（三情景 × 连续3年）</h2>
+<div class="card">
+  <div class="callout"><h4>硬规则</h4><p style="margin-bottom:0;">悲观 / 中性 / 乐观三个情景都必须<b>完整覆盖连续未来 3 年</b>——不允许「第一年三情景、后两年只有中性」的缩水版本。三个情景的预测年度必须一致且连续。</p></div>
+  <p class="note"><b>填表要求</b>：表格表头须替换为<b>实际年份并加 E 后缀</b>（如 <code>2026E</code> / <code>2027E</code> / <code>2028E</code>），否则验收器无法识别预测年度；每年三个情景都必须填齐营收、归母、EPS（否则 <code>research_manifest.json</code> 无法通过数学对账）。</p>
+
+  <h3>悲观情景</h3>
+  <table>
+    <thead><tr><th>项目</th><th>2026E</th><th>2027E</th><th>2028E</th></tr></thead>
+    <tbody>
+      <tr><td>营收（亿元）</td><td>585.0</td><td>620.0</td><td>640.0</td></tr>
+      <tr><td>收入增速</td><td class="up">+28.7%</td><td class="up">+6.0%</td><td class="up">+3.2%</td></tr>
+      <tr><td>归母净利率</td><td>40.0%</td><td>32.3%</td><td>29.7%</td></tr>
+      <tr><td>归母净利润（亿元）</td><td>234.0</td><td>200.0</td><td>190.0</td></tr>
+      <tr><td>EPS（元）</td><td>7.72</td><td>6.60</td><td>6.27</td></tr>
+      <tr><td>关键触发 / 假设</td><td>收入落在公司指引下限 585 亿元；扣非约 210 亿元，另含药明合联出售一次性税后收益约 24.4 亿元</td><td>被认定为 BCC，美国客户订单分流显性化，收入增速降至 6%；毛利率降至 50%</td><td>分流效应延续，收入增速 3.2%；毛利率 48%，净利率降至 29.7%</td></tr>
+    </tbody>
+  </table>
+
+  <h3>中性情景</h3>
+  <table>
+    <thead><tr><th>项目</th><th>2026E</th><th>2027E</th><th>2028E</th></tr></thead>
+    <tbody>
+      <tr><td>营收（亿元）</td><td>595.0</td><td>705.0</td><td>820.0</td></tr>
+      <tr><td>收入增速</td><td class="up">+30.9%</td><td class="up">+18.5%</td><td class="up">+16.3%</td></tr>
+      <tr><td>归母净利率</td><td>41.7%</td><td>37.2%</td><td>37.2%</td></tr>
+      <tr><td>归母净利润（亿元）</td><td>248.0</td><td>262.0</td><td>305.0</td></tr>
+      <tr><td>EPS（元）</td><td>8.18</td><td>8.64</td><td>10.06</td></tr>
+      <tr><td>关键触发 / 假设</td><td>收入取指引中值 595 亿元；扣非约 224 亿元（+69%），加一次性收益约 24.4 亿元</td><td>在手订单增速维持 20% 以上，收入 +18.5%；BCC 认定未落地但折价仍在，净利率 37.2%</td><td>产能释放与 TIDES 延续，收入 +16.3%；净利率持平于 37.2%</td></tr>
+    </tbody>
+  </table>
+
+  <h3>乐观情景</h3>
+  <table>
+    <thead><tr><th>项目</th><th>2026E</th><th>2027E</th><th>2028E</th></tr></thead>
+    <tbody>
+      <tr><td>营收（亿元）</td><td>605.0</td><td>760.0</td><td>920.0</td></tr>
+      <tr><td>收入增速</td><td class="up">+33.1%</td><td class="up">+25.6%</td><td class="up">+21.1%</td></tr>
+      <tr><td>归母净利率</td><td>42.8%</td><td>39.5%</td><td>40.4%</td></tr>
+      <tr><td>归母净利润（亿元）</td><td>259.0</td><td>300.0</td><td>372.0</td></tr>
+      <tr><td>EPS（元）</td><td>8.55</td><td>9.90</td><td>12.27</td></tr>
+      <tr><td>关键触发 / 假设</td><td>收入达指引上限 605 亿元；扣非约 235 亿元，加一次性收益约 24.4 亿元</td><td>1260H 诉讼终局胜诉且 OMB 第二路径未启用，地缘折价消除；TIDES 超预期，收入 +25.6%</td><td>份额进一步集中，收入 +21.1%；规模效应下净利率升至 40.4%</td></tr>
+    </tbody>
+  </table>
+
+  <p><b>关键假设</b>：<span class="tag p">假设</span>① 总股本取 30.31 亿股（2026-09-14 口径），未考虑零息可转债后续转股的稀释（该因素将使 EPS 略低于本表，方向和幅度均不利于估值）；② 2026 年三年情景均含药明合联出售的一次性税后收益约 24.4 亿元（税前 31.43 亿元 × 2025 年处置收益实际税负比例约 77.5%），2027–2028 年不再有同类收益；③ 2026 年收入上下限直接采用公司指引 585／605 亿元，中值取 595 亿元——<b>这是本模型最「不自由」的假设，也是唯一有公司口径背书的输入</b>；④ 2027–2028 年收入增速（悲观 6.0%／3.2%，中性 18.5%／16.3%，乐观 25.6%／21.1%）为本报告自建，未采用卖方一致预期（一致预期 2027 年收入 727.22 亿元、2028 年 860.05 亿元，接近本报告中性偏乐观区间）。</p>
+  <p><b>最敏感变量（3 个）</b>：① <b>2027 年收入增速</b>——从中性 18.5% 降至悲观 6.0%，归母相应从 262 亿元降至 200 亿元（-23.7%），叠加估值倍数由 22 倍降至 19 倍，目标价从 190.2 元降至 125.4 元（-34%）；② <b>归母净利率</b>——净利率每变动 1pct，对应 2027 年归母变动约 7 亿元、EPS 变动约 0.23 元，按 22 倍 PE 计约影响股价 5.1 元；③ <b>估值倍数</b>——在归母 262 亿元不变的前提下，倍数从 22 倍降至 18 倍，目标价由 190.2 元降至 155.6 元（-18%），<b>倍数是对地缘风险定价最直接的通道</b>。</p>
+</div>
+
+<!-- ============ 11. 估值与隐含预期 ============ -->
+<h2><span class="n">11</span>估值与隐含预期</h2>
+<div class="card">
+  <p><b>方法选择。</b>药明康德属「成长型服务 ＋ 多业务」混合体，本报告采用 <b>PE 为主（以自建三情景的 2027 年归母为基准）＋ SOTP 分部加总交叉验证</b>，不使用 DCF（资本开支处于上行周期，自由现金流的可预测性下降）与 PEG（2026 年利润含一次性收益，增速不可比）。选择 2027 年而非 2026 年作为目标年，原因是 <b>2026 年归母含药明合联出售的一次性收益约 24.4 亿元，用它作估值基准会低估真实估值倍数</b>。</p>
+  <table>
+    <thead><tr><th>方法</th><th>悲观</th><th>中性</th><th>乐观</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td><b>PE 法</b>（2027E 归母 × 倍数）</td><td>200 亿 × 19 倍 = <b>3,800 亿</b> → <b>125.4 元</b></td><td>262 亿 × 22 倍 = <b>5,764 亿</b> → <b>190.2 元</b></td><td>300 亿 × 26 倍 = <b>7,800 亿</b> → <b>257.4 元</b></td><td>倍数锚定当前 PE(TTM) 22.2 倍与近 5 年约 47% 分位；悲观取 19 倍（隐含地缘惩罚），乐观取 26 倍（隐含折价消除）</td></tr>
+      <tr><td><b>SOTP 法</b>（2027E 分部加总）</td><td>—</td><td>化学 243.6 亿×22 ＋ 测试 12.1 亿×22 ＋ 生物学 6.3 亿×22 ＝ <b>5,764.0 亿</b> → <b>190.2 元</b></td><td>—</td><td>分部利润合计 262.0 亿元，与中性情景归母 262 亿元严格对回（差 0）；三块业务同用 22 倍，不额外给「新业务溢价」</td></tr>
+      <tr><td><b>与当前价对比</b></td><td class="down">-21.1%</td><td class="up">+19.7%</td><td class="up">+62.0%</td><td>现价 158.86 元（2026-09-14 收盘）</td></tr>
+    </tbody>
+  </table>
+  <ul>
+    <li><b>当前估值 / 历史分位</b>：PE(TTM) <b>22.22</b> 倍、PE(静，按 2025 年归母 191.51 亿元) 25.14 倍、PB <b>5.52</b> 倍（每股净资产 28.77 元）、股息率(TTM) 约 1.31%。PE(TTM) 在近 5 年中处于约 <b>47%</b> 分位，即<b>历史中位区间</b>——既不便宜也不昂贵。<span class="tag g">事实</span>（估值数据为公开行情终端口径，非公司披露）</li>
+    <li><b>可比公司</b>：A 股医药研发外包板块内，康龙化成市值约 701 亿元、凯莱英约 600 亿元（2026-09-10 口径），药明康德 4,815 亿元为板块首位。<b>本报告不对同业做 PE 横向比较后得出「便宜／贵」的结论</b>——三者业务结构（全流程一体化 vs 单一环节）与客户区域结构差异大，倍数不可直接类比，这也是本报告主要用自建绝对估值而非相对估值的原因。<span class="tag b">推断</span></li>
+    <li><b>当前价格隐含预期</b>：以当前市值 4,815 亿元、按 22 倍 PE 反推，市场定价隐含的 <b>2027 年归母为 218.9 亿元</b>，比本报告中性预测（262 亿元）低 <b>16.5%</b>。换言之，<b>当前价格定价的是「悲观情景（200 亿元）与中性情景（262 亿元）之间」的结果</b>——市场既没有完全定价地缘风险的最坏情形，也没有给增长兑现以完整估值。反向验证：机构 37 位分析师的平均目标价 182.22 元、综合目标价 190.46 元，与本报告中性值 190.2 元高度接近，说明本模型的中性假设并非孤立判断。<span class="tag b">推断</span></li>
+    <li><b>估值弹性提示</b>：中性目标价 190.2 元较现价有 19.7% 空间，但这是「倍数不变、盈利兑现」的路径；若地缘风险被重新定价（倍数降至 18 倍），即便 2027 年归母达到 262 亿元，目标价也仅 155.6 元（低于现价）。<b>本股的风险收益比，本质上取决于倍数而非利润。</b></li>
+  </ul>
+</div>
+
+<!-- ============ 12. 市场验证与交易条件树 ============ -->
+<h2><span class="n">12</span>市场验证与交易条件树</h2>
+<div class="card">
+  <p class="note">技术面只做验证，不替代基本面判断。以下数据均取自研究日收盘（2026-09-14）与 westock-data 技术指标。</p>
+  <ul>
+    <li><b>趋势与均线</b>：现价 158.86 元，位于 MA5（155.54）、MA10（155.27）、MA20（157.25）、MA30（157.37）、MA60（140.50）、MA120（120.54）、MA250（107.42）<b>全部均线之上</b>，中短期呈多头排列。但 MA5 与 MA10 低于 MA20，说明 8 月下旬以来的回调尚未完全修复，短周期均线仍在纠缠。<span class="tag g">事实</span></li>
+    <li><b>近 3 个月区间</b>：60 个交易日（2026-06-23 ~ 2026-09-14）累计 <b>+49.18%</b>，区间最高 173.09 元（8 月中旬）、最低 105.25 元（6 月下旬）。8 月下旬曾从 173.09 元回落至 149.71 元，回撤约 13.5%，9-14 单日 +5.04% 重新向上。<span class="tag g">事实</span></li>
+    <li><b>量价与资金</b>：9-14 成交额 68.69 亿元、换手率 1.78%，为近 20 个交易日高位；当日主力资金净流入 5.62 亿元。MACD 的 DIF 2.51 高于 DEA 3.58 之下（MACD 柱 -2.13），属零轴上方动能收敛；KDJ 的 J 值 95.64 已进入超买区；RSI6 58.82 尚中性。BOLL 上轨 164.93、中轨 157.25、下轨 149.57，现价贴近中轨上方运行。<span class="tag g">事实</span></li>
+    <li><b>板块与大盘环境</b>：2026-09-14 创新药与 CRO 板块集体走强（订单「量价齐升」），医药研发外包为当日强势方向；融资融券差额占比约 1.29%，杠杆资金参与度不高。<span class="tag g">事实</span>（板块归类为媒体口径，<span class="tag">非一手</span>）</li>
+  </ul>
+  <table>
+    <thead><tr><th>状态</th><th>触发条件</th></tr></thead>
+    <tbody>
+      <tr><td><b>等待</b></td><td>股价回落至 145–150 元（BOLL 下轨 149.57 附近）而基本面证据未变；或 2026Q3 报披露前方向不明时，保持观察不动手。</td></tr>
+      <tr><td><b>试仓</b></td><td><b>当前状态</b>。现价 158.86 元对应 PE(TTM) 22.2 倍（近 5 年约 47% 分位），中性合理价 190.2 元，风险收益比中性偏正。建议以<b>不超过计划仓位三分之一</b>的规模试仓——理由不是「看好」，而是核心争议（1260H／BCC）尚未有结论，此时重仓属对赌而非研究。</td></tr>
+      <tr><td><b>确认加仓</b></td><td>同时满足三条：① 2026-12-18 的 OMB 认定窗口平稳度过、未被认定为 BCC；② 2026Q3 报显示在手订单同比增速维持 20% 以上；③ 经营现金流／扣非净利回升至 1.0 倍以上。任一条不满足则维持试仓规模。</td></tr>
+      <tr><td><b>证伪退出</b></td><td>出现下列任一：① 被 OMB 列入「受关注生物技术公司」名单；② 在手订单同比增速跌破 15%；③ 美国客户收入连续两期同比负增长；④ 经营现金流／扣非净利跌破 0.7 且应收增速持续高于营收 8pct 以上。<b>不以股价下跌作为补仓理由。</b></td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ============ 13. 风险与证伪 ============ -->
+<h2><span class="n">13</span>风险与证伪</h2>
+<div class="card">
+  <div class="grid g2">
+    <div class="card" style="border-left:4px solid var(--amber);"><h3 style="margin-top:0;">短期风险（1–6 个月）</h3><ul style="font-size:13.5px;">
+      <li><b>OMB 的 BCC 认定（等级：高）。</b>《生物安全法案》Section 851(f)(2)(B) 允许 OMB 不依赖 1260H 名单独立认定，首个认定截止日 <b>2026-12-18</b>。该路径不在此次诉讼的约束范围内（OMB 非被告），是本报告识别出的<b>最大单一风险</b>。触发信号：OMB 公布 BCC 名单、或国防部补正证据后重新列入 1260H。</li>
+      <li><b>汇率波动（等级：中高）。</b>海外收入占比超七成、以美元结算、以人民币报表。2026H1 生物学业务毛利率因汇率下降 0.12pct 即为实例。公司仅表示会「高效前置管理」，未给量化区间。触发信号：人民币兑美元单季度升值超 2%。</li>
+      <li><b>应收账款回款（等级：中高）。</b>期末应收及票据 104.72 亿元、较期初 +44%，增速高于营收 5.26pct。触发信号：应收／营收比值继续上行且经营现金流／扣非净利跌破 0.7。</li>
+      <li><b>BINSA 立法复活（等级：中）。</b>2026-06 提出的《生物技术投资国家安全法案》拟将生物技术纳入对华投资审查，目前停留在草案阶段，但年底 NDAA 等打包立法窗口是观察节点。</li>
+    </ul></div>
+    <div class="card" style="border-left:4px solid var(--red);"><h3 style="margin-top:0;">中期风险（1–3 年）</h3><ul style="font-size:13.5px;">
+      <li><b>客户分流的累积效应（等级：中高）。</b>已有大药企将部分新分子订单分流至韩国、欧洲替代 CDMO，中小 biotech 增加合规缓冲期条款。单笔规模不大，但<b>分散订单的行为一旦形成习惯，切换成本会随时间下降</b>——这是「客户粘性被削弱」的经典路径。</li>
+      <li><b>GLP-1 景气回落（等级：中）。</b>TIDES 增速已从 2025H1 的 141.6% 回落至 2026H1 的 44.3%，公司指引全年约 45%。若全球 GLP-1 药物竞争格局或支付政策生变，需求端将直接下台阶。</li>
+      <li><b>收入结构高度集中（等级：中）。</b>化学业务占营收 86.5%，化学内部 TIDES 与 D&amp;M 合计约 89%。<b>集中既是效率来源，也是单点失效的来源</b>；前端生物学业务仅 +11.21%，漏斗上游的导入速度若持续偏慢，会削弱中期管线储备。</li>
+      <li><b>产能扩张的折旧压力（等级：中）。</b>2026 年资本开支指引上调至 75–85 亿元，常州新基地提前启动。在建工程转固后将带来刚性折旧，若需求增速不及产能投放速度，毛利率将承压——本报告悲观情景中毛利率降至 48% 即为此假设。</li>
+      <li><b>零息可转债的股本稀释（等级：低）。</b>公司发行 67.8 亿元零息可转债，转股将持续小幅增加总股本（总股本已由 8 月初的约 29.83 亿股增至 30.31 亿股）。稀释幅度温和，但方向上不利于 EPS。</li>
+    </ul></div>
+  </div>
+  <p><b>5 个核心证伪指标</b>（出现任一即需重估或推翻当前结论）：</p>
+  <ol style="color:var(--ink2);">
+    <li><b>在手订单同比增速跌破 15%</b>（2026-06-30 为 +25.2%）——需求端最领先的可观测指标。</li>
+    <li><b>TIDES 收入增速跌破 25%，或公司下调 TIDES 全年约 45% 的增速指引</b>——占营收 86.5% 的化学业务的核心引擎熄火信号。</li>
+    <li><b>被 OMB 依《生物安全法案》第二路径认定为「受关注生物技术公司」</b>（认定窗口 2026-12-18）——美国客户收入占比约 72%，此项一旦发生，本报告的中性情景不再成立。</li>
+    <li><b>美国客户收入连续两期同比负增长</b>——意味着地缘风险已由「情绪压制」落实为「订单流失」。</li>
+    <li><b>应收账款与经营现金流连续两期同步恶化</b>（应收增速持续高于营收 8pct 以上，且经营现金流／扣非净利低于 0.7）——增长质量不再支撑当前估值。</li>
+  </ol>
+</div>
+
+<!-- ============ 14. 催化剂与季度跟踪 ============ -->
+<h2><span class="n">14</span>催化剂与季度跟踪</h2>
+<div class="card">
+  <h3 class="sub" style="font-size:15px;">未来 6–18 个月催化剂</h3>
+  <table>
+    <thead><tr><th>时间窗口</th><th>事件</th><th>影响方向</th><th>需要验证什么</th></tr></thead>
+    <tbody>
+      <tr><td>2026Q3（10 月下旬）</td><td>2026 年三季报</td><td>双向</td><td>在手订单同比增速是否维持 20% 以上；应收账款增速是否继续跑赢营收；单季毛利率能否守住 53%</td></tr>
+      <tr><td><b>2026-12-18 前</b></td><td><b>OMB 依《生物安全法案》第二路径的 BCC 认定窗口</b></td><td><b>核心变量</b></td><td>是否被认定；若未被认定，地缘折价有修复空间（估值倍数通道）；若被认定，直接触发本报告悲观情景</td></tr>
+      <tr><td>2026Q4–2027Q1</td><td>1260H 诉讼的后续进展（实体审理／可能的上诉）</td><td>偏正面</td><td>法院是否维持初步禁令；国防部是否补正证据后重新列入</td></tr>
+      <tr><td>2026 年底</td><td>BINSA 是否会借 NDAA 等打包立法窗口推进</td><td>负面</td><td>是否进入立法进程并明确审查范围</td></tr>
+      <tr><td>2027-03（年报）</td><td>2026 年年报与 2027 年指引</td><td>正面</td><td>2026 年收入是否落在 585–605 亿元；TIDES 是否实现约 45% 增长；2027 年指引增速</td></tr>
+      <tr><td>持续</td><td>常州新基地建设与产能转固节奏</td><td>双向</td><td>产能投产进度与对应收入贡献；折旧对毛利率的实际影响幅度</td></tr>
+      <tr><td>持续</td><td>GLP-1 相关多肽订单与产能利用率</td><td>正面</td><td>TIDES 服务分子数与客户数增速；多肽反应釜 13 万升产能的爬坡利用率</td></tr>
+    </tbody>
+  </table>
+  <h3 style="font-size:15px;">季度跟踪表</h3>
+  <table>
+    <thead><tr><th>指标</th><th>上期</th><th>本期</th><th>变化</th><th>对逻辑影响</th></tr></thead>
+    <tbody>
+      <tr><td>营业收入同比增速</td><td>2025 全年 +15.84%</td><td>2026H1 +38.93%</td><td class="up">↑ 加速</td><td>跌破 15% → 逻辑减弱</td></tr>
+      <tr><td>扣非归母同比增速</td><td>2025 全年 +32.56%</td><td>2026H1 +89.39%</td><td class="up">↑ 大幅加速</td><td>连续两季低于 20% → 经营性改善中止</td></tr>
+      <tr><td>销售毛利率</td><td>2025 全年 47.64%</td><td>2026H1 53.91%</td><td class="up">↑ +6.27pct</td><td>连续两季回落至 48% 以下 → 折旧侵蚀显性化</td></tr>
+      <tr><td>扣非净利率</td><td>2025 全年 29.13%</td><td>2026H1 36.59%</td><td class="up">↑ +7.46pct</td><td>跌破 30% → 费用／汇率侵蚀加剧</td></tr>
+      <tr><td>经营现金流／扣非净利</td><td>2025 全年 1.30 倍</td><td>2026H1 0.92 倍</td><td class="down">↓ 转弱</td><td>低于 0.7 且应收增速持续高于营收 → 利润未转现金</td></tr>
+      <tr><td>应收账款及票据／营收（年化）</td><td>2025 年末余额约 72.7 亿元</td><td>2026H1 末 104.72 亿元（较期初 +44%）</td><td class="down">↑ 快于营收</td><td>连续两期高出营收 8pct 以上 → 回款质量恶化</td></tr>
+      <tr><td>持续经营在手订单同比增速</td><td>2025 年末 +28.8%（580.0 亿元）</td><td>2026-06-30 +25.2%（664.3 亿元）</td><td class="down">↓ 小幅放缓</td><td><b>跌破 15% → 最核心的先行指标转弱</b></td></tr>
+      <tr><td>化学业务收入同比增速</td><td>2025 全年 +25.52%</td><td>2026H1 +53.28%</td><td class="up">↑ 加速</td><td>跌破 25% → 占营收 86.5% 的主引擎降速</td></tr>
+      <tr><td>TIDES 业务收入增速</td><td>2025H1 +141.6%／2025 全年 +96%</td><td>2026H1 +44.3%</td><td class="down">↓ 回落至常态</td><td>跌破 25% 或下调全年约 45% 指引 → GLP-1 红利兑现结束</td></tr>
+      <tr><td>测试业务毛利率</td><td>2025 全年 26.63%（-6.32pct）</td><td>2026H1 37.95%（+11.32pct）</td><td class="up">↑ 反转</td><td>回落至 33% 以下 → 差异化定价能力失效</td></tr>
+      <tr><td>美国客户收入占比及增速</td><td>2025 年 312.5 亿元、占持续经营 72%（+34.3%）</td><td>2026H1 分部披露未单列区域，待年报更新</td><td>待更新</td><td>连续两期同比负增长 → 地缘风险已转化为订单流失</td></tr>
+      <tr><td>资本开支与在建工程</td><td>2025 年资本开支 55.38 亿元</td><td>2026 年指引 75–85 亿元（原 65–75 亿元）</td><td class="up">↑ 上调</td><td>资本开支大幅超指引而收入不及 → 产能消化效率下降</td></tr>
+      <tr><td>1260H／BCC 认定状态</td><td>2026-06-08 列入 1260H</td><td>2026-08-07 获法院初步禁令（程序性）</td><td class="up">↑ 边际缓解</td><td>被列入 BCC 名单 → 核心逻辑证伪</td></tr>
+    </tbody>
+  </table>
+  <div class="note">跟踪原则：每季度只更新这 13 个真正会改变结论的指标，逐一判定为<b>逻辑增强／逻辑不变／逻辑减弱／逻辑证伪</b>。不追踪股价本身。</div>
+</div>
+
+<!-- ============ 15. 最终投资研究卡 ============ -->
+<h2><span class="n">15</span>最终投资研究卡</h2>
+<div class="card">
+  <table>
+    <thead><tr><th>维度</th><th>结论/评分</th><th>关键依据</th></tr></thead>
+    <tbody>
+      <tr><td>产业趋势</td><td><b>向好（8/10）</b></td><td>全球创新药研发外包需求景气，GLP-1 驱动多肽 CDMO 需求；同业康龙化成、凯莱英订单同步高增，说明是行业普涨而非公司独享</td></tr>
+      <tr><td>竞争力</td><td><b>强（8/10）</b></td><td>一体化 CRDMO 全链条能力；A 股板块市值首位（4,815 亿元）；2026H1 转化 155 个 R→D 分子；通过全部 465 次全球合规审计</td></tr>
+      <tr><td>业绩兑现</td><td><b>强（9/10）</b></td><td>2026H1 营收 +38.93%、扣非 +89.39%、毛利率 +9.46pct；Q2 单季营收 164.62 亿元创历史新高；在手订单 664.3 亿元覆盖上半年收入 2.3 倍</td></tr>
+      <tr><td>财务质量</td><td><b>中上（6.5/10）</b></td><td>货币资金 357.26 亿元、资产负债率 27.85% 稳健；但应收较期初 +44% 快于营收、经营现金流／扣非净利降至 0.92、2025 年利润含 55.95 亿元处置净收益</td></tr>
+      <tr><td>估值</td><td><b>中性（6/10）</b></td><td>PE(TTM) 22.22 倍、近 5 年约 47% 分位；中性合理价 190.2 元、较现价 +19.7%；但倍数对地缘风险高度敏感</td></tr>
+      <tr><td>预期差</td><td><b>正向（7/10）</b></td><td>当前价隐含 2027 年归母 218.9 亿元，低于本报告中性预测 262 亿元 16.5%；公司上调后指引下限高于最乐观卖方预测约 26 亿元</td></tr>
+      <tr><td>风险收益比</td><td><b>中性偏正（6.5/10）</b></td><td>中性情景 +19.7%、乐观 +62.0%，悲观 -21.1%；上行空间大于下行，但悲观情景由单一尾部事件（BCC 认定）触发，概率不可精确量化</td></tr>
+      <tr><td>市场验证</td><td><b>中性偏正（6/10）</b></td><td>现价站在全部均线上方、9-14 放量上涨 5.04%；但 KDJ 的 J 值 95.64 超买、MACD 动能收敛，短线有过热迹象</td></tr>
+    </tbody>
+  </table>
+  <p><b>最终状态</b>：<span class="tag b" style="font-size:13px;">试仓</span></p>
+  <p class="note"><b>状态定义</b>：<code>试仓</code> = 基本面证据支持建立小规模初始仓位（不超过计划仓位的三分之一），但存在一项尚未有结论的重大不确定性，需在验证条件满足后才考虑提高仓位。<b>本状态不构成无条件买入建议</b>；提高仓位的前提条件、以及触发退出的条件，分别在 §12 的交易条件树与 §13 的证伪指标中列明。</p>
+</div>
+
+<!-- ============ 16. 结论变化条件 ============ -->
+<h2><span class="n">16</span>本次研究结论发生变化的条件</h2>
+<div class="card"><ol style="color:var(--ink2);">
+  <li><b>地缘政治：</b>公司被 OMB 依《生物安全法案》第二路径列入「受关注生物技术公司」名单（认定窗口 2026-12-18）→ <b>直接推翻中性情景，转向悲观情景（目标价 125.4 元）</b>。反之，若该窗口平稳度过且 1260H 诉讼取得实体层面胜诉，可上调至乐观情景。</li>
+  <li><b>订单端：</b>持续经营在手订单同比增速跌破 15%（现为 +25.2%），或连续两个报告期增速下行超过 10pct → <b>需求逻辑减弱，下调收入增速假设</b>，中性目标价下移约 25–35 元。</li>
+  <li><b>核心引擎：</b>TIDES 收入季度增速跌破 25%，或公司主动下调全年约 45% 的 TIDES 增速指引 → <b>占营收 86.5% 的化学业务增长逻辑受损</b>，需重估全部三情景的收入路径。</li>
+  <li><b>客户结构：</b>美国客户收入出现连续两期同比负增长（2025 年为 312.5 亿元、+34.3%）→ 说明订单分流已从行为倾向变为报表事实，应把悲观情景的概率权重显著上调。</li>
+  <li><b>盈利质量：</b>应收账款增速连续两期高于营收 8pct 以上，且经营现金流／扣非净利低于 0.7 → 增长的现金含量不足，即便利润数字达标也应给予估值折价。</li>
+  <li><b>估值层面：</b>PE(TTM) 高于 30 倍（当前 22.22 倍、近 5 年约 47% 分位）而盈利未同步上修 → 估值扩张快于盈利，风险收益比恶化，应主动降低仓位。</li>
+  <li><b>行业层面：</b>全球药企研发投入出现系统性下修，或主要同业（康龙化成、凯莱英等）订单增速同步掉档 → 说明是行业景气而非公司经营问题，需要重做行业判断而非仅调整个股模型。</li>
+</ol></div>
+
+<footer>
+  <b>数据来源与口径说明</b><br>
+  · 行情、财务序列（2018–2025 年报）、技术指标、股东结构、分红、资金与两融来源：<b>core</b> westock-npm（行情截至 2026-09-14 收盘）；最新一期财报、估值分位、机构一致预期、主营业务构成、业绩会纪要、风险事件来源：<b>search</b> neodata（截至 2026-09-15）。三源协同取数，互为交叉验证。<br>
+  · 定期报告来源：公司 2025 年年度报告（2026-03-24 披露）、2026 年半年度报告（2026-08-03 披露，未经审计）；历史财务序列为 2018–2025 共 8 个完整年度。<br>
+  · 地缘政治相关事实（1260H 名单列入、美国法院初步禁令、BIOSECURE Act 条款与期限）取自美国联邦公报、法院案卷与公司自愿性公告，属一手资料；行业景气、竞争格局、客户分流观察、GLP-1 驱动多肽 CDMO 需求等论述来自公开报道与券商研报，<b>均非公司披露口径</b>，涉及市占率、客户份额、订单金额的具体数字若被引用须核实原文。<br>
+  · 本报告引用的「持续经营业务在手订单 664.3 亿元」为公司半年报披露数据；「2026 年全年收入指引 585–605 亿元」「TIDES 全年约 45% 增长」为管理层指引，<b>均不代表未来必然兑现</b>。<br>
+  · 三情景盈利预测（第 10 章）与本报告估值（第 11 章）为独立自建，<b>非券商一致预期</b>，所有关键输入已在正文标注为假设；估值数据（PE/PB 分位、目标价分布）为公开行情终端口径。<br>
+  · 报告生成时间：2026-09-15 09:40:08（本地时间）<br><br>
+  <b>免责声明</b>：以上内容基于公开数据和量化分析，仅供参考，不构成投资建议。市场有风险，投资需谨慎。任何投资决策应结合个人风险承受能力、资金状况和投资目标独立判断，必要时咨询持牌专业机构。过往表现不预示未来收益。
+</footer>
+
+</div>
+
+<script>
+/* 图表配色读取宿主报告主题令牌，缺令牌回退 V1 色 */
+function fsVar(n){try{var v=getComputedStyle(document.documentElement).getPropertyValue(n);return (v||'').trim();}catch(e){return '';}}
+function fsPick(ns,fb){for(var i=0;i<ns.length;i++){var v=fsVar(ns[i]);if(v)return v;}return fb;}
+var ink2=fsPick(['--ink2'],'#4a5160'), ink3=fsPick(['--ink3'],'#8a92a3'), line=fsPick(['--line'],'#e4e7ee');
+var red=fsPick(['--up','--red'],'#d5342b'), green=fsPick(['--down','--green'],'#1f9c62');
+var blue=fsPick(['--brand','--blue'],'#2563c9'), amber=fsPick(['--amber','--gold'],'#c8871a'), purple=fsPick(['--purple'],'#6b4fc4');
+var labelStyle={color:ink2};
+
+/* ===== 图/表切换（单图） ===== */
+function tg(k){
+  var ch=document.getElementById('c'+k.slice(1)), tb=document.getElementById('t'+k.slice(1));
+  var btns=ch.closest('.chart-wrap').querySelectorAll('.switch button');
+  if(ch.classList.contains('hidden')){
+    ch.classList.remove('hidden'); tb.classList.add('hidden');
+    btns[0].classList.add('on'); btns[1].classList.remove('on');
+    var inst=echarts.getInstanceByDom(ch); if(inst){inst.resize();}
+  }else{
+    ch.classList.add('hidden'); tb.classList.remove('hidden');
+    btns[0].classList.remove('on'); btns[1].classList.add('on');
+  }
+}
+
+/* ===== 首屏：近 3 个月日 K 线 ===== */
+/* 数据来源 = research_sh603259/raw/kline.txt，60 个交易日（2026-06-23 ~ 2026-09-14） */
+var kDates=['2026-06-23','2026-06-24','2026-06-25','2026-06-26','2026-06-29','2026-06-30','2026-07-01','2026-07-02','2026-07-03','2026-07-06','2026-07-07','2026-07-08','2026-07-09','2026-07-10','2026-07-13','2026-07-14','2026-07-15','2026-07-16','2026-07-17','2026-07-20','2026-07-21','2026-07-22','2026-07-23','2026-07-24','2026-07-27','2026-07-28','2026-07-29','2026-07-30','2026-07-31','2026-08-03','2026-08-04','2026-08-05','2026-08-06','2026-08-07','2026-08-10','2026-08-11','2026-08-12','2026-08-13','2026-08-14','2026-08-17','2026-08-18','2026-08-19','2026-08-20','2026-08-21','2026-08-24','2026-08-25','2026-08-26','2026-08-27','2026-08-28','2026-08-31','2026-09-01','2026-09-02','2026-09-03','2026-09-04','2026-09-07','2026-09-08','2026-09-09','2026-09-10','2026-09-11','2026-09-14'];
+var kRaw=[[106.49,105.80,105.25,108.85,525084],[106.39,114.89,106.39,116.43,1098058],[113.49,116.71,112.72,117.99,764344],[118.49,117.67,116.45,120.56,684942],[116.70,125.66,116.29,126.29,1030535],[124.49,124.00,122.49,126.29,793759],[122.49,124.69,115.07,126.15,1124768],[123.34,120.79,120.49,128.64,844699],[123.09,123.61,119.01,124.55,712822],[122.50,122.46,121.49,127.54,921698],[119.99,117.79,117.50,122.44,665947],[117.88,114.89,114.80,119.74,509875],[114.50,120.56,114.01,120.92,583217],[119.49,122.79,119.49,126.22,683076],[122.70,119.73,118.75,123.69,553876],[118.37,127.00,117.41,127.24,750924],[127.11,130.99,127.11,134.66,1149977],[127.69,126.49,124.49,130.89,837022],[126.28,117.38,117.19,127.48,861483],[117.23,123.71,116.50,124.27,691940],[125.49,125.94,120.29,126.32,648280],[124.61,125.39,123.90,130.39,602588],[125.49,126.94,123.71,128.67,468445],[126.94,124.49,123.15,127.94,443756],[126.49,124.15,121.66,127.49,447049],[122.79,122.51,121.66,124.74,334767],[127.27,125.99,122.74,127.29,547765],[126.09,124.97,120.90,126.12,560173],[122.49,127.92,121.99,129.72,570793],[128.69,127.99,125.64,131.87,623890],[136.98,140.84,135.69,140.84,747059],[143.45,146.99,140.96,149.49,1344755],[148.31,142.19,140.94,148.86,775094],[144.05,154.31,141.69,154.97,927227],[159.48,160.83,157.42,166.15,1265362],[159.90,159.70,157.26,165.29,920758],[158.70,158.53,157.57,161.45,670272],[158.39,161.82,156.64,164.29,742253],[159.99,158.73,156.99,162.49,545901],[158.49,166.38,156.89,167.87,689433],[164.59,166.67,162.99,168.19,503781],[166.49,163.49,161.89,167.99,557916],[170.49,167.39,165.46,173.09,859114],[163.49,162.35,161.60,165.88,572445],[160.48,155.33,153.26,162.89,685575],[153.62,160.49,153.59,160.78,590510],[160.49,158.74,157.40,162.89,344185],[158.87,159.43,156.49,159.90,349446],[159.44,156.89,156.05,160.84,291937],[153.75,154.27,149.71,154.94,476254],[154.19,153.89,151.50,154.47,293400],[154.04,155.48,151.19,157.19,421070],[157.18,156.12,153.75,158.37,301039],[155.88,153.83,153.21,157.01,257217],[152.93,153.25,152.38,155.36,237831],[152.97,156.35,152.05,156.35,363959],[155.05,154.88,152.89,157.17,287079],[154.15,154.50,152.03,155.30,256708],[154.00,151.24,149.70,154.36,303599],[151.23,158.86,150.00,158.88,440256]];  /* [开,收,低,高,量] */
+var kOHLC=kRaw.map(function(r){return [r[0],r[1],r[2],r[3]];});   /* [开,收,低,高] */
+var kVol=kRaw.map(function(r){return r[4];});
+function maN(n){var a=[];for(var i=0;i<kRaw.length;i++){if(i<n-1){a.push('-');continue;}var s=0;for(var j=0;j<n;j++){s+=kRaw[i-j][1];}a.push(+(s/n).toFixed(2));}return a;}
+echarts.init(document.getElementById('fsKline')).setOption({
+  tooltip:{trigger:'axis',axisPointer:{type:'cross'}},
+  legend:{data:['日K','MA5','MA10','MA20'],textStyle:{color:ink2},itemWidth:10,itemHeight:10},
+  axisPointer:{link:[{xAxisIndex:'all'}]},
+  grid:[{left:56,right:20,top:46,height:194},{left:56,right:20,top:264,height:56}],
+  xAxis:[
+    {type:'category',data:kDates,gridIndex:0,boundaryGap:false,axisLine:{lineStyle:{color:line}},axisLabel:{show:false},axisTick:{show:false}},
+    {type:'category',data:kDates,gridIndex:1,boundaryGap:false,axisLine:{lineStyle:{color:line}},axisLabel:labelStyle}
+  ],
+  yAxis:[
+    {scale:true,gridIndex:0,name:'价格(元)',nameTextStyle:{color:ink3},axisLabel:labelStyle,splitLine:{lineStyle:{color:line}}},
+    {gridIndex:1,name:'量(手)',nameTextStyle:{color:ink3},axisLabel:{show:false},splitLine:{show:false},axisLine:{show:false},axisTick:{show:false}}
+  ],
+  dataZoom:[{type:'inside',xAxisIndex:[0,1],start:0,end:100}],
+  series:[
+    {name:'日K',type:'candlestick',xAxisIndex:0,yAxisIndex:0,data:kOHLC,
+      itemStyle:{color:red,color0:green,borderColor:red,borderColor0:green}},
+    {name:'MA5',type:'line',xAxisIndex:0,yAxisIndex:0,data:maN(5),smooth:true,symbol:'none',lineStyle:{width:1.3,color:amber}},
+    {name:'MA10',type:'line',xAxisIndex:0,yAxisIndex:0,data:maN(10),smooth:true,symbol:'none',lineStyle:{width:1.3,color:blue}},
+    {name:'MA20',type:'line',xAxisIndex:0,yAxisIndex:0,data:maN(20),smooth:true,symbol:'none',lineStyle:{width:1.3,color:purple}},
+    {name:'成交量',type:'bar',xAxisIndex:1,yAxisIndex:1,data:kVol,
+      itemStyle:{color:function(p){return kRaw[p.dataIndex][1]>=kRaw[p.dataIndex][0]?red:green;}}}
+  ]
+});
+
+/* ===== 图5 业务结构占比（2026H1，单位：亿元） ===== */
+echarts.init(document.getElementById('c5')).setOption({
+  tooltip:{trigger:'item',formatter:'{b}: {c} 亿元 ({d}%)'},
+  legend:{bottom:0,textStyle:{color:ink2},itemWidth:10,itemHeight:10},
+  series:[{
+    type:'pie', radius:['42%','68%'], center:['50%','44%'],
+    label:{formatter:'{b}\n{d}%',color:ink2,fontSize:12,lineHeight:16},
+    labelLine:{length:10,length2:10},
+    data:[
+      {name:'化学业务',value:249.86,itemStyle:{color:blue}},
+      {name:'测试业务',value:24.81,itemStyle:{color:amber}},
+      {name:'生物学业务',value:13.92,itemStyle:{color:purple}},
+      {name:'其他业务',value:0.39,itemStyle:{color:'#b8c4d6'}}
+    ]
+  }]
+});
+document.getElementById('t5').innerHTML='<table><thead><tr><th>业务</th><th>收入</th><th>占比</th><th>增速</th><th>毛利率</th></tr></thead><tbody>'+
+ [['化学业务（含小分子 D&amp;M 与 TIDES）','249.86 亿','86.5%','+53.28%','56.55%'],
+  ['测试业务（WuXi Testing）','24.81 亿','8.6%','+31.53%','37.95%'],
+  ['生物学业务（WuXi Biology）','13.92 亿','4.8%','+11.21%','34.92%'],
+  ['其他业务','0.39 亿','0.1%','-54.93%','—'],
+  ['合计','288.97 亿','100%','+38.93%','53.91%']]
+ .map(function(r){return '<tr>'+r.map(function(c){return '<td>'+c+'</td>';}).join('')+'</tr>';}).join('')+
+ '</tbody></table>';
+
+/* ===== 图8 营收与归母净利双轴 + 毛利率（2021–2025 年报） ===== */
+var years=['2021','2022','2023','2024','2025'];
+echarts.init(document.getElementById('c8')).setOption({
+  tooltip:{trigger:'axis'},
+  legend:{data:['营业收入(亿元)','归母净利润(亿元)','销售毛利率(%)'],textStyle:{color:ink2},itemWidth:10,itemHeight:10},
+  grid:{left:56,right:60,top:46,bottom:36},
+  xAxis:{type:'category',data:years,axisLine:{lineStyle:{color:line}},axisLabel:labelStyle},
+  yAxis:[
+    {type:'value',name:'亿元',nameTextStyle:{color:ink3},axisLabel:labelStyle,splitLine:{lineStyle:{color:line}}},
+    {type:'value',name:'毛利率%',max:100,nameTextStyle:{color:ink3},axisLabel:labelStyle,splitLine:{show:false}}
+  ],
+  series:[
+    {name:'营业收入(亿元)',type:'bar',barWidth:'46%',data:[229.02,393.55,403.41,392.41,454.56],itemStyle:{color:'#9db2d0',borderRadius:[4,4,0,0]}},
+    {name:'归母净利润(亿元)',type:'bar',barWidth:'30%',data:[50.97,88.14,96.07,94.50,191.51],itemStyle:{color:red,borderRadius:[4,4,0,0]}},
+    {name:'销售毛利率(%)',type:'line',yAxisIndex:1,data:[36.28,37.30,41.18,41.48,47.64],symbolSize:7,lineStyle:{color:amber,width:2.5},itemStyle:{color:amber},connectNulls:true}
+  ]
+});
+document.getElementById('t8').innerHTML='<table><thead><tr><th>指标</th><th>2021</th><th>2022</th><th>2023</th><th>2024</th><th>2025</th></tr></thead><tbody>'+
+ [['营业收入（亿元）','229.02','393.55','403.41','392.41','454.56'],
+  ['归母净利润（亿元）','50.97','88.14','96.07','94.50','191.51'],
+  ['销售毛利率','36.28%','37.30%','41.18%','41.48%','47.64%'],
+  ['研发费用（亿元）','9.42','16.14','14.41','12.39','11.19']]
+ .map(function(r){return '<tr>'+r.map(function(c){return '<td>'+c+'</td>';}).join('')+'</tr>';}).join('')+
+ '</tbody></table>';
+
+window.addEventListener('resize',function(){
+  ['fsKline','c5','c8'].forEach(function(id){
+    var d=document.getElementById(id); var i=echarts.getInstanceByDom(d); if(i){i.resize();}
+  });
+});
+</script>
+</body>
+</html>

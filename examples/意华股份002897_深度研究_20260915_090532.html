@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<!--
+  意华股份（002897.SZ）A股个股深度研究 · 2026-09-14
+  ==================================================
+  · 生成方式：a-share-stock-deep-research 技能 —— 复制 assets/报告模板.html 填充，版式锁定
+  · 视觉基准 = 京泉华 V1 研报；章节骨架 = assets/报告模板.md 的 0–16 章
+  · 数据口径：westock-data / neodata（截至 2026-09-14 收盘）+ 公司 2026 年半年报（未经审计）
+  · 首屏行情与日 K 全部取自 research_sz002897/raw/kline.txt（60 个交易日），红涨绿跌
+  · 报告生成时间：2026-09-15 09:05:32
+-->
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>意华股份（002897）A股个股深度研究 ｜ 数据截至 2026-09-14 ｜ 生成于 2026-09-15 09:05:32</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+<style>
+  /* ===== 统一设计令牌（锁定，取自 V1 基准） ===== */
+  :root{
+    --bg:#f5f6f8; --card:#ffffff; --ink:#1a1d24; --ink2:#4a5160; --ink3:#8a92a3;
+    --line:#e4e7ee; --red:#d5342b; --green:#1f9c62; --blue:#2563c9; --amber:#c8871a;
+    --purple:#6b4fc4;
+    /* 本标的品牌色与涨跌语义（供首屏继承；A股口径红涨绿跌） */
+    --brand:#1c4e8a; --up:#d5342b; --down:#1f9c62;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    font-size:15px;line-height:1.75;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:1080px;margin:0 auto;padding:32px 22px 80px;}
+  header.top{margin-bottom:22px;}
+  .kicker{display:inline-block;font-size:12px;letter-spacing:.14em;color:var(--blue);
+    background:#e8effb;border-radius:4px;padding:3px 10px;font-weight:600;}
+  h1{font-size:31px;margin:14px 0 6px;letter-spacing:-.4px;line-height:1.25;}
+  h1 small{display:block;font-size:14px;font-weight:400;color:var(--ink3);letter-spacing:0;margin-top:8px;}
+  h2{font-size:20px;margin:44px 0 14px;padding-left:12px;border-left:4px solid var(--blue);letter-spacing:-.2px;}
+  h2 .n{color:var(--blue);font-weight:700;margin-right:9px;}
+  h3{font-size:16px;margin:26px 0 10px;color:var(--ink);}
+  p{margin:10px 0;color:var(--ink2);}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px 22px;
+    box-shadow:0 1px 3px rgba(20,25,40,.04);}
+  .grid{display:grid;gap:14px;}
+  .g4{grid-template-columns:repeat(4,1fr);}
+  .g3{grid-template-columns:repeat(3,1fr);}
+  .g2{grid-template-columns:repeat(2,1fr);}
+  @media(max-width:860px){.g4,.g3,.g2{grid-template-columns:1fr 1fr;}}
+  @media(max-width:560px){.g4,.g3,.g2{grid-template-columns:1fr;}}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;}
+  .kpi .lb{font-size:12px;color:var(--ink3);margin-bottom:4px;}
+  .kpi .vl{font-size:22px;font-weight:700;letter-spacing:-.5px;}
+  .kpi .sub{font-size:12px;color:var(--ink3);margin-top:3px;}
+  .up{color:var(--red);} .down{color:var(--green);} .neu{color:var(--ink2);}
+  table{width:100%;border-collapse:collapse;font-size:13.5px;margin:12px 0;}
+  th,td{padding:9px 10px;text-align:right;border-bottom:1px solid var(--line);}
+  th{background:#f0f2f7;color:var(--ink2);font-weight:600;font-size:12.5px;text-align:right;}
+  th:first-child,td:first-child{text-align:left;}
+  tbody tr:hover{background:#fafbfd;}
+  .tag{display:inline-block;font-size:12px;padding:2px 9px;border-radius:20px;margin:2px 4px 2px 0;
+    background:#eef1f7;color:var(--ink2);}
+  .tag.r{background:#fdecea;color:var(--red);} .tag.g{background:#e7f6ee;color:var(--green);}
+  .tag.b{background:#e8effb;color:var(--blue);} .tag.a{background:#fdf3e3;color:var(--amber);}
+  .tag.p{background:#efeafb;color:var(--purple);}
+  .note{font-size:12.5px;color:var(--ink3);margin-top:8px;line-height:1.6;}
+  .callout{border-left:4px solid var(--amber);background:#fffaf0;border-radius:0 8px 8px 0;
+    padding:14px 18px;margin:16px 0;}
+  .callout.blue{border-color:var(--blue);background:#f2f7fe;}
+  .callout.red{border-color:var(--red);background:#fef5f4;}
+  .callout h4{margin:0 0 6px;font-size:14.5px;}
+  .callout p{margin:6px 0;font-size:13.5px;}
+  .chart{width:100%;height:360px;}
+  .chart-wrap{position:relative;}
+  .switch{position:absolute;right:8px;top:-4px;z-index:5;}
+  .switch button{font-size:12px;padding:3px 11px;border:1px solid var(--line);background:#fff;
+    color:var(--ink2);border-radius:6px;cursor:pointer;font-family:inherit;}
+  .switch button.on{background:var(--blue);border-color:var(--blue);color:#fff;}
+  .hidden{display:none;}
+  /* 产业链盒子 */
+  .chain{display:flex;flex-direction:column;gap:10px;margin:16px 0;}
+  .chain-row{display:flex;align-items:stretch;gap:10px;}
+  .layer{flex:0 0 118px;background:#eef1f7;border-radius:8px;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;font-size:12.5px;font-weight:600;color:var(--ink2);
+    padding:10px 6px;text-align:center;line-height:1.4;}
+  .boxes{flex:1;display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
+  .box{background:#fff;border:1px solid var(--line);border-radius:8px;padding:8px 12px;
+    font-size:12.5px;color:var(--ink2);line-height:1.4;}
+  .box.hi{border-color:var(--red);background:#fef5f4;color:var(--red);font-weight:700;
+    box-shadow:0 2px 8px rgba(213,52,43,.12);}
+  .box.dim{color:var(--ink3);background:#fafbfd;}
+  footer{margin-top:56px;padding-top:18px;border-top:1px solid var(--line);
+    font-size:12px;color:var(--ink3);line-height:1.8;}
+  .src{font-size:11.5px;color:var(--ink3);margin-top:6px;}
+  ul{padding-left:20px;color:var(--ink2);} li{margin:5px 0;}
+  .lead{font-size:15.5px;color:var(--ink2);}
+  .num-big{font-size:26px;font-weight:700;letter-spacing:-.6px;}
+  
+/* FS-CSS:BEGIN（单一来源=本文件 CSS 常量；勿手改模板，用 --sync-template 同步） */
+
+/* ===== 首屏（ V1 版式；配色一律继承宿主报告的主题令牌，缺令牌时回退 V1 色 ） ===== */
+.fs-head{margin-bottom:22px}
+.fs-kicker{display:inline-block;font-size:12px;letter-spacing:.14em;font-weight:600;border-radius:4px;padding:3px 10px;
+  color:var(--brand,var(--blue,#2563c9));background:#e8effb;
+  background:color-mix(in srgb,var(--brand,var(--blue,#2563c9)) 12%,#fff)}
+.fs-head h1{font-size:31px;margin:14px 0 6px;letter-spacing:-.4px;line-height:1.25;font-weight:700;color:var(--ink,#1a1d24)}
+.fs-head h1 small{display:block;font-size:14px;font-weight:400;color:var(--ink3,#8a92a3);letter-spacing:0;margin-top:8px}
+.fs-card{background:var(--card,#fff);border:1px solid var(--line,#e4e7ee);border-radius:12px;padding:20px 22px;box-shadow:0 1px 3px rgba(20,25,40,.04);margin-bottom:16px}
+.fs-intro{background:#f2f7fe;background:color-mix(in srgb,var(--brand,var(--blue,#2563c9)) 6%,#fff);
+  border:1px solid var(--line,#e4e7ee);border-left:4px solid var(--brand,var(--blue,#2563c9));border-radius:0 12px 12px 0;padding:14px 20px;margin-bottom:16px}
+.fs-intro .fs-lb{font-size:12px;color:var(--brand,var(--blue,#2563c9));letter-spacing:.1em;font-weight:700;margin-bottom:6px}
+.fs-intro p{font-size:15px;color:var(--ink2,#4a5160);margin:0;line-height:1.8;max-width:880px}
+.fs-intro b{color:var(--ink,#1a1d24)}
+/* 结论 + 行情：两列网格（不是 flex-wrap）——价格块恒钉右侧，永不换行；窄屏才转单列 */
+.fs-top{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:20px;align-items:start}
+.fs-concl{min-width:0}
+.fs-lbl{font-size:12px;color:var(--ink3,#8a92a3);letter-spacing:.1em;font-weight:600}
+.fs-concl p{font-size:15.5px;color:var(--ink2,#4a5160);margin:8px 0 0;max-width:760px;line-height:1.75}
+.fs-pill{display:inline-block;font-size:12px;font-weight:700;border-radius:20px;padding:2px 10px;margin-left:6px;vertical-align:middle;
+  color:var(--brand,var(--blue,#2563c9));background:#e8effb;
+  background:color-mix(in srgb,var(--brand,var(--blue,#2563c9)) 12%,#fff)}
+.fs-quote{text-align:right;justify-self:end;min-width:200px}
+.fs-lbl2{font-size:12px;color:var(--ink3,#8a92a3)}
+.fs-big{font-size:26px;font-weight:700;letter-spacing:-.6px;color:var(--ink,#1a1d24)}
+.fs-big span{font-size:15px}
+.fs-big.r{color:var(--up,var(--red,#d5342b))}
+.fs-big.g{color:var(--down,var(--green,#1f9c62))}
+.fs-chg{font-size:12px;font-weight:700;color:var(--ink2,#4a5160)}
+.fs-chg.r{color:var(--up,var(--red,#d5342b))}
+.fs-chg.g{color:var(--down,var(--green,#1f9c62))}
+.fs-mc{font-size:12px;color:var(--ink3,#8a92a3);margin-top:6px}
+.fs-ohlc{font-size:11.5px;color:var(--ink3,#8a92a3);margin-top:4px}
+.fs-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-top:18px}
+.fs-kpi{min-width:0;border:1px solid var(--line,#e4e7ee);border-radius:10px;padding:14px 16px;background:var(--card,#fff)}
+.fs-kpi .lb{font-size:12px;color:var(--ink3,#8a92a3);margin-bottom:4px}
+.fs-kpi .vl{font-size:22px;font-weight:700;letter-spacing:-.5px;color:var(--ink,#1a1d24);font-variant-numeric:tabular-nums}
+.fs-kpi .vl.r{color:var(--up,var(--red,#d5342b))}
+.fs-kpi .vl.g{color:var(--down,var(--green,#1f9c62))}
+.fs-kpi .sub{font-size:12px;color:var(--ink3,#8a92a3);margin-top:3px}
+.fs-kpi .sub.r{color:var(--up,var(--red,#d5342b))}
+.fs-kpi .sub.g{color:var(--down,var(--green,#1f9c62))}
+.fs-src{font-size:11.5px;color:var(--ink3,#8a92a3);margin-top:12px}
+.fs-chart{width:100%;height:340px}
+@media(max-width:860px){
+  .fs-top{grid-template-columns:1fr;gap:14px}
+  .fs-quote{text-align:left;justify-self:start}
+  .fs-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:560px){.fs-kpis{grid-template-columns:1fr}}
+/* FS-CSS:END */
+
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="fs-head">
+  <span class="fs-kicker">个股深度研究 · 通信设备（申万二级） · 三源协同取数版</span>
+  <h1>意华股份（002897）
+    <small>通讯连接器 + 光伏跟踪支架双主业 ｜ 高速 I/O 连接器国产第二 ｜ 数据截至 2026-09-14 收盘 ｜ 生成于 2026-09-15 09:05:32</small>
+  </h1>
+</header>
+
+<!-- ============ 公司简介（首屏固定要素，位于核心结论之前） ============ -->
+<div class="fs-intro">
+  <div class="fs-lb">— 公司简介 —</div>
+  <p><b>一家"通讯连接器 + 光伏跟踪支架"双主业的精密制造企业，正处在增长引擎由光伏切向 AI 算力高速互连的切换期。</b>公司 1995 年 12 月成立于浙江温州乐清，2017 年 9 月登陆深交所主板，主营连接器及其组件（通讯连接器为核心、消费电子连接器为重要构成、汽车等为延伸）与太阳能支架（全资子公司乐清意华新能源，做光伏跟踪支架核心零部件）；2025 年营收 64.01 亿元、员工 7,878 人，2026-09-14 总市值 138.4 亿元。公司是国内最具实力的通讯连接器生产商之一，与华为、中兴、富士康、霍尼韦尔、伟创力、安波福、智邦等建立长期合作；已实现 QSFP56 200G / QSFP-DD 400G / QSFP112 400G / CXP 600G / OSFP112 800G 高速连接器及 NPC 模组批量交付，800G/1.6T 高速模块壳体大批量交付。但须划清兑现度：公司 2026-09-14 在互动平台明确回复，市场最关注的<b>液冷产品与 224G 高速连接器仍处"送样阶段"，尚未量产</b>；光伏支架业务 2026H1 收入同比 -30.53%，是当期业绩的主要拖累。</p>
+</div>
+
+<!-- ============ 首屏结论（报告日真实行情 + 关键指标） ============ -->
+<div class="fs-card">
+  <div class="fs-top">
+    <div class="fs-concl">
+      <div class="fs-lbl">— 核心结论 —</div>
+      <p>公司是"光伏周期下行"与"AI 算力互连上行"两条曲线在同一张报表里的对撞：2026H1 通讯连接器收入 8.22 亿元、同比 +36.76%，而太阳能支架 12.23 亿元、同比 -30.53%，叠加汇兑损失 6,262 万元，最终归母净利润 1.00 亿元、同比 -37.87%。最大的预期差在盈利预测：卖方一致预期 2026 年归母 4.22 亿元，而 H1 仅完成 1.00 亿元，<b>下半年需做出 3.22 亿元（是 H1 的 3.2 倍、2025 年下半年的 2.1 倍）</b>；本报告自建中性情景为 3.20 亿元，明显低于一致预期。最关键前提是<b>液冷与 224G 产品的送样能否在 2026H2–2027 转为批量收入</b>——在这一点被证实之前，138.4 亿元市值中已包含相当比例的未兑现预期。<span class="fs-pill">研究状态：观察</span></p>
+    </div>
+    <div class="fs-quote">
+      <div class="fs-lbl2">最新收盘价（报告日）</div>
+      <div class="fs-big r">71.39<span>元</span></div>
+      <div class="fs-chg r">+10.00%（2026-09-14）</div>
+      <div class="fs-mc">总市值 138.40 亿元</div>
+      <div class="fs-ohlc">开 63.99 ｜ 高 71.39 ｜ 低 61.04 ｜ 额 16.21 亿 ｜ 换手 13.25%</div>
+    </div>
+  </div>
+  <div class="fs-kpis">
+    <div class="fs-kpi"><div class="lb">2026H1 营收</div><div class="vl g">28.63<span style="font-size:14px;">亿</span></div><div class="sub g">同比 -5.97%</div></div>
+    <div class="fs-kpi"><div class="lb">2026H1 归母净利</div><div class="vl g">1.00<span style="font-size:14px;">亿</span></div><div class="sub g">同比 -37.87%</div></div>
+    <div class="fs-kpi"><div class="lb">通讯连接器（H1）</div><div class="vl r">8.22<span style="font-size:14px;">亿</span></div><div class="sub r">同比 +36.76%</div></div>
+    <div class="fs-kpi"><div class="lb">太阳能支架（H1）</div><div class="vl g">12.23<span style="font-size:14px;">亿</span></div><div class="sub g">同比 -30.53%</div></div>
+    <div class="fs-kpi"><div class="lb">PE（TTM）</div><div class="vl">53.83×</div><div class="sub">历史分位 51.3%</div></div>
+    <div class="fs-kpi"><div class="lb">PB（MRQ）</div><div class="vl">4.90×</div><div class="sub">历史分位 63.2%</div></div>
+    <div class="fs-kpi"><div class="lb">财务费用（H1）</div><div class="vl g">0.93<span style="font-size:14px;">亿</span></div><div class="sub g">同比 +219.03%</div></div>
+    <div class="fs-kpi"><div class="lb">经营现金流（H1）</div><div class="vl r">2.70<span style="font-size:14px;">亿</span></div><div class="sub r">同比 +159.59%</div></div>
+  </div>
+  <div class="fs-src">数据来源（三源协同）：<b>core</b> westock-npm（行情 / K 线 / 三大表 / 技术 / 股东 / 分红 / 两融）；<b>enhanced</b> westock-cli（新闻 / 研报 / 公告 / 资金流）；<b>search</b> neodata（最新一期财报 / 主营构成 / 供应链 / 一致预期 / 风险事件）。行情截至 2026-09-14 收盘，最新报告期 2026H1（2026-08-25 披露，未经审计）。</div>
+</div>
+
+<!-- ============ 近 3 个月日 K 线 ============ -->
+<div class="fs-card">
+  <h3 style="margin:0 0 6px;font-size:15px;color:var(--ink,#1a1d24);">近 3 个月日 K 线（截至 2026-09-14）</h3>
+  <div class="fs-chart" id="fsKline"></div>
+  <div class="fs-src">来源：westock-data 日 K 线（近 60 个交易日，2026-06-23 ~ 2026-09-14，raw/kline.txt）；MA5/MA10/MA20 自算。区间最高 95.15 元、最低 49.38 元、区间涨跌 -24.46%。A 股口径红涨绿跌。</div>
+</div>
+
+<!-- ============ 0. 重要声明与资料来源 ============ -->
+<h2><span class="n">0</span>重要声明与资料来源</h2>
+<div class="card">
+  <table>
+    <thead><tr><th>数据类别</th><th>最新时点</th><th>主要来源</th><th>可信度</th><th>备注</th></tr></thead>
+    <tbody>
+      <tr><td>行情 / 估值</td><td>2026-09-14 收盘</td><td><b>core</b> westock-npm ＋ <b>search</b> neodata 统一估值</td><td>高</td><td>收盘 71.39 元（涨停 +10.00%），总市值 138.40 亿元</td></tr>
+      <tr><td>历史财务序列</td><td>2018–2025 年报</td><td><b>core</b> westock-npm（8 年序列 + 30 期三表）</td><td>高</td><td>结构化数据库，与年报口径一致</td></tr>
+      <tr><td>最新一期财报</td><td>2026H1（2026-08-25 披露）</td><td><b>search</b> neodata（多期利润表 / 现金流量表）</td><td>高</td><td>结构化源仅到 2025 年报，2026H1 由 neodata 补齐</td></tr>
+      <tr><td>分业务拆分</td><td>2026H1</td><td><b>search</b> neodata 主营业务构成</td><td>高</td><td>连接器 / 太阳能支架 / 其他三口径一致</td></tr>
+      <tr><td>供应链 / 关联交易</td><td>2026H1</td><td><b>search</b> neodata（A 股供应链关系）</td><td>中</td><td>关联交易金额为披露口径；客户线索未披露金额</td></tr>
+      <tr><td>资讯面（新闻 / 研报 / 公告）</td><td>2026-09-14</td><td><b>enhanced</b> westock-cli</td><td>中</td><td>媒体与机构口径，<b>非公司披露</b>；研报评级仅作对照</td></tr>
+      <tr><td>资金流 / 龙虎榜 / 两融</td><td>2026-09-14</td><td><b>enhanced</b> westock-cli ＋ <b>core</b> westock-npm</td><td>高</td><td>交易所与行情数据</td></tr>
+      <tr><td>业务进展状态</td><td>2026-09-14</td><td>深交所互动易公司回复</td><td>高</td><td>液冷与 224G 产品「送样阶段」为公司原话</td></tr>
+      <tr><td>竞争格局 / 份额</td><td>2026 年内</td><td>券商研报、产业调研、媒体报道</td><td>中</td><td><b>非一手</b>；涉及市占率的数字均未见于公司公告</td></tr>
+      <tr><td>盈利预测</td><td>2026-09-14</td><td><b>search</b> neodata 汇总一致预期</td><td>中</td><td>仅作对照，不得当事实；本报告另行自建三情景</td></tr>
+      <tr><td>股东 / 质押 / 解禁</td><td>2026-06-30 / 2026-09-10</td><td><b>core</b> 股东结构 ＋ <b>search</b> 风险事件（股东人数变化）</td><td>高</td><td>最新报告期无在册质押</td></tr>
+    </tbody>
+  </table>
+  <p><b>无法确认项</b>：<span class="tag">无法确认</span></p>
+  <ul>
+    <li><b>公司在华为 / 昇腾体系内的具体份额</b>：流传的「光模块 I/O 连接器约 30%」「CAGE 约 50%」等均出自券商研报与产业调研，公司从未披露，亦无法交叉验证——本报告仅在竞争格局章节作定性参考，不进入任何测算。</li>
+    <li><b>液冷 / 224G 的验证周期与批量时间表</b>：公司 2026-09-14 仅回复「处于送样阶段」，无客户、无金额、无时间点。这是本次研究最大的信息缺口。</li>
+    <li><b>2026H2 分季度盈利</b>：未披露，亦无业绩预告。</li>
+    <li><b>乐清意华新能源（光伏支架）单独净利润与商誉减值测试假设</b>：半年报未单独披露该子公司利润，2.85 亿元商誉的减值敏感性无法逐项验算。</li>
+  </ul>
+  <div class="note">证据标签：<span class="tag g">事实</span><span class="tag a">管理层口径</span><span class="tag b">推断</span><span class="tag p">假设</span><span class="tag">无法确认</span>　｜　研究日 2026-09-14；最新已披露报告期 2026H1（2026-08-25）；行情时点 2026-09-14 收盘。</div>
+</div>
+
+<!-- ============ 1. 核心结论 ============ -->
+<h2><span class="n">1</span>核心结论</h2>
+<div class="card">
+  <p><b>当前状态：观察。</b>意华股份正处在一个「旧引擎熄火、新引擎点火但尚未挂上挡」的切换期：2026H1 太阳能支架收入同比 -30.53%（12.23 亿元），把整体营收拖成 -5.97%；而通讯连接器同比 +36.76%（8.22 亿元），已经不足以对冲前者的下滑幅度与汇兑损失的 6,262 万元。结果是营收微降、归母净利润 -37.87%（1.00 亿元）——<b>典型的"收入小跌、利润大跌"</b>，且综合毛利率反而提升 0.61pct 至 18.77%，说明利润下滑不是经营质量退化，而是被财务费用（+219.03%）与减值（0.42 亿元）吃掉的。</p>
+  <p><b>最大争议：一致预期与已完成业绩之间的落差。</b>9 家机构一致预期 2026 年归母净利润 4.22 亿元（同比 +32.58%），而 H1 只做了 1.00 亿元，意味着 H2 需要 3.22 亿元——是 H1 的 3.2 倍、2025 年同期（1.56 亿元）的 2.1 倍。本报告自建中性情景为 3.20 亿元，<b>低于一致预期约 24%</b>。换言之，若一致预期不成立，当前 53.83 倍 PE(TTM) 的分子分母会被同时下修。</p>
+  <p><b>最关键前提：液冷与 224G 产品能否从送样转批量。</b>公司已批量交付的是 800G 及以下的高速连接器与 800G/1.6T 模块壳体；而市场愿意给溢价的液冷 CAGE 与 224G 产品，截至 2026-09-14 仍是公司原话中的「送样阶段」。这是本报告给出「观察」而非「试仓」的直接原因。</p>
+  <div class="callout"><h4>一句话概括</h4><p style="margin-bottom:0;">基本面在真实改善（连接器占比首超 50%、现金流 +159.59%、毛利率提升），但<b>价格已经先行一步</b>：9-14 涨停后 PE(TTM) 从半年报时的约 42.7 倍升至 53.8 倍，而这一天公司同时确认了核心新品仍在送样。改善是真的，兑现是慢的，估值是快的。</p></div>
+</div>
+
+<!-- ============ 2. 一句话投资逻辑 ============ -->
+<h2><span class="n">2</span>一句话投资逻辑</h2>
+<div class="card" style="margin-bottom:14px;">
+  <p style="margin-top:0;"><b>产业趋势</b>（AI 数据中心互联从 400G 向 800G/1.6T 演进，高速 I/O 连接器与光模块同步升级、量价齐升）→ <b>公司卡位</b>（国内少数实现高速连接器及高速光电模组量产的企业之一，I/O 连接器环节国产第二，与华为、中兴长期绑定）→ <b>真实需求</b>（通讯连接器 H1 收入 +36.76%，占连接器业务超五成；800G/1.6T 模块壳体已大批量交付）→ <b>业绩兑现</b>（连接器占比首超 50%、毛利率提升、经营现金流 +159.59%，但整体利润仍被光伏下滑与汇兑损失压制）→ <b>当前估值</b>（PE(TTM) 53.83 倍、PB 4.90 倍，已高于半年报时点的约 42.7 倍 / 3.89 倍）。</p>
+</div>
+<div class="grid g2">
+  <div class="card" style="border-left:4px solid var(--red);">
+    <h3 style="margin-top:0;">多头逻辑</h3>
+    <ol style="color:var(--ink2);">
+      <li><b>收入结构切换已完成关键一步。</b>连接器收入占比从 2025 全年的 41.15% 升至 2026H1 的 51.48%，首次超过太阳能支架成为第一大业务；通讯连接器增速 +36.76%，且在支架下滑的背景下仍带动综合毛利率提升 0.61pct——说明高毛利业务确实在放量，而非概念。</li>
+      <li><b>利润下滑的主因是外生且可逆。</b>汇兑损失从上年同期的 -752 万元（收益）转为 +6,262 万元（损失），净变化超 7,000 万元，几乎吞掉全部利润增长；资产减值 0.42 亿元亦属一次性口径。同期经营现金流净额 2.70 亿元、同比 +159.59%，净现比约 270%（经营现金流 ÷ 归母）——<b>主业造血能力实际上是增强的</b>。</li>
+      <li><b>产品代际卡位真实且居前。</b>公司已批量交付 QSFP56 200G / QSFP-DD 400G / QSFP112 400G / CXP 600G / OSFP112 800G 及 NPC 模组，并同步推进 1.6T 超高速光电连接器、2×4/2×8 OSFP 液冷屏蔽组件、3.2T ELSFP 与 CPO OSFP 端口；在 112Gbps 以上这一"国内外起点趋同"的赛道上，具备先发与客户认证优势。</li>
+    </ol>
+  </div>
+  <div class="card" style="border-left:4px solid var(--green);">
+    <h3 style="margin-top:0;">空头逻辑</h3>
+    <ol style="color:var(--ink2);">
+      <li><b>一致预期留有巨大缺口。</b>2026 年一致预期归母 4.22 亿元，H1 仅 1.00 亿元，H2 需 3.22 亿元。参考公司自身历史：2025H2 归母 1.56 亿元（全年 3.18 亿 − H1 1.62 亿），2024H2 归母约 -0.49 亿元。<b>环比翻 3 倍以上的半年报不在公司历史经验里</b>。</li>
+      <li><b>市场最关心的新品尚未变现。</b>公司 2026-09-14 明确回复：液冷产品及 224G 高速连接器"处于送样阶段"。而当天股价涨停。这意味着涨停定价的是验证预期，不是验证结果。</li>
+      <li><b>高外销敞口叠加低对冲比例。</b>H1 外销收入 15.14 亿元、占比 52.86%，而期末远期锁汇合约仅约 1.31 亿元，覆盖不足外销规模的 9%。汇率仍是财报中波动最大、公司最难控制的外生变量；同时光伏支架收入与客户（Nextpower、GCS、Array、Ideematec 等）高度集中于海外。</li>
+    </ol>
+  </div>
+</div>
+<div class="callout"><h4>最关键争议</h4><p style="margin-bottom:0;"><b>2026 年下半年到底能做多少利润？</b>这不是"看好还是不看好 AI"的问题，而是一个可以算出区间的算术题：要在剩余半年补 3.22 亿元，需要通讯连接器在下半年环比再加速约 60%（H1 为 8.22 亿元）、光伏支架止跌回升、且汇兑不再产生超过 2,000 万元的净损失，三者同时成立。本报告认为概率不高，故自建中性情景 3.20 亿元，并把这个差额视为当前股价最大的下行来源。</p></div>
+
+<!-- ============ 3. 核心争议与预期差（量化） ============ -->
+<h2><span class="n">3</span>核心争议与预期差（量化）</h2>
+<div class="card">
+  <table>
+    <thead><tr><th>分歧点</th><th>市场观点</th><th>本报告判断</th><th>量化影响</th><th>证据状态</th></tr></thead>
+    <tbody>
+      <tr><td>2026 年盈利能否达标</td><td>一致预期归母 4.22 亿元（+32.58%），9 家机构</td><td>H1 仅 1.00 亿元，H2 需 3.22 亿元（H1 的 3.2 倍、2025H2 的 2.1 倍）；自建中性 3.20 亿元</td><td>若实际落在 3.20 亿而非 4.22 亿，按 35 倍 PE 计，市值差约 36 亿元（约为当前市值的 26%）</td><td><span class="tag b">推断</span></td></tr>
+      <tr><td>液冷 / 224G 放量时点</td><td>按 2026H2–2027 放量定价（对应市值溢价 50–100 亿元量级）</td><td>公司 9-14 明确"送样阶段"，无客户、无金额、无时间表</td><td>【假设】若 2027 年贡献 3–5 亿元收入、净利率 15%，对应净利约 0.45–0.75 亿元，按 35 倍 PE 约 16–26 亿元市值</td><td><span class="tag g">事实</span>+<span class="tag p">假设</span></td></tr>
+      <tr><td>光伏支架能否止跌</td><td>全球新增装机长期增长（2025 年 579.1GWac → 2030 年 1,043.1GWac），绑定的都是海外头部厂商，长期受益</td><td>H1 -30.53%，毛利率仅 10.99%，即便收入恢复对利润的边际贡献也很薄</td><td>支架收入每再降 10%（约 1.2 亿元），按 11% 毛利率影响毛利约 0.13 亿元、影响归母约 0.10 亿元量级</td><td><span class="tag g">事实</span></td></tr>
+      <tr><td>汇兑冲击是偶发还是持续</td><td>国金证券口径："汇兑及减值因素阶段性压制利润"</td><td>结构性敞口未解——外销占比 52.86%，锁汇仅 1.31 亿元</td><td>外销 15.14 亿元；人民币兑美元若再反向波动 5%，影响约 0.76 亿元量级的损益</td><td><span class="tag b">推断</span></td></tr>
+      <tr><td>估值是否已透支</td><td>综合目标价 80.46 元（较 71.39 元仍有约 12.7% 空间）</td><td>PE 分位 51.3% 看似不贵，但那是"TTM 已实现"口径；按 2026E 一致预期 PE 仍约 32.8 倍，按自建中性 43.3 倍</td><td>以自建中性 2026E 3.20 亿元、给 35 倍，对应市值 112 亿元（约 57.8 元/股），较现价低约 19%</td><td><span class="tag p">假设</span></td></tr>
+    </tbody>
+  </table>
+  <div class="note">计算口径：股本按 2026-09-10 回购注销后的 193,858,976 股；市值按 2026-09-14 收盘 71.39 元 × 股本 = 138.40 亿元，与 westock 总市值一致。</div>
+</div>
+
+<!-- ============ 4. 行业与产业链 ============ -->
+<h2><span class="n">4</span>行业与产业链</h2>
+<div class="card">
+  <p><b>行业空间与增速。</b>AI 算力集群内部互联速率正从 400G 向 800G、1.6T 快速演进，高速 I/O 连接器与光模块对插使用、需求强相关且同步升级。据 LightCounting 口径，2025 年以太网光模块市场同比增长 82%，2026 年预计再增 65%；据 GIR 口径，全球 AI 服务器连接器市场 2025 年约 6.9 亿美元，2032 年预计超 21.85 亿美元（CAGR 约 18.1%）；高速线模组 2028 年全球市场预计达 89 亿美元。<span class="tag">非一手</span></p>
+  <p><b>技术路线与政策。</b>短距柜内互联短期仍是铜的方案（正交背板、NPC 近封装铜互联），CPO 尚在开发期；国内"十五五"强化算力供给、"人工智能+"行动落地，国产供应链自主可控是明确方向。据 IIM 口径，中国厂商在 25Gbps 以上速率产品中的份额已从 2020 年的 12% 提升至 2025 年的 29%，2025 年国内高速背板连接器国产化率突破 75%。<span class="tag">非一手</span></p>
+  <p><b>产业链位置与议价权。</b>公司处于<b>中游精密互连器件</b>环节：上游是铜材、塑胶料、精密模具与电镀，下游是光模块厂商、通信设备商与数据中心。议价权中等偏弱——面对华为、中兴这类大客户，价格与份额由认证与迭代能力争取，而不是由稀缺性定价；真正的护城河来自"客户认证周期长 + 换供成本高"。</p>
+  <p><b>终端需求传导。</b>云厂商资本开支 → 光模块出货 → I/O 连接器与 CAGE 壳体需求。传导链条明确、时滞较短（1–2 个季度），这也是公司通讯连接器能在 H1 直接录得 +36.76% 的原因。</p>
+  <p><b>真增长还是主题炒作？</b>本报告的判断是：<b>行业是真增长，但公司的"最性感部分"仍在小试期</b>。连接器收入的增长是真实的（已进入财报），但液冷与 224G 尚未形成收入。同时必须注意第二条线——光伏支架——是<b>真实的周期下行</b>（H1 -30.53%），不能用"AI 叙事"把它从报表里抹掉。</p>
+  <div class="chain">
+    <div class="chain-row"><div class="layer">上游<br>材料 / 设备</div>
+      <div class="boxes"><div class="box dim">铜材 / 高速差分导线</div><div class="box dim">工程塑胶料（LCP 等）</div><div class="box dim">精密模具（自制，精度 0.0015mm）</div><div class="box dim">电镀 / 冲压 / 注塑</div></div></div>
+    <div class="chain-row"><div class="layer">中游<br>精密互连器件</div>
+      <div class="boxes"><div class="box hi">意华股份 · 高速 I/O 连接器 / NPC 模组 / 模块壳体</div><div class="box dim">华丰科技（高速背板 / 线模组）</div><div class="box dim">鼎通科技（CAGE 壳体代工）</div><div class="box dim">瑞可达（AEC / DAC 成品）</div><div class="box dim">中航光电 · 庆虹电子</div></div></div>
+    <div class="chain-row"><div class="layer">下游<br>场景 / 客户</div>
+      <div class="boxes"><div class="box dim">光模块厂商（海思等）</div><div class="box dim">通信设备商（华为、中兴、新华三、星网锐捷）</div><div class="box dim">AI 数据中心 / 超节点服务器</div><div class="box dim">消费电子 / 汽车（延伸）</div></div></div>
+    <div class="chain-row"><div class="layer">并行第二条线</div>
+      <div class="boxes"><div class="box dim">光伏跟踪支架核心零部件 → 海外厂商 Nextpower / GCS / Array / Ideematec / Gonvarri</div></div></div>
+  </div>
+  <div class="src">结构梳理来源：公司 2026 年半年报 + 公开券商研报综合；行业规模类数字均非一手，已逐处标注。</div>
+</div>
+
+<!-- ============ 5. 公司业务地图 ============ -->
+<h2><span class="n">5</span>公司业务地图</h2>
+<div class="card">
+  <div class="chart-wrap">
+    <div class="switch"><button class="on" onclick="tg('b5')">图</button><button onclick="tg('b5')">表</button></div>
+    <div class="chart" id="c5"></div>
+    <div id="t5" class="hidden" style="overflow-x:auto;"></div>
+  </div>
+  <div class="src">来源：公司 2026 年半年报；neodata 主营业务构成（2026H1，占比按营业收入口径）。</div>
+  <table>
+    <thead><tr><th>业务</th><th>2026H1 收入</th><th>占比</th><th>同比</th><th>毛利率</th><th>证据</th></tr></thead>
+    <tbody>
+      <tr><td><b>连接器（合计）</b></td><td>14.74 亿元</td><td>51.48%</td><td class="up">+21.38%</td><td>24.44%</td><td><span class="tag g">事实</span></td></tr>
+      <tr><td>　其中：通讯连接器</td><td>8.22 亿元</td><td>28.72%</td><td class="up">+36.76%</td><td>26.50%</td><td><span class="tag g">事实</span></td></tr>
+      <tr><td>　其中：其他连接器及组件</td><td>4.60 亿元</td><td>16.06%</td><td class="up">+11.35%</td><td>未单独披露</td><td><span class="tag g">事实</span></td></tr>
+      <tr><td>　其中：消费电子连接器</td><td>1.92 亿元</td><td>6.71%</td><td class="down">-4.08%</td><td>未单独披露</td><td><span class="tag g">事实</span></td></tr>
+      <tr><td><b>太阳能支架</b></td><td>12.23 亿元</td><td>42.73%</td><td class="down">-30.53%</td><td>10.99%</td><td><span class="tag g">事实</span></td></tr>
+      <tr><td>其他收入之和</td><td>1.66 亿元</td><td>5.79%</td><td class="up">+138.04%</td><td>未单独披露</td><td><span class="tag g">事实</span></td></tr>
+    </tbody>
+  </table>
+  <h3 style="font-size:15px;">境内 / 境外结构（同一报告期，另一口径）</h3>
+  <table>
+    <thead><tr><th>区域</th><th>2026H1 收入</th><th>占比</th><th>同比</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td>国内</td><td>13.50 亿元</td><td>47.14%</td><td class="up">+13.52%</td><td>连接器内销增长，部分对冲支架出口下滑</td></tr>
+      <tr><td>国外</td><td>15.14 亿元</td><td>52.86%</td><td class="down">-18.46%</td><td>下滑主要来自光伏支架出口订单收缩；<b>为汇兑风险来源</b></td></tr>
+    </tbody>
+  </table>
+  <div class="note">口径提示：业务线与地区线是两个独立口径，不可相加。业务线合计 26.97 亿元（连接器 14.74 + 支架 12.23）占营收 94.21%；「其他收入之和」1.66 亿元主要为材料销售等。外销占比 52.86% 但期末锁汇合约仅约 1.31 亿元，汇率敞口覆盖不足 9%。</div>
+  <div class="callout blue"><h4>必须区分的两类业务</h4>
+    <p style="margin-bottom:0;"><b>真正受益于产业趋势的业务</b>：高速通讯连接器及光电模组（H1 收入 8.22 亿元，+36.76%，毛利率 26.50%）——已进入财报，是当前唯一被验证的增长引擎。<br>
+    <b>仅概念映射、尚未形成财务贡献的业务</b>：液冷 CAGE（2×4/2×8 OSFP 液冷屏蔽组件）、224G 高速连接器、3.2T ELSFP 与 CPO OSFP 端口、CPC 电模组——公司 2026-09-14 明确为"送样 / 实质开发阶段"，<b>收入贡献为零</b>。</p>
+  </div>
+</div>
+
+<!-- ============ 6. 竞争格局与护城河 ============ -->
+<h2><span class="n">6</span>竞争格局与护城河</h2>
+<div class="card">
+  <p>高速互连不是一个统一战场，四家国产厂商分处不同环节，<b>不宜简单排名</b>。意华的位置是「柜间 I/O 连接器 + 光模块 CAGE 壳体」，与华丰科技的「柜内背板/线模组」互补而非直接对撞。</p>
+  <table>
+    <thead><tr><th>公司 / 环节</th><th>份额 / 排名</th><th>2026H1 营收（同比）</th><th>归母（同比）</th><th>PE(TTM) / 市值</th><th>结论</th></tr></thead>
+    <tbody>
+      <tr style="background:#fffaf9;"><td><b>意华股份 · 高速 I/O 连接器</b></td><td>国产第二（非一手）</td><td>28.63 亿（-5.97%）</td><td>1.00 亿（-37.87%）</td><td>53.8× ／ 138 亿</td><td>环节卡位真实，但估值最低、当期业绩最弱</td></tr>
+      <tr><td>华丰科技 · 背板连接器 / 线模组</td><td>华为昇腾体系份额超 60%（研报口径）</td><td>12.61 亿（+14.09%）</td><td>1.47 亿（-2.23%）</td><td>165.7× ／ 588 亿</td><td>最靠算力核心，估值最高、客户集中度最高</td></tr>
+      <tr><td>鼎通科技 · CAGE 壳体 / 液冷散热</td><td>莫仕 CAGE 约 70% 由其代工（调研口径）</td><td>10.29 亿（+31.17%）</td><td>1.84 亿（+59.24%）</td><td>111.3× ／ 344 亿</td><td>业绩兑现最扎实，毛利率 33.98% 最高</td></tr>
+      <tr><td>瑞可达 · AEC/DAC 成品线</td><td>国产新进入者</td><td>15.48 亿（+1.51%）</td><td>1.11 亿（-29.36%）</td><td>75.4× ／ 191 亿</td><td>400G/800G 小批量，1.6T 送样北美</td></tr>
+    </tbody>
+  </table>
+  <div class="callout blue"><h4>护城河拆解：真护城河在哪</h4>
+    <p style="margin-bottom:0;">① <b>客户认证周期</b>——高速连接器需通过下游关键客户验证与测试，公司与华为、中兴合作多年，切换成本高；② <b>精密模具自制能力</b>——半年报披露机加工模具零配件精密度可达 0.0015mm、具备 1 模 128 穴精密模具开发能力，这是连接器毛利率能站上 26% 的工艺基础；③ <b>产品谱系完整度</b>——从传统 RJ 类到 QSFP-DD/OSFP 800G 全系列，加上壳体结构件配套，可一站式供应。<br>
+    <b>但护城河有边界</b>：公司不在最靠近算力核心的背板/线模组环节，且在液冷与 224G 上与鼎通、华丰等同时起跑，先发优势未被验证。</p>
+  </div>
+  <div class="callout red"><h4>护城河可证伪信号</h4><p style="margin-bottom:0;">① 通讯连接器收入增速连续两个季度掉档至 15% 以下（当前 36.76%），说明客户份额被侵蚀；② 连接器毛利率跌破 20%（当前 24.44%，同比已 -3.10pct）；③ 公司口径中「送样」产品在 2027 年半年报仍未见批量收入表述；④ 意华新能源商誉（2.85 亿元）出现计提减值；⑤ 前五大客户结构出现替代性变化（同业鼎通、华丰切入 I/O 与 CAGE 环节）。</p></div>
+  <div class="src">份额类数据来源：券商研报、产业调研与媒体报道，<b>均非公司披露口径</b>，且相互间存在区间差异，仅供定位参考。财务数据来自各公司 2026 年半年报与 westock-data（2026-09-14）。</div>
+</div>
+
+<!-- ============ 7. 客户与真实需求（状态分层） ============ -->
+<h2><span class="n">7</span>客户与真实需求（状态分层）</h2>
+<div class="card">
+  <table>
+    <thead><tr><th>事项</th><th>层级</th><th>内容</th><th>规模 / 时间</th><th>证据</th></tr></thead>
+    <tbody>
+      <tr><td>高速连接器（QSFP-DD 400G / OSFP 800G 等）及 NPC 模组</td><td><span class="tag g">已确认收入</span></td><td>已批量交付并计入 2026H1 报表</td><td>通讯连接器 8.22 亿（+36.76%）</td><td>2026 半年报</td></tr>
+      <tr><td>800G/1.6T 高速模块壳体</td><td><span class="tag g">已确认收入</span></td><td>「已实现大批量交付」</td><td>含于连接器业务口径内</td><td>2026 半年报 / 国金证券</td></tr>
+      <tr><td>公司整体订单情况</td><td><span class="tag a">管理层口径</span></td><td>「高速连接器产品在手订单稳定，按客户实际情况有序交付」</td><td>未披露金额</td><td>2026-05-13 投资者关系活动记录</td></tr>
+      <tr><td>液冷产品 / 2×4·2×8 OSFP 液冷屏蔽组件</td><td><span class="tag a">在研 / 送样</span></td><td>「公司液冷产品及 224G 高速连接器产品目前处于送样阶段」</td><td>无量产时间表</td><td>2026-09-14 互动平台回复</td></tr>
+      <tr><td>224G per lane 1.6T 超高速光电连接器</td><td><span class="tag a">在研 / 送样</span></td><td>进入实质性开发阶段；224G 处送样</td><td>未披露</td><td>2026 半年报 + 互动平台</td></tr>
+      <tr><td>3.2T ELSFP / CPO OSFP 端口 / CPC 电模组</td><td><span class="tag a">在研</span></td><td>「已进入实质性开发阶段」</td><td>未披露</td><td>2026 半年报</td></tr>
+      <tr><td>华为 / 昇腾体系内份额</td><td><span class="tag">无法确认</span></td><td>券商研报称 I/O 环节约 30%、光模块 CAGE 约 50%，公司以商业保密为由拒绝披露</td><td>—</td><td>研报 / 调研（非一手）</td></tr>
+      <tr><td>是否进入英伟达 / 特斯拉供应链</td><td><span class="tag g">已确认（否定）</span></td><td>公司明确回复「暂未进入上述企业的供应链」</td><td>—</td><td>2026-05-13 投资者关系活动记录</td></tr>
+    </tbody>
+  </table>
+  <div class="note">层级严格区分：已确认收入 &gt; 已确认订单/定点 &gt; 管理层口径 &gt; 在研/送样/小试 &gt; 市场预期。<b>不可跨层表达</b>——本报告不把「送样」写作「放量」，也不把研报份额写作公司事实。</div>
+  <div class="callout"><h4>需求侧最值得注意的一条</h4><p style="margin-bottom:0;">客户结构上，公司对中国大陆客户（华为、中兴、星网锐捷、新华三）与中国台湾客户（富士康、智邦、和硕）依赖度较高；光伏支架客户则高度集中于 Nextpower、GCS、Array、Ideematec、Gonvarri 等海外头部跟踪支架厂商。<b>两侧都是「大客户集中 + 订单节奏波动直接进报表」的结构</b>，这解释了 2026H1 支架收入为何能一次性掉 30%。</p></div>
+
+  <h4 style="margin:22px 0 8px;font-size:15px;color:var(--ink,#1a1d24);">供应链与关联交易明细（neodata 新增维度）</h4>
+  <table>
+    <thead><tr><th>关系</th><th>关联方</th><th>报告期</th><th>交易金额</th><th>来源</th></tr></thead>
+    <tbody>
+      <tr><td><span class="tag a">客户</span></td><td>中国船舶集团有限公司</td><td>—</td><td>未披露</td><td>招投标（2026-08-27）</td></tr>
+      <tr><td><span class="tag">供应商</span></td><td>东莞市览越新能源科技有限公司</td><td>2026-06-30</td><td>3,227.74 万元</td><td>关联交易</td></tr>
+      <tr><td><span class="tag">供应商</span></td><td>苏州意华新能源科技有限公司</td><td>2026-06-30</td><td>1,831.35 万元</td><td>关联交易</td></tr>
+      <tr><td><span class="tag">供应商</span></td><td>意华控股集团有限公司</td><td>2026-06-30</td><td>1,586.85 万元</td><td>关联交易</td></tr>
+      <tr><td><span class="tag">供应商</span></td><td>东莞市意铭五金塑胶制品有限公司</td><td>2026-06-30</td><td>409.12 万元</td><td>关联交易</td></tr>
+      <tr><td><span class="tag">供应商</span></td><td>乐清市惠华电子有限公司</td><td>2026-06-30</td><td>151.35 万元</td><td>关联交易</td></tr>
+      <tr><td><span class="tag">供应商</span></td><td>超仪科技股份有限公司</td><td>2026-06-30</td><td>21.10 万元</td><td>关联交易</td></tr>
+      <tr><td><span class="tag">供应商</span></td><td>乐清市意华生态农业有限公司</td><td>2026-06-30</td><td>1.70 万元</td><td>关联交易</td></tr>
+      <tr><td><span class="tag">供应商</span></td><td>湖南意华交通装备股份有限公司</td><td>2026-06-30</td><td>未披露</td><td>关联交易</td></tr>
+      <tr><td><span class="tag a">客户</span></td><td>湖南意华交通装备股份有限公司</td><td>2026-06-30</td><td>67.68 万元</td><td>关联交易</td></tr>
+    </tbody>
+  </table>
+  <div class="note"><b>读法</b>：关联采购方几乎全为「意华系」主体（意华控股、苏州意华新能源、湖南意华交通装备等），2026H1 已披露金额合计约 <b>0.72 亿元</b>，占当期营业成本（23.26 亿元）约 <b>3.1%</b>——规模不大，但上市主体与控股集团之间存在持续采购关系，定价公允性需在年报附注中持续跟踪。客户侧出现「中国船舶集团（招投标）」属新增线索，金额未披露，尚不足以改变需求判断。</div>
+</div>
+
+<!-- ============ 8. 财务质量 ============ -->
+<h2><span class="n">8</span>财务质量（近5年 + 最新一期）</h2>
+<div class="card">
+  <div class="chart-wrap">
+    <div class="switch"><button class="on" onclick="tg('b8')">图</button><button onclick="tg('b8')">表</button></div>
+    <div class="chart" id="c8"></div>
+    <div id="t8" class="hidden" style="overflow-x:auto;"></div>
+  </div>
+  <div class="src">来源：westock-data 历史财报（2018–2025 年报序列）；2026H1 取自公司半年报（未经审计）。归母净利率为归母净利润 ÷ 营业收入，本报告自算。</div>
+  <table>
+    <thead><tr><th>指标</th><th>2021</th><th>2022</th><th>2023</th><th>2024</th><th>2025</th><th>2026H1</th></tr></thead>
+    <tbody>
+      <tr><td>营业收入（亿元）</td><td>44.90</td><td>50.11</td><td>50.59</td><td>60.97</td><td>64.01</td><td>28.63</td></tr>
+      <tr><td>营收同比</td><td>+37.39%</td><td>+11.60%</td><td>+0.96%</td><td>+20.52%</td><td>+4.99%</td><td>-5.97%</td></tr>
+      <tr><td>归母净利润（亿元）</td><td>1.36</td><td>2.40</td><td>1.22</td><td>1.24</td><td>3.18</td><td>1.00</td></tr>
+      <tr><td>归母同比</td><td>-24.44%</td><td>+76.47%</td><td>-49.17%</td><td>+1.64%</td><td>+156.45%</td><td>-37.87%</td></tr>
+      <tr><td>扣非净利润（亿元）</td><td>—</td><td>—</td><td>—</td><td>—</td><td>2.85</td><td>0.93</td></tr>
+      <tr><td>综合毛利率</td><td>—</td><td>—</td><td>—</td><td>—</td><td>19.64%</td><td>18.77%</td></tr>
+      <tr><td>归母净利率（自算）</td><td>3.03%</td><td>4.79%</td><td>2.41%</td><td>2.03%</td><td>4.97%</td><td>3.49%</td></tr>
+      <tr><td>加权 ROE</td><td>—</td><td>—</td><td>—</td><td>—</td><td>12.20%</td><td>3.53%</td></tr>
+      <tr><td>经营现金流（亿元）</td><td>—</td><td>—</td><td>—</td><td>—</td><td>2.80</td><td>2.70</td></tr>
+      <tr><td>应收账款（亿元）</td><td>—</td><td>—</td><td>—</td><td>—</td><td>15.77</td><td>13.84</td></tr>
+      <tr><td>存货（亿元）</td><td>—</td><td>—</td><td>—</td><td>—</td><td>16.97</td><td>18.45</td></tr>
+      <tr><td>有息负债（亿元）</td><td>—</td><td>—</td><td>—</td><td>—</td><td>23.14</td><td>23.14</td></tr>
+      <tr><td>研发费用（亿元）</td><td>2.03</td><td>1.96</td><td>1.92</td><td>1.98</td><td>2.15</td><td>1.42</td></tr>
+    </tbody>
+  </table>
+  <div class="note">口径说明：毛利率、ROE、经营现金流、应收/存货/有息负债的历史分年数据，本次取数仅获取到 2025 年报与 2026H1 两个时点，未逐年回补，故以「—」留空，不做估算填充。</div>
+  <div class="grid g2" style="margin-top:16px;">
+    <div class="card"><h3 style="margin-top:0;">利润质量归因</h3>
+      <p style="font-size:13.5px;"><b>「收入降 6%、利润降 38%」的差额来自费用与减值端，不是毛利恶化。</b></p>
+      <ul style="font-size:13.5px;">
+        <li><b>汇兑损失 6,262 万元</b>（上年同期为 +752 万元汇兑收益），净变化超 7,000 万元——这是最大单项；</li>
+        <li><b>财务费用 0.93 亿元，同比 +219.03%</b>，期间费用率升至 14.51%（+3.69pct）；</li>
+        <li><b>资产减值损失 0.42 亿元</b>（上年同期 0.21 亿元），同比扩大约一倍；信用减值损失另计 +1,549 万元；</li>
+        <li><b>研发费用 1.42 亿元（+18.61%）</b>，占营收比重从 3.93% 升至 4.96%，投向 1.6T / 液冷 / CPO 等前沿方向；</li>
+        <li><b>毛利率反而 +0.61pct 至 18.77%</b>——收入结构向高毛利连接器倾斜所致；</li>
+        <li>扣非 0.93 亿元与归母 1.00 亿元贴合（差额仅 695 万元），<b>无大额非经常性收益依赖</b>，利润质量本身干净。</li>
+      </ul>
+      <p style="font-size:13.5px;"><b>结论</b>：利润下滑主因是<b>外生变量（汇率）＋低速业务的规模收缩＋主动的研发投入</b>，而非核心业务盈利能力崩坏。但这也意味着——<b>利润的修复同样依赖外生变量转向，而非公司单方面努力</b>。</p>
+    </div>
+    <div class="card"><h3 style="margin-top:0;">现金流拆解</h3>
+      <p style="font-size:13.5px;">经营现金流是一份半年报里最亮的一项：<b>净额 2.70 亿元，同比 +159.59%</b>，净利润现金含量 270.05%，销售现金比率 9.42%。公司说明主因是「销售商品收到的现金及税费返还增加」。</p>
+      <p style="font-size:13.5px;"><b>但有两处需盯住</b>：</p>
+      <ul style="font-size:13.5px;">
+        <li><b>应收体量偏大</b>：应收账款 13.84 亿元（较上年末 -11.01%），应收账款周转天数 93 天；据第三方测算「应收账款占最新年报归母净利润比达 434.89%」——回款周期的任何恶化都会直接冲击利润。</li>
+        <li><b>存货在增</b>：18.45 亿元，较上年末 +8.67%，存货周转天数 137 天，净营业周期约 149 天；备货对应的若是尚未确认收入的连接器订单，则属正常前置；若对应支架库存，则需警惕跌价（半年报存货跌价准备 1.52 亿元，计提比例 7.6%）。</li>
+      </ul>
+      <p style="font-size:13.5px;">投资活动净额 -1.22 亿元、筹资活动净额 -1.37 亿元（同比减少 2.62 亿元），自由现金流约 0.60 亿元转正，<b>资本开支强度处于温和区间</b>。</p>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 9. 核心业务/子公司拆分 ============ -->
+<h2><span class="n">9</span>核心业务 / 子公司拆分</h2>
+<div class="card">
+  <table>
+    <thead><tr><th>主体</th><th>收入</th><th>利润</th><th>同比</th><th>并表/内生</th><th>持股比例</th><th>结论</th></tr></thead>
+    <tbody>
+      <tr style="background:#fffaf9;"><td><b>母公司 + 连接器子公司群</b><br><span style="font-size:12px;color:var(--ink3);">东莞泰康 / 正德 / 意兆、苏州意华、武汉意谷、湖南精密等</span></td><td>14.74 亿<br><span style="font-size:12px;color:var(--ink3);">（连接器口径）</span></td><td>未单独披露</td><td>+21.38%</td><td>并表</td><td>全资或控股</td><td>核心增量来源；通讯连接器毛利率 26.50% 显著高于公司整体</td></tr>
+      <tr><td><b>乐清意华新能源</b><br><span style="font-size:12px;color:var(--ink3);">（光伏跟踪支架）</span></td><td>12.23 亿<br><span style="font-size:12px;color:var(--ink3);">（太阳能支架口径）</span></td><td>未单独披露</td><td>-30.53%</td><td>并表（全资）</td><td>100%</td><td>拖累项；毛利率仅 10.99%；<b>2.85 亿商誉挂于此处</b></td></tr>
+      <tr><td>泰华新能源（泰国）/ CZT ENERGY(USA) / NEXTRISE(USA)</td><td>未单独披露</td><td>未单独披露</td><td>—</td><td>并表</td><td>控股</td><td>光伏支架全球化产能（温州乐清 / 天津 / 泰国），用于对冲地缘与贸易风险</td></tr>
+      <tr><td>东莞意华联芯（2026 年 6 月新设）</td><td>—</td><td>—</td><td>—</td><td>新设</td><td>—</td><td>切入 CPU/NPO Socket 领域并储备光电子器件，属前瞻布局，尚无收入</td></tr>
+    </tbody>
+  </table>
+  <div class="note"><b>为什么必须拆分看</b>：母公司整体数据会掩盖价值来源——2026H1 报表呈现的「营收 -5.97%、归母 -37.87%」，主要是光伏支架与汇兑的合力结果；而真正代表未来的连接器业务实际增长 21.38%、其中通讯连接器 36.76%。<b>两块业务的经济特征几乎相反</b>：连接器是高毛利、高增长、轻资产周转；支架是低毛利（10.99%）、强周期、重海外产能。用一个 PE 同时给两块业务定价，本身就是估值失真的来源。</div>
+  <div class="callout"><h4>少数股东权益提示</h4><p style="margin-bottom:0;">2026H1 少数股东损益为 -44.27 万元，少数股东权益仅 0.51 亿元（占股东权益合计 1.76%），<b>合并报表基本等同于母公司股东利益</b>；对比部分同业研报中「净利润含少数股东损益」的口径差异（如国海证券 2026E 净利润 4.99 亿 vs 归母 4.61 亿，差额 0.38 亿），公司此项影响很小，不影响本报告的归母口径判断。</p></div>
+</div>
+
+<!-- ============ 10. 自建盈利预测（三情景） ============ -->
+<h2><span class="n">10</span>自建盈利预测（三情景 × 连续3年）</h2>
+<div class="card">
+  <p><b>建模思路</b>：以 2025 年实际（营收 64.01 亿元、归母 3.18 亿元）为基准，以 2026H1 已实现的 1.00 亿元归母为锚，<b>自下而上分业务推演</b>，不照抄一致预期。三个情景均完整覆盖 <b>2026E / 2027E / 2028E 连续三年</b>，预测年度一致且连续。</p>
+  <p class="note"><b>口径说明</b>：EPS 按总股本 1.9386 亿股摊薄计算；2027E 起计入液冷 CAGE 与 224G 高速连接器的增量收入（中性情景下 2027 年小批量、2028 年放量）；2026 年含 H1 已发生的 0.63 亿元汇兑损失拖累（中性情景下 H2 不再重复计提同级别损失）。</p>
+
+  <h3 style="font-size:15px;">悲观情景</h3>
+  <table>
+    <thead><tr><th>项目</th><th>2026E</th><th>2027E</th><th>2028E</th></tr></thead>
+    <tbody>
+      <tr><td>营业收入（亿元）</td><td>60.0</td><td>62.0</td><td>63.0</td></tr>
+      <tr><td>收入增速</td><td>-6.3%</td><td>+3.3%</td><td>+1.6%</td></tr>
+      <tr><td>毛利率 / 净利率</td><td>18.2% / 4.67%</td><td>18.0% / 5.32%</td><td>18.2% / 5.63%</td></tr>
+      <tr><td>归母净利润（亿元）</td><td><b>2.80</b></td><td><b>3.30</b></td><td><b>3.55</b></td></tr>
+      <tr><td>EPS（元）</td><td>1.44</td><td>1.70</td><td>1.83</td></tr>
+      <tr><td>关键触发 / 假设</td><td>H2 连接器增速回落至 15% 以下；支架继续两位数下滑；汇兑再反向波动</td><td>液冷 / 224G 2027 年仍未转批量；支架海外需求低位徘徊；商誉风险未释放</td><td>液冷 / 224G 直接落空；支架需求持续弱；价格战侵蚀连接器毛利</td></tr>
+    </tbody>
+  </table>
+
+  <h3 style="font-size:15px;">中性情景</h3>
+  <table>
+    <thead><tr><th>项目</th><th>2026E</th><th>2027E</th><th>2028E</th></tr></thead>
+    <tbody>
+      <tr><td>营业收入（亿元）</td><td>65.0</td><td>76.0</td><td>86.0</td></tr>
+      <tr><td>收入增速</td><td>+1.5%</td><td>+16.9%</td><td>+13.2%</td></tr>
+      <tr><td>毛利率 / 净利率</td><td>18.8% / 4.92%</td><td>19.5% / 6.05%</td><td>20.0% / 6.74%</td></tr>
+      <tr><td>归母净利润（亿元）</td><td><b>3.20</b></td><td><b>4.60</b></td><td><b>5.80</b></td></tr>
+      <tr><td>EPS（元）</td><td>1.65</td><td>2.37</td><td>2.99</td></tr>
+      <tr><td>关键触发 / 假设</td><td>通讯连接器维持 25–30% 增长；液冷 / 224G 2026 年内不贡献收入；支架企稳；汇兑中性</td><td>连接器 +25%；支架 +8%；液冷 / 224G 小批量贡献约 2 亿元收入，结构抬升综合毛利率</td><td>连接器维持 20%+；支架恢复个位数增长；液冷 / 224G 放量贡献约 6 亿元收入</td></tr>
+    </tbody>
+  </table>
+
+  <h3 style="font-size:15px;">乐观情景</h3>
+  <table>
+    <thead><tr><th>项目</th><th>2026E</th><th>2027E</th><th>2028E</th></tr></thead>
+    <tbody>
+      <tr><td>营业收入（亿元）</td><td>72.0</td><td>87.0</td><td>103.0</td></tr>
+      <tr><td>收入增速</td><td>+12.5%</td><td>+20.8%</td><td>+18.4%</td></tr>
+      <tr><td>毛利率 / 净利率</td><td>19.5% / 5.83%</td><td>21.0% / 7.13%</td><td>22.0% / 7.77%</td></tr>
+      <tr><td>归母净利润（亿元）</td><td><b>4.20</b></td><td><b>6.20</b></td><td><b>8.00</b></td></tr>
+      <tr><td>EPS（元）</td><td>2.17</td><td>3.20</td><td>4.13</td></tr>
+      <tr><td>关键触发 / 假设</td><td>液冷 CAGE 与 224G 于 2026Q4 起放量；支架恢复双位数增长；汇率转为有利</td><td>液冷 / 224G 顺利进入批量，贡献约 5 亿元收入；连接器 +30%；支架 +15%</td><td>液冷 / 224G 成为第二增长曲线；1.6T / CPO 相关产品落地；海外支架需求全面修复</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout"><h4>2026 年 H2 的隐含任务量</h4><p style="margin-bottom:0;">2026H1 已实现归母 1.00 亿元，对应三情景全年分别需 H2 再做 <b>1.80 / 2.20 / 3.20 亿元</b>——即中性情景要求 H2 环比 H1 提升约 2.2 倍，乐观情景要求 3.2 倍。<b>这是三情景中分歧最大、也最容易被三季报证伪的一环</b>。</p></div>
+
+  <p><b>关键假设</b>：
+    <span class="tag p">假设</span>① 通讯连接器收入增速由 2026H1 的 36.76% 逐年回落，中性情景 2026H2 取 25%、2027 年取 25%、2028 年取 20%（基数走高、份额需重新验证）；
+    <span class="tag p">假设</span>② 太阳能支架收入降幅由 2026H1 的 -30.53% 收窄，中性情景 2026H2 取 -15%、2027 年 +8%、2028 年 +5%，毛利率维持 11% 附近；
+    <span class="tag p">假设</span>③ 汇兑中性情景下财务费用 2026 年回落至 1.4–1.6 亿元区间（H1 已 0.93 亿元），2027 年起随美元敞口锁汇比例提升而趋于稳定；
+    <span class="tag p">假设</span>④ 液冷与 224G 在中性情景下 2026 年内不贡献收入，2027 年起计入（小批量约 2 亿元收入、2028 年放量至约 6 亿元）；
+    <span class="tag p">假设</span>⑤ 不额外计提商誉减值（悲观情景中若计提 1 亿元，归母将再被压低）。</p>
+  <p><b>最敏感变量</b>（按对净利影响排序）：</p>
+  <table>
+    <thead><tr><th>变量</th><th>变动幅度</th><th>对 2026E 归母影响（中性基准 3.20 亿）</th></tr></thead>
+    <tbody>
+      <tr><td>人民币兑美元汇率（外销 15.14 亿元）</td><td>±1%</td><td>约 ∓0.15 亿元（≈ ∓4.8%）</td></tr>
+      <tr><td>通讯连接器收入增速</td><td>±10pct（即 25%↔35%）</td><td>+10pct 时约 +0.15 亿元毛利、按 26.5% 毛利率与 75% 所得税前置约 <b>±0.11 亿元</b>净利</td></tr>
+      <tr><td>光伏支架收入</td><td>±10%（约 ±1.2 亿元）</td><td>按 11% 毛利率约 ±0.13 亿元毛利，扣费用后 <b>±0.10 亿元</b>净利</td></tr>
+      <tr><td>商誉减值</td><td>计提 1.0 亿元</td><td>直接 <b>-1.0 亿元</b>（相当于中性预测的 -31%）</td></tr>
+    </tbody>
+  </table>
+  <div class="callout red"><h4>与一致预期的关键差异</h4><p style="margin-bottom:0;">本报告中性情景 2026E 归母 <b>3.20 亿元</b>，较一致预期 <b>4.22 亿元</b>低约 <b>24%</b>；即便乐观情景 4.20 亿元，也仅与一致预期持平——这意味着<b>一致预期隐含的是本报告的乐观情景</b>。差异主要来自对 H2 连接器增速与汇兑的两点更谨慎假设。逐年对照机构一致预期（2026E <b>4.22</b> / 2027E <b>6.10</b> / 2028E <b>7.46</b> 亿元，来源 neodata 汇总 9/5 家机构），本报告中性情景分别低约 <b>24.2% / 24.6% / 22.3%</b>——且一致预期三年数值均更贴近本报告<b>乐观情景</b>（4.20 / 6.20 / 8.00 亿元）。<b>结论：市场一致预期定价的是本报告的乐观情景，而非中性情景。</b></p></div>
+</div>
+
+<!-- ============ 11. 估值与隐含预期 ============ -->
+<h2><span class="n">11</span>估值与隐含预期</h2>
+<div class="card">
+  <p><b>估值方法选择</b>：公司属「多业务 + 成长制造」混合型，本报告采用 <b>PE 为主（按自建三情景 EPS）＋ 市值/分部交叉验证</b>，不使用 PEG（盈利波动过大、增速不可持续）与 DCF（现金流受营运资本与汇兑干扰，可预测性差）。</p>
+  <table>
+    <thead><tr><th>方法</th><th>悲观</th><th>中性</th><th>乐观</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td>PE × 2026E 自建 EPS</td><td>25× × 1.44 = <b>36.1 元</b></td><td>35× × 1.65 = <b>57.8 元</b></td><td>40× × 2.17 = <b>86.7 元</b></td><td>成长制造同业 PE 区间 25–40×</td></tr>
+      <tr><td>对应总市值</td><td>70.0 亿元</td><td>112.0 亿元</td><td>168.0 亿元</td><td>总股本 1.9386 亿股</td></tr>
+      <tr><td>隐含 2027E PE（对应上面市值）</td><td>21.2×</td><td>24.3×</td><td>27.1×</td><td>按自建 2027E 3.30/4.60/6.20 亿元</td></tr>
+      <tr><td>隐含 2028E PE（对应上面市值）</td><td>19.7×</td><td>19.3×</td><td>21.0×</td><td>按自建 2028E 3.55/5.80/8.00 亿元</td></tr>
+      <tr><td>一致预期 2027E 口径 PE</td><td colspan="3">当前 138.4 亿 ÷ 一致预期 2027E 6.10 亿 = <b>22.7×</b></td><td>市场按 2027 年定价</td></tr>
+    </tbody>
+  </table>
+  <ul>
+    <li><b>当前估值</b>：PE(TTM) 53.83×（历史分位 <b>51.3%</b>）、PB(MRQ) 4.90×（历史分位 <b>63.2%</b>）、股息率(TTM) 0.70%。以 2026-08-24 中报披露时为参照（收盘 57.72 元左右），PE(TTM) 约 42.7×、PB 约 3.89×——<b>9-14 涨停后估值较中报披露时点抬升约 26%（PE）</b>。</li>
+    <li><b>PE 与 PB 分位的背离值得注意</b>：PE 分位 51.3% 看似只在历史中位，但这是「TTM 归母处于 2.57 亿元低位」的结果（TTM 归母被汇兑与减值压低）；PB 分位 63.2% 才更能反映真实定价水平，且公司 ROE 已在 2026H1 降至 3.53%——<b>用低 ROE 支撑高分位 PB，是估值最脆弱的一环</b>。</li>
+    <li><b>可比公司</b>：华丰科技 PE(TTM) 165.7×／PB 20.0×，鼎通科技 111.3×／16.4×，瑞可达 75.4×／7.9×。意华 53.8×／4.90× 在四家中<b>绝对估值最低</b>，但这与业务环节（不做背板/线模组）与当期业绩（归母 -37.87%）相匹配，<b>不构成「估值折价即便宜」的理由</b>。</li>
+    <li><b>当前价格隐含预期</b>：71.39 元 / 138.4 亿市值，落在中性（57.8 元）与乐观（86.7 元）之间、并高于两者中点约 8%。<b>反推含义</b>：市场已同时定价了「2026 年归母接近或超过 4 亿元」「2027 年归母达到 6 亿元以上」「液冷与 224G 在 2027 年顺利放量」三件事——即当前价格对应的是本报告的<b>乐观情景</b>，安全边际有限。</li>
+  </ul>
+  <div class="callout"><h4>一个简单的一致性检验</h4><p style="margin-bottom:0;">若按自建中性 3.20 亿元、给同业中位 35× PE，合理市值约 112 亿元，对应股价 <b>57.8 元</b>——较报告日 71.39 元低约 <b>19%</b>。反过来，要支撑 71.39 元而不扩张估值，需要 2026 年归母达到约 <b>3.96 亿元</b>（71.39×1.9386÷35），即 H2 需做 2.96 亿元、约等于 H1 的 3 倍。</p></div>
+</div>
+
+<!-- ============ 12. 市场验证与交易条件树 ============ -->
+<h2><span class="n">12</span>市场验证与交易条件树</h2>
+<div class="card">
+  <ul>
+    <li><b>日线趋势</b>：2026-09-14 涨停收 71.39 元，站上 MA5（65.37）、MA10（62.03）、MA20（59.92）、MA60（65.71）与 MA250（59.51），但<b>仍在 MA120（68.66）附近争夺</b>；MACD 3.02 金叉向上（DIF 1.35 / DEA −0.16）。</li>
+    <li><b>量价与超买</b>：当日成交额 16.21 亿元、换手 13.25%、振幅 15.95%；<b>KDJ 的 J 值 99.55、RSI6 82.47 均处极度超买</b>；BOLL 上轨 67.57，收盘价 71.39 已<b>突破上轨</b>——短线过热特征明显。</li>
+    <li><b>区间位置</b>：近 5 日 +16.46%、10 日 +18.98%、20 日 +15.48%，但<b>近 60 日仍 -24.13%</b>，年初至今 +33.26%；52 周区间 41.42–104.00 元，当前价位于区间中下沿。<b>即：这是「深跌后快速反弹」而非「创新高趋势」。</b></li>
+    <li><b>板块相对强弱</b>：9-14 当日通信设备板块整体下跌，公司逆势涨停，属明显个股 α 行情（催化为 AI 算力连接器放量与 800G 批量交付叙事），需警惕情绪退潮。</li>
+    <li><b>资金面</b>：9-14 主力净流入 <b>2.82 亿元</b>（超大单净流入 2.46 亿元），5 日 +4.12 亿、10 日 +6.11 亿、20 日 +4.52 亿；但<b>中小单净流出 2.40 亿元</b>，呈「机构抢筹、散户离场」格局。龙虎榜上榜营业部成交 7.96 亿元占全天 49.12%，其中机构席位净买入 1.99 亿元——<b>需注意「融资余额占流通市值超 10%」的高杠杆持仓结构</b>。</li>
+    <li><b>筹码</b>：股东户数从 2025-12-31 的 29,161 户升至 2026-06-30 的 44,376 户（+52.2%），人均持股由 6,649 股降至 4,369 股，<b>筹码由集中转分散</b>；北向（香港中央结算）2026-06-30 持股 609.48 万股、占比 3.31%，较 Q1 的 0.75% 大幅加仓；主动偏股基金持仓仅 0.15%（6 家、27.27 万股），<b>机构持仓很轻</b>。</li>
+  </ul>
+  <table>
+    <thead><tr><th>状态</th><th>触发条件</th></tr></thead>
+    <tbody>
+      <tr><td><b>等待</b>（当前状态）</td><td>基本面：液冷/224G 仍在送样、一致预期存在下修风险、汇兑敞口未消；交易面：KDJ/RSI 极度超买、股价破 BOLL 上轨、60 日仍深跌但短线涨幅过快。<b>两端的理由都不支持追高。</b></td></tr>
+      <tr><td>试仓</td><td>① 三季报（预计 2026-10 月下旬）显示连接器收入增速仍 ≥25% 且毛利率守住 20% 以上；② 股价回落至 MA60（约 65 元）附近缩量企稳；③ 公司披露液冷或 224G 由送样转入「小批量交付」的明确表述。</td></tr>
+      <tr><td>确认加仓</td><td>液冷 CAGE 或 224G 连接器出现<b>已确认订单/定点公告</b>或进入报表收入；且连续两个季度扣非增速转正、汇兑不再构成主要负向项。</td></tr>
+      <tr><td>证伪退出</td><td>① 三季报归母同比继续下滑且全年偏离 3.20 亿元中性线；② 通讯连接器增速掉至 15% 以下或毛利率跌破 20%；③ 商誉计提减值；④ 公司再度强调液冷/224G「仍在送样/研发」而无进展表述。</td></tr>
+    </tbody>
+  </table>
+  <div class="note">技术面仅作验证，不替代基本面判断；两融与资金流数据来自 westock-data（2026-09-14），杠杆结构信息来自第三方报道，未与公司公告交叉验证。</div>
+</div>
+
+<!-- ============ 12B. 当日资讯面（enhanced 新增维度） ============ -->
+<div class="card">
+  <h3 style="margin:0 0 10px;font-size:16px;color:var(--ink,#1a1d24);">附：当日资讯面与股东变动（enhanced / search 新增维度）</h3>
+  <p style="margin:0 0 12px;color:var(--ink2,#4a5160);font-size:14px;">以下内容为旧版单源流程<strong>无法自动获取</strong>的部分，由 enhanced（腾讯官方 Go CLI：新闻/研报/公告/资金流）与 search（neodata：风险事件）补齐，用于印证 9-14 涨停的信息面与筹码结构。</p>
+
+  <h4 style="margin:16px 0 6px;font-size:14px;">① 2026-09-14 当日新闻流（westock-cli，10 条）</h4>
+  <table>
+    <thead><tr><th>时间</th><th>来源</th><th>标题</th></tr></thead>
+    <tbody>
+      <tr><td>15:31</td><td>新材社</td><td>意华股份的爱与愁</td></tr>
+      <tr><td>15:26</td><td>智选洞察</td><td>意华股份主力资金净流入 2.8 亿 板块催化叠加筹码集中推升短期动能</td></tr>
+      <tr><td>15:03</td><td>财中社</td><td>意华股份尾盘涨停 部分限制性股票回购注销完成</td></tr>
+      <tr><td>14:50</td><td>智选洞察</td><td>意华股份涨停，AI 算力连接器放量 800G 批量交付</td></tr>
+      <tr><td>14:25</td><td>智选洞察</td><td>意华股份涨 5.08% 算力概念持续走强带动</td></tr>
+      <tr><td>13:41</td><td>财闻</td><td>意华股份：公司主营业务为连接器及光伏支架</td></tr>
+      <tr><td>11:37</td><td>互动易</td><td>意华股份：当前公司研发及生产网络类接插件产品主要包含高速 IO 连接器及模组</td></tr>
+      <tr><td>09:33</td><td>智选洞察</td><td>意华股份 -3.44% 半年报业绩下滑引发抛售</td></tr>
+      <tr><td>09:30</td><td>市场透视</td><td>意华股份 9 月 11 日获融资净买入 995 万元 环比降低 63.90%</td></tr>
+      <tr><td>09-11 15:35</td><td>智选洞察</td><td>意华股份主力资金净流入 9453 万 板块热度驱动短期上行</td></tr>
+    </tbody>
+  </table>
+  <div class="note">当日盘中先跌 3.44%（半年报业绩下滑），尾盘封涨停——<b>情绪反转由「AI 算力连接器放量 / 800G 批量交付」叙事与 800G 交付消息驱动</b>，与半年报基本面的方向恰好相反。这印证了正文判断：本次上涨定价的是预期，不是当期业绩。</div>
+
+  <h4 style="margin:20px 0 6px;font-size:14px;">② 近 6 个月机构研报（westock-cli，均为「买入」）</h4>
+  <table>
+    <thead><tr><th>日期</th><th>机构</th><th>标题</th><th>评级</th></tr></thead>
+    <tbody>
+      <tr><td>2026-08-30</td><td>国金证券</td><td>通讯连接器业绩高增 互联产品迭代</td><td><span class="tag g">买入</span></td></tr>
+      <tr><td>2026-05-23</td><td>国海证券</td><td>国产算力高景气 液冷 CAGE 新空间</td><td><span class="tag g">买入</span></td></tr>
+      <tr><td>2026-04-30</td><td>国金证券</td><td>汇兑损益导致业绩短期承压 连接器带来增量</td><td><span class="tag g">买入</span></td></tr>
+      <tr><td>2026-03-19</td><td>国泰海通证券</td><td>光伏支架、连接器双轮驱动 算力需求驱动业绩高增（首次覆盖）</td><td><span class="tag g">买入</span></td></tr>
+    </tbody>
+  </table>
+  <div class="note">4 篇研报全部给「买入」，最近一篇（国金证券，中报点评）仍维持买入——<b>与正文「一致预期 4.22 亿元存在下修风险」的判断形成对照</b>：卖方评级尚未反映汇兑与支架拖累，需以三季报为准。</div>
+
+  <h4 style="margin:20px 0 6px;font-size:14px;">③ 龙虎榜与两融（2026-09-14）</h4>
+  <table>
+    <thead><tr><th>项目</th><th>数值</th><th>备注</th></tr></thead>
+    <tbody>
+      <tr><td>龙虎榜净买入</td><td>+3.22 亿元</td><td>总买入 5.59 亿 / 总卖出 2.37 亿（上榜原因：日涨幅偏离值达 7%）</td></tr>
+      <tr><td>买入前二席位</td><td>深股通专用 1.23 亿 / 机构专用 1.18 亿</td><td>另有开源证券西安西大街 0.99 亿、机构专用 0.68 亿、0.52 亿</td></tr>
+      <tr><td>深股通净额</td><td>+4,218 万元</td><td>买 1.2296 亿 / 卖 0.8078 亿</td></tr>
+      <tr><td>融资余额</td><td>6.99 亿元</td><td>较前日 +1.45%；融券余额仅 366.7 万元</td></tr>
+      <tr><td>当日融资买入 / 偿还</td><td>1.415 亿 / 1.315 亿</td><td>净买入约 0.10 亿元</td></tr>
+    </tbody>
+  </table>
+
+  <h4 style="margin:20px 0 6px;font-size:14px;">④ 分红历史（近 5 年，westock-npm）</h4>
+  <table>
+    <thead><tr><th>年报</th><th>方案</th><th>现金分红总额</th><th>除权日</th></tr></thead>
+    <tbody>
+      <tr><td>2025</td><td>10 派 5.000 元</td><td>9,694.03 万元</td><td>2026-06-01</td></tr>
+      <tr><td>2024</td><td>10 派 1.000 元</td><td>1,940.50 万元</td><td>2025-05-29</td></tr>
+      <tr><td>2023</td><td>10 派 1.000 元</td><td>1,940.50 万元</td><td>2024-06-14</td></tr>
+      <tr><td>2022</td><td>10 派 1.500 元</td><td>2,560.08 万元</td><td>2023-07-12</td></tr>
+      <tr><td>2021</td><td>10 派 1.000 元</td><td>1,706.72 万元</td><td>2022-07-12</td></tr>
+    </tbody>
+  </table>
+  <div class="note">2025 年报分红由 10 派 1 元<b>跃升至 10 派 5 元</b>（合计 9,694 万元，占当年归母净利润 3.18 亿元的约 30.5%），股息率（按 71.39 元计）约 0.70%——在盈利改善年份主动提高分红，是股东回报意愿增强的信号，但绝对股息率仍偏低。</div>
+</div>
+
+<!-- ============ 13. 风险与证伪 ============ -->
+<h2><span class="n">13</span>风险与证伪</h2>
+<div class="card">
+  <div class="grid g2">
+    <div class="card" style="border-left:4px solid var(--amber);"><h3 style="margin-top:0;">短期风险（1–6 个月）</h3>
+      <ul style="font-size:13.5px;">
+        <li><b>预期下修风险（高）</b>：三季报若承接中报趋势，全年 4.22 亿一致预期将被下修，估值随之承压。</li>
+        <li><b>交易过热风险（高）</b>：KDJ J 值 99.55、股价破 BOLL 上轨、单日振幅 15.95%，且 60 日仍跌 24.13%——情绪退潮时回撤空间大。</li>
+        <li><b>汇兑风险（高）</b>：期末锁汇仅约 1.31 亿元 vs 外销 15.14 亿元，覆盖不足 9%，Q3/Q4 汇率若继续不利将再次侵蚀利润。</li>
+        <li><b>叙事落空风险（中高）</b>：若年底前公司仍仅以「送样阶段」回应液冷与 224G 进展，主题溢价将被压缩。</li>
+        <li><b>杠杆结构风险（中）</b>：融资余额占流通市值超 10%，去杠杆时波动会被放大。</li>
+      </ul>
+    </div>
+    <div class="card" style="border-left:4px solid var(--red);"><h3 style="margin-top:0;">中期风险（1–3 年）</h3>
+      <ul style="font-size:13.5px;">
+        <li><b>技术路线风险（高）</b>：若 CPO/直接水冷等下一代方案重构现有 CAGE 与连接器形态，公司现有液冷屏蔽组件产品价值量可能被压缩。</li>
+        <li><b>竞争加剧风险（中高）</b>：鼎通科技在液冷 CAGE 环节已有市占优势，华丰科技在背板/线模组端扩产并向 I/O 延伸，同业挤压可能摊薄份额与毛利率。</li>
+        <li><b>商誉减值风险（中高）</b>：2.85 亿元商誉挂于意华新能源，若光伏支架业务持续收缩，减值将直接冲击利润（计提 1 亿元 ≈ 一次性抹去中性预测的 31%）。</li>
+        <li><b>客户集中风险（中）</b>：连接器侧依赖华为、中兴等大客户；支架侧依赖 Nextpower、GCS、Array 等海外头部厂商，订单节奏波动会直接进报表（2026H1 支架 -30.53% 即为实例）。</li>
+        <li><b>财务结构风险（中）</b>：资产负债率 57.57%、有息负债 23.14 亿元、流动比率 1.34、速动比率 0.81，短期偿债余量偏紧。</li>
+        <li><b>汇率与地缘风险（中）</b>：外销占比 52.86%，关税与贸易政策变动同时影响连接器与支架两侧。</li>
+      </ul>
+    </div>
+  </div>
+  <p><b>3–5 个核心证伪指标</b>：</p>
+  <ol style="color:var(--ink2);">
+    <li><b>通讯连接器收入增速</b>——若连续两个季度低于 15%（当前 36.76%），AI 算力受益逻辑不成立。</li>
+    <li><b>连接器业务毛利率</b>——若跌破 20%（当前 24.44%，且已同比 -3.10pct），说明量价齐升被成本/价格战抵消。</li>
+    <li><b>液冷 / 224G 的表述层级</b>——若 2026 年报与 2027 中报仍停留在「送样/在研」，则估值的期权部分需重新定价。</li>
+    <li><b>经营现金流与归母的比值</b>——若现金流转为持续弱于利润（当前净现比 270%，表现优异），警示回款或备货异常。</li>
+    <li><b>意华新能源商誉是否计提减值</b>——一旦计提，光伏侧的价值假设需整体重估。</li>
+  </ol>
+</div>
+
+<!-- ============ 14. 催化剂与季度跟踪 ============ -->
+<h2><span class="n">14</span>催化剂与季度跟踪</h2>
+<div class="card">
+  <h3 style="font-size:15px;">未来 6–18 个月催化剂</h3>
+  <table>
+    <thead><tr><th>时间窗口</th><th>事件</th><th>影响方向</th><th>需要验证什么</th></tr></thead>
+    <tbody>
+      <tr><td>2026Q3 报（预计 10 月下旬）</td><td>三季报披露</td><td>双向（关键验证点）</td><td>Q3 单季归母能否环比继续爬升（Q1 0.40 亿 → Q2 0.60 亿）；连接器增速与毛利率是否守住；汇兑影响是否收敛</td></tr>
+      <tr><td>2026Q4–2027Q1</td><td>液冷产品 / 224G 高速连接器由送样转批量</td><td>强正向</td><td>是否出现「已确认订单/定点」公告或批量交付表述；验证周期与客户名单</td></tr>
+      <tr><td>2026Q4</td><td>华为 Atlas 950 超节点（昇腾 950DT）正式上市窗口</td><td>正向（行业级）</td><td>超节点放量对 I/O 连接器与 CAGE 的实际拉动量；公司在其中的份额</td></tr>
+      <tr><td>2027-02-12</td><td>约 199 万股股权激励限售股解禁（占总股本约 1.03%）</td><td>轻微负向</td><td>规模小（约 1%），主要观察是否伴随高管减持</td></tr>
+      <tr><td>2027 年上半年</td><td>1.6T 超高速光电连接器、3.2T ELSFP、CPO OSFP 端口进展</td><td>正向</td><td>是否从「实质性开发」进入客户验证；CPO 路线对现有产品的替代/增益关系</td></tr>
+      <tr><td>持续</td><td>光伏支架海外需求（欧洲/拉美）与关税政策</td><td>双向</td><td>支架收入季度降幅是否收窄；毛利率能否守住 11%</td></tr>
+      <tr><td>持续</td><td>人民币兑美元汇率</td><td>双向（高敏感）</td><td>财务费用与汇兑损益的季度波动</td></tr>
+    </tbody>
+  </table>
+  <h3 style="font-size:15px;">季度跟踪表（以 2026H1 为基准）</h3>
+  <table>
+    <thead><tr><th>指标</th><th>上期（2025H1）</th><th>本期（2026H1）</th><th>变化</th><th>对逻辑影响</th></tr></thead>
+    <tbody>
+      <tr><td>营收增速</td><td>-3.99%</td><td>-5.97%</td><td>继续负增</td><td>逻辑减弱（但结构改善）</td></tr>
+      <tr><td>归母增速</td><td>-6.84%</td><td>-37.87%</td><td>大幅恶化</td><td>逻辑减弱</td></tr>
+      <tr><td>扣非增速</td><td>—</td><td>-38.14%</td><td>与归母贴合</td><td>利润质量未失真</td></tr>
+      <tr><td>通讯连接器增速</td><td>—</td><td><b>+36.76%</b></td><td>高增</td><td><b>逻辑增强（核心）</b></td></tr>
+      <tr><td>连接器毛利率</td><td>27.54%（推算）</td><td>24.44%</td><td>-3.10pct</td><td>需警惕</td></tr>
+      <tr><td>综合毛利率</td><td>18.16%</td><td>18.77%</td><td>+0.61pct</td><td>逻辑增强（结构优化）</td></tr>
+      <tr><td>经营现金流</td><td>1.04 亿元</td><td>2.70 亿元</td><td>+159.59%</td><td><b>逻辑增强</b></td></tr>
+      <tr><td>财务费用</td><td>0.29 亿元</td><td>0.93 亿元</td><td>+219.03%</td><td>逻辑减弱（外生）</td></tr>
+      <tr><td>研发费用率</td><td>3.93%</td><td>4.96%</td><td>+1.03pct</td><td>中性偏正（长期）</td></tr>
+      <tr><td>资产负债率</td><td>60.85%</td><td>57.57%</td><td>-3.28pct</td><td>逻辑增强</td></tr>
+      <tr><td>分业务</td><td>—</td><td>连接器 +21.38%／支架 -30.53%</td><td>结构切换</td><td><b>逻辑增强（换挡中）</b></td></tr>
+      <tr><td>股东户数</td><td>35,487（2025-06-30）</td><td>44,376（2026-06-30）</td><td>+25.0%</td><td>筹码分散，偏负</td></tr>
+    </tbody>
+  </table>
+  <div class="note">每季度只需更新上表 10–15 项真正改变结论的指标，判定「逻辑增强 / 不变 / 减弱 / 证伪」。当前综合判定：<b>结构性逻辑增强、总量逻辑减弱、估值逻辑已透支</b>。</div>
+</div>
+
+<!-- ============ 15. 最终投资研究卡 ============ -->
+<h2><span class="n">15</span>最终投资研究卡</h2>
+<div class="card">
+  <table>
+    <thead><tr><th>维度</th><th>结论 / 评分</th><th>关键依据</th></tr></thead>
+    <tbody>
+      <tr><td>产业趋势</td><td><b>强（★★★★）</b></td><td>AI 数据中心互联 400G→800G→1.6T 演进真实；2025 年以太网光模块 +82%、2026 预计 +65%（LightCounting）</td></tr>
+      <tr><td>竞争力</td><td><b>中上（★★★☆）</b></td><td>国内少数实现高速连接器及高速光电模组量产者之一；精密模具 0.0015mm 精度；但不在最核心的背板/线模组环节</td></tr>
+      <tr><td>业绩兑现</td><td><b>弱（★★）</b></td><td>通讯连接器 +36.76% 已兑现；但整体归母 -37.87%；液冷/224G 仍为送样，市场最关注的部分未兑现</td></tr>
+      <tr><td>财务质量</td><td><b>中（★★★）</b></td><td>经营现金流 +159.59%、扣非与归母贴合；但资产负债率 57.57%、有息负债 23.14 亿、商誉 2.85 亿、应收 13.84 亿</td></tr>
+      <tr><td>估值</td><td><b>偏贵（★★）</b></td><td>PE-TTM 53.8×（分位 51.3%）、PB 4.90×（分位 63.2%）；按自建中性 2026E 35× 对应 57.8 元，低于现价约 19%</td></tr>
+      <tr><td>预期差</td><td><b>存在但偏负（★★）</b></td><td>一致预期 2026E 4.22 亿 vs 自建中性 3.20 亿，下修风险大于上修空间</td></tr>
+      <tr><td>风险收益比</td><td><b>不佳（★★）</b></td><td>价格已按乐观情景定价；短线超买（J 值 99.55、破 BOLL 上轨）；下方支撑与上方空间不对称</td></tr>
+      <tr><td>市场验证</td><td><b>矛盾（★★☆）</b></td><td>主力净流入 2.82 亿、机构龙虎榜净买入 1.99 亿（正向）vs 中小单净流出 2.40 亿、KDJ 极度超买（负向）</td></tr>
+    </tbody>
+  </table>
+  <p style="margin-top:14px;"><b>最终状态</b>：<span class="tag b" style="font-size:13px;padding:4px 12px;">观察</span></p>
+  <div class="callout blue"><h4>为什么是「观察」而不是「试仓」或「回避」</h4>
+    <p style="margin-bottom:0;"><b>不给「试仓」</b>：价格已按乐观情景定价、短线严重超买、一致预期存在 24% 的下修风险，且真正想要的那部分业务（液冷/224G）公司自认「送样阶段」——此刻买入，买的是尚未存在的收入。<br>
+    <b>不给「回避」</b>：通讯连接器 +36.76% 与经营现金流 +159.59% 是真实改善，卡位稀缺、客户绑定深，产业趋势为真；公司不是靠概念映射的标的。<br>
+    <b>「观察」的含义是等三个条件之一先落地</b>：三季报验证连接器增速与汇兑收敛、股价回落至 MA60 附近缩量、或液冷/224G 出现「从送样到小批量」的层级跃升。</p>
+  </div>
+</div>
+
+<!-- ============ 16. 结论变化条件 ============ -->
+<h2><span class="n">16</span>本次研究结论发生变化的条件</h2>
+<div class="card">
+  <p>出现以下任一<b>具体数据或事件</b>，需立即重新评估或推翻当前结论：</p>
+  <ol style="color:var(--ink2);">
+    <li><b>三季报（2026Q3）归母单季低于 0.75 亿元</b>——当前 Q1 0.40 亿、Q2 0.60 亿，若 Q3 未继续爬坡，则全年 3.20 亿中性线亦难达成，向下修正；反之单季超 1.0 亿元则中性假设需上修。</li>
+    <li><b>通讯连接器收入增速连续两个季度低于 15%</b>，或连接器毛利率跌破 20%——核心多头逻辑（AI 算力受益）失效。</li>
+    <li><b>液冷产品 / 224G 高速连接器出现「已确认订单、定点或批量交付」的公告或报表收入</b>——估值中的期权部分兑现，需上调盈利预测与合理价值区间；反之若 2026 年报仍仅「送样/在研」，则应剔除该部分估值溢价。</li>
+    <li><b>计提商誉减值（任意金额）</b>——光伏侧价值假设需整体重估，中性情景直接下修。</li>
+    <li><b>汇兑敞口出现实质性改善或恶化</b>——如远期锁汇覆盖比例大幅提升（当前不足 9%），或单季汇兑损失超过 0.5 亿元，均需重新评估财务费用假设。</li>
+    <li><b>估值扩张远超盈利上修</b>——如股价在无新订单/无业绩支撑下继续大幅上行（例如突破 52 周高点 104 元），则风险收益比进一步恶化，应从「观察」下调至「降仓/回避」。</li>
+    <li><b>控股股东、董事或高管出现新的减持计划</b>（当前无在册质押、2026 年无控股股东减持）——治理层面信号。</li>
+  </ol>
+</div>
+
+<footer>
+  <b>数据来源与口径说明</b><br>
+  · 行情、财务序列、资金流来源：<b>core</b> westock-npm / <b>enhanced</b> westock-cli（截至 2026-09-14 收盘）；最新一期财报、估值分位、机构一致预期、主营业务构成、供应链关系、风险事件来源：<b>search</b> neodata（截至 2026-09-14）。三源协同取数，互为交叉验证。<br>
+  · 定期报告来源：公司 2026 年半年度报告（巨潮资讯网，2026-08-25 披露，未经审计）、2025 年年度报告。历史财务序列为 2018–2025 共 8 个年度。<br>
+  · 行业空间、竞争格局、客户份额、液冷市场空间等数据来自券商研报、产业调研与媒体报道（国金证券、国海证券、国泰海通证券、LightCounting、GIR、IIM、思瀚产业研究院等），<b>均非公司披露口径</b>；凡未见于公司公告的市占率、客户份额、订单金额，本报告均已标注为第三方或媒体口径，使用前须核实原文。<br>
+  · 本报告中的「液冷产品及 224G 高速连接器处于送样阶段」为公司 2026-09-14 在深交所互动平台的公开回复，属管理层口径，不代表未来必然量产。<br>
+  · 三情景盈利预测（第 10 章）为本报告独立自建，<b>非券商一致预期</b>，所有关键输入已标注为假设。<br><br>
+  <b>免责声明</b>：以上内容基于公开数据和量化分析，仅供参考，不构成投资建议。市场有风险，投资需谨慎。任何投资决策应结合个人风险承受能力、资金状况和投资目标独立判断，必要时咨询持牌专业机构。过往表现不预示未来收益。
+<br>  报告生成时间：2026-09-15 09:05:32（本地时间）
+</footer>
+
+</div>
+
+<script>
+/* 图表配色读取宿主报告主题令牌，缺令牌回退 V1 色 */
+function fsVar(n){try{var v=getComputedStyle(document.documentElement).getPropertyValue(n);return (v||'').trim();}catch(e){return '';}}
+function fsPick(ns,fb){for(var i=0;i<ns.length;i++){var v=fsVar(ns[i]);if(v)return v;}return fb;}
+var ink2=fsPick(['--ink2'],'#4a5160'), ink3=fsPick(['--ink3'],'#8a92a3'), line=fsPick(['--line'],'#e4e7ee');
+var red=fsPick(['--up','--red'],'#d5342b'), green=fsPick(['--down','--green'],'#1f9c62');
+var blue=fsPick(['--brand','--blue'],'#2563c9'), amber=fsPick(['--amber','--gold'],'#c8871a'), purple=fsPick(['--purple'],'#6b4fc4');
+var labelStyle={color:ink2};
+
+/* ===== 图/表切换（单图） ===== */
+function tg(k){
+  var ch=document.getElementById('c'+k.slice(1)), tb=document.getElementById('t'+k.slice(1));
+  var btns=ch.closest('.chart-wrap').querySelectorAll('.switch button');
+  if(ch.classList.contains('hidden')){
+    ch.classList.remove('hidden'); tb.classList.add('hidden');
+    btns[0].classList.add('on'); btns[1].classList.remove('on');
+    var inst=echarts.getInstanceByDom(ch); if(inst){inst.resize();}
+  }else{
+    ch.classList.add('hidden'); tb.classList.remove('hidden');
+    btns[0].classList.remove('on'); btns[1].classList.add('on');
+  }
+}
+
+/* ===== 首屏：近 3 个月日 K 线（意华股份 002897，2026-06-23 ~ 2026-09-14，raw/kline.txt） ===== */
+var kDates=['2026-06-23','2026-06-24','2026-06-25','2026-06-26','2026-06-29','2026-06-30','2026-07-01','2026-07-02','2026-07-03','2026-07-06','2026-07-07','2026-07-08','2026-07-09','2026-07-10','2026-07-13','2026-07-14','2026-07-15','2026-07-16','2026-07-17','2026-07-20','2026-07-21','2026-07-22','2026-07-23','2026-07-24','2026-07-27','2026-07-28','2026-07-29','2026-07-30','2026-07-31','2026-08-03','2026-08-04','2026-08-05','2026-08-06','2026-08-07','2026-08-10','2026-08-11','2026-08-12','2026-08-13','2026-08-14','2026-08-17','2026-08-18','2026-08-19','2026-08-20','2026-08-21','2026-08-24','2026-08-25','2026-08-26','2026-08-27','2026-08-28','2026-08-31','2026-09-01','2026-09-02','2026-09-03','2026-09-04','2026-09-07','2026-09-08','2026-09-09','2026-09-10','2026-09-11','2026-09-14'];
+var kRaw=[[94.50,84.69,84.69,95.15,198859],[84.69,93.16,84.02,93.16,210294],[93.00,91.65,89.60,94.48,203160],[90.00,84.50,83.40,91.00,158396],[84.52,79.98,78.66,88.75,162478],[81.50,87.98,80.00,87.98,165423],[87.98,82.68,82.20,90.50,182027],[80.00,79.40,78.95,87.17,194802],[80.71,77.70,77.50,82.35,152109],[77.74,82.10,75.88,85.47,247802],[80.72,82.78,80.60,86.75,235726],[84.14,83.35,82.42,88.00,215494],[82.50,88.55,80.65,89.32,234522],[88.51,82.33,82.33,91.00,221879],[82.32,80.73,80.00,89.00,226377],[80.11,75.69,72.66,82.82,197353],[75.32,71.01,69.97,76.41,141127],[70.00,69.66,67.18,73.17,112318],[68.76,62.69,62.69,69.35,113729],[62.00,57.36,56.42,63.07,167289],[59.37,61.57,51.67,61.63,172180],[60.00,64.71,59.99,67.73,236853],[64.90,60.97,60.20,66.33,152813],[60.00,59.01,59.00,61.99,100628],[58.95,61.32,57.26,61.50,97102],[59.51,56.53,56.00,59.79,101702],[56.53,54.97,52.58,57.19,110414],[54.23,49.47,49.47,54.94,131539],[52.13,51.98,51.50,54.42,162070],[51.00,49.76,49.38,52.97,113223],[50.49,52.44,49.86,53.01,104924],[51.79,55.60,51.20,56.70,121148],[54.87,56.75,54.28,57.46,107340],[57.50,58.19,55.77,58.66,107598],[58.18,57.44,56.56,59.38,86639],[57.35,57.18,56.32,58.62,71783],[57.27,58.09,56.50,58.41,80377],[59.04,58.30,58.30,60.77,108274],[59.34,59.98,58.35,60.20,81395],[60.17,61.82,59.20,61.88,83686],[61.70,61.81,60.06,62.12,84325],[60.00,55.63,55.63,60.49,96127],[56.03,56.52,55.00,57.74,79341],[56.16,57.71,55.15,58.36,60241],[57.70,56.60,54.68,59.28,87381],[54.62,57.72,53.45,58.87,97545],[58.00,56.05,54.60,58.30,74451],[57.13,59.05,56.10,59.28,95425],[58.66,57.00,56.90,59.59,67895],[55.89,60.00,55.50,60.70,100817],[60.02,58.31,57.90,60.42,80682],[57.84,57.46,56.38,58.08,60578],[58.20,59.08,56.90,59.40,88376],[59.51,57.35,56.80,61.82,149214],[57.90,61.30,57.90,61.96,186755],[61.37,64.30,60.39,64.85,185830],[65.50,62.92,61.44,65.86,166260],[63.00,63.33,62.26,66.65,194611],[62.04,64.90,61.50,65.93,202227],[63.99,71.39,61.04,71.39,244364]];
+var kOHLC=kRaw.map(function(r){return [r[0],r[1],r[2],r[3]];});   /* [开,收,低,高] */
+var kVol=kRaw.map(function(r){return r[4];});
+function maN(n){var a=[];for(var i=0;i<kRaw.length;i++){if(i<n-1){a.push('-');continue;}var s=0;for(var j=0;j<n;j++){s+=kRaw[i-j][1];}a.push(+(s/n).toFixed(2));}return a;}
+echarts.init(document.getElementById('fsKline')).setOption({
+  tooltip:{trigger:'axis',axisPointer:{type:'cross'}},
+  legend:{data:['日K','MA5','MA10','MA20'],textStyle:{color:ink2},itemWidth:10,itemHeight:10},
+  axisPointer:{link:[{xAxisIndex:'all'}]},
+  grid:[{left:56,right:20,top:46,height:194},{left:56,right:20,top:264,height:56}],
+  xAxis:[
+    {type:'category',data:kDates,gridIndex:0,boundaryGap:false,axisLine:{lineStyle:{color:line}},axisLabel:{show:false},axisTick:{show:false}},
+    {type:'category',data:kDates,gridIndex:1,boundaryGap:false,axisLine:{lineStyle:{color:line}},axisLabel:labelStyle}
+  ],
+  yAxis:[
+    {scale:true,gridIndex:0,name:'价格(元)',nameTextStyle:{color:ink3},axisLabel:labelStyle,splitLine:{lineStyle:{color:line}}},
+    {gridIndex:1,name:'量(手)',nameTextStyle:{color:ink3},axisLabel:{show:false},splitLine:{show:false},axisLine:{show:false},axisTick:{show:false}}
+  ],
+  dataZoom:[{type:'inside',xAxisIndex:[0,1],start:0,end:100}],
+  series:[
+    {name:'日K',type:'candlestick',xAxisIndex:0,yAxisIndex:0,data:kOHLC,
+      itemStyle:{color:red,color0:green,borderColor:red,borderColor0:green}},
+    {name:'MA5',type:'line',xAxisIndex:0,yAxisIndex:0,data:maN(5),smooth:true,symbol:'none',lineStyle:{width:1.3,color:amber}},
+    {name:'MA10',type:'line',xAxisIndex:0,yAxisIndex:0,data:maN(10),smooth:true,symbol:'none',lineStyle:{width:1.3,color:blue}},
+    {name:'MA20',type:'line',xAxisIndex:0,yAxisIndex:0,data:maN(20),smooth:true,symbol:'none',lineStyle:{width:1.3,color:purple}},
+    {name:'成交量',type:'bar',xAxisIndex:1,yAxisIndex:1,data:kVol,
+      itemStyle:{color:function(p){return kRaw[p.dataIndex][1]>=kRaw[p.dataIndex][0]?red:green;}}}
+  ]
+});
+
+/* 图5 业务结构占比（饼，2026H1 营业收入 28.63 亿） */
+echarts.init(document.getElementById('c5')).setOption({
+  tooltip:{trigger:'item',formatter:'{b}: {c} 亿元 ({d}%)'},
+  legend:{bottom:0,textStyle:{color:ink2},itemWidth:10,itemHeight:10},
+  series:[{
+    type:'pie', radius:['42%','68%'], center:['50%','42%'],
+    label:{formatter:'{b}\n{d}%',color:ink2,fontSize:12,lineHeight:16},
+    labelLine:{length:10,length2:10},
+    data:[
+      {name:'太阳能支架',value:12.23,itemStyle:{color:'#b8c4d6'}},
+      {name:'通讯连接器',value:8.22,itemStyle:{color:red}},
+      {name:'其他连接器及组件',value:4.60,itemStyle:{color:'#8fa8cc'}},
+      {name:'消费电子连接器',value:1.92,itemStyle:{color:'#9db2d0'}},
+      {name:'其他',value:1.66,itemStyle:{color:'#cfd8e4'}}
+    ]
+  }]
+});
+document.getElementById('t5').innerHTML='<table><thead><tr><th>业务</th><th>2026H1 收入（亿元）</th><th>占比</th><th>同比</th><th>毛利率</th></tr></thead><tbody>'+
+ [['通讯连接器','8.22','28.72%','+36.76%','26.50%'],
+  ['其他连接器及组件','4.60','16.06%','+11.35%','—'],
+  ['消费电子连接器','1.92','6.71%','-4.08%','—'],
+  ['连接器业务小计','14.74','51.48%','+21.38%','24.44%'],
+  ['太阳能支架','12.23','42.73%','-30.53%','10.99%'],
+  ['其他收入之和','1.66','5.79%','+138.04%','—']]
+ .map(function(r){return '<tr>'+r.map(function(c){return '<td>'+c+'</td>';}).join('')+'</tr>';}).join('')+
+ '</tbody></table>';
+
+/* 图8 营收与净利双轴（2021–2025），毛利率仅 2025 有披露值 */
+var years=['2021','2022','2023','2024','2025'];
+echarts.init(document.getElementById('c8')).setOption({
+  tooltip:{trigger:'axis'},
+  legend:{data:['营业收入(亿元)','归母净利润(亿元)','销售毛利率(%)'],textStyle:{color:ink2},itemWidth:10,itemHeight:10},
+  grid:{left:56,right:60,top:46,bottom:36},
+  xAxis:{type:'category',data:years,axisLine:{lineStyle:{color:line}},axisLabel:labelStyle},
+  yAxis:[
+    {type:'value',name:'亿元',nameTextStyle:{color:ink3},axisLabel:labelStyle,splitLine:{lineStyle:{color:line}}},
+    {type:'value',name:'毛利率%',max:100,nameTextStyle:{color:ink3},axisLabel:labelStyle,splitLine:{show:false}}
+  ],
+  series:[
+    {name:'营业收入(亿元)',type:'bar',barWidth:'46%',data:[44.90,50.11,50.59,60.97,64.01],itemStyle:{color:'#9db2d0',borderRadius:[4,4,0,0]}},
+    {name:'归母净利润(亿元)',type:'bar',barWidth:'30%',data:[1.36,2.40,1.22,1.24,3.18],itemStyle:{color:red,borderRadius:[4,4,0,0]}},
+    {name:'销售毛利率(%)',type:'line',yAxisIndex:1,data:[null,null,null,null,19.64],symbolSize:7,lineStyle:{color:amber,width:2.5},itemStyle:{color:amber},connectNulls:true}
+  ]
+});
+document.getElementById('t8').innerHTML='<table><thead><tr><th>指标</th><th>2021</th><th>2022</th><th>2023</th><th>2024</th><th>2025</th></tr></thead><tbody>'+
+ [['营业收入（亿元）','44.90','50.11','50.59','60.97','64.01'],
+  ['归母净利润（亿元）','1.36','2.40','1.22','1.24','3.18'],
+  ['销售毛利率','—','—','—','—','19.64%']]
+ .map(function(r){return '<tr>'+r.map(function(c){return '<td>'+c+'</td>';}).join('')+'</tr>';}).join('')+
+ '</tbody></table>';
+
+window.addEventListener('resize',function(){
+  ['fsKline','c5','c8'].forEach(function(id){
+    var d=document.getElementById(id); var i=echarts.getInstanceByDom(d); if(i){i.resize();}
+  });
+});
+</script>
+</body>
+</html>

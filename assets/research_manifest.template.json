@@ -1,0 +1,174 @@
+{
+  "meta": {
+    "company": "公司名称",
+    "code": "000000.SZ",
+    "research_date": "2026-09-14",
+    "current_price": 0.0,
+    "shares_billion": 0.0,
+    "market_cap_billion": 0.0
+  },
+  "forecast": {
+    "悲观": [
+      {
+        "year": 2026,
+        "revenue_billion": 0.0,
+        "net_profit_billion": 0.0,
+        "eps": 0.0
+      },
+      {
+        "year": 2027,
+        "revenue_billion": 0.0,
+        "net_profit_billion": 0.0,
+        "eps": 0.0
+      },
+      {
+        "year": 2028,
+        "revenue_billion": 0.0,
+        "net_profit_billion": 0.0,
+        "eps": 0.0
+      }
+    ],
+    "中性": [
+      {
+        "year": 2026,
+        "revenue_billion": 0.0,
+        "net_profit_billion": 0.0,
+        "eps": 0.0
+      },
+      {
+        "year": 2027,
+        "revenue_billion": 0.0,
+        "net_profit_billion": 0.0,
+        "eps": 0.0
+      },
+      {
+        "year": 2028,
+        "revenue_billion": 0.0,
+        "net_profit_billion": 0.0,
+        "eps": 0.0
+      }
+    ],
+    "乐观": [
+      {
+        "year": 2026,
+        "revenue_billion": 0.0,
+        "net_profit_billion": 0.0,
+        "eps": 0.0
+      },
+      {
+        "year": 2027,
+        "revenue_billion": 0.0,
+        "net_profit_billion": 0.0,
+        "eps": 0.0
+      },
+      {
+        "year": 2028,
+        "revenue_billion": 0.0,
+        "net_profit_billion": 0.0,
+        "eps": 0.0
+      }
+    ]
+  },
+  "valuation": {
+    "method": "PE",
+    "target_year": 2027,
+    "linked_metric": "net_profit_billion",
+    "linked_value": 0.0,
+    "multiple": 0.0,
+    "equity_value_billion": 0.0,
+    "price_per_share": 0.0,
+    "note": "PE/PB/PS 可用 linked_metric × multiple；DCF/DDM 等可将 multiple 设为 null，但仍填写 equity_value_billion 与 price_per_share"
+  },
+  "sotp": {
+    "target_year": 2027,
+    "parts": [
+      {
+        "name": "主业",
+        "net_profit_billion": 0.0,
+        "multiple": 0.0,
+        "equity_value_billion": 0.0,
+        "include_in_profit_reconciliation": true
+      },
+      {
+        "name": "尚未盈利的期权业务",
+        "net_profit_billion": null,
+        "multiple": null,
+        "equity_value_billion": 0.0,
+        "include_in_profit_reconciliation": false
+      }
+    ],
+    "reconciled_total_net_profit_billion": 0.0,
+    "total_equity_value_billion": 0.0
+  },
+  "evidence": [
+    {
+      "claim_id": "E001",
+      "claim": "示例：某产品已确认订单",
+      "level": "已确认订单",
+      "source_type": "company_announcement",
+      "source_title": "公司公告标题",
+      "source_date": "2026-09-14",
+      "source_ref": "公告编号 / URL / 文件定位"
+    }
+  ],
+  "quarterly_tracking": [
+    {
+      "indicator": "营收增速",
+      "latest": "",
+      "invalidation_or_signal": "低于某阈值→逻辑减弱"
+    },
+    {
+      "indicator": "扣非增速",
+      "latest": "",
+      "invalidation_or_signal": ""
+    },
+    {
+      "indicator": "毛利率",
+      "latest": "",
+      "invalidation_or_signal": ""
+    },
+    {
+      "indicator": "净利率",
+      "latest": "",
+      "invalidation_or_signal": ""
+    },
+    {
+      "indicator": "经营现金流",
+      "latest": "",
+      "invalidation_or_signal": ""
+    },
+    {
+      "indicator": "应收/营收",
+      "latest": "",
+      "invalidation_or_signal": ""
+    },
+    {
+      "indicator": "存货/营收",
+      "latest": "",
+      "invalidation_or_signal": ""
+    },
+    {
+      "indicator": "研发费用率",
+      "latest": "",
+      "invalidation_or_signal": ""
+    },
+    {
+      "indicator": "资产负债率",
+      "latest": "",
+      "invalidation_or_signal": ""
+    },
+    {
+      "indicator": "核心业务增速",
+      "latest": "",
+      "invalidation_or_signal": ""
+    }
+  ],
+  "final": {
+    "status": "观察",
+    "core_invalidation": [
+      "证伪条件1",
+      "证伪条件2",
+      "证伪条件3"
+    ]
+  }
+}

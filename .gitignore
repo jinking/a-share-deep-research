@@ -1,0 +1,32 @@
+# === 运行时二进制 ===
+# westock Go CLI 体积 8.6MB 且可复现获取，不入库。
+# 需要时执行：bash scripts/install_westock_cli.sh
+tools/bin/*
+!tools/bin/.gitkeep
+
+# === Python ===
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+
+# === 本地凭证（永不入库）===
+.env
+.env.*
+*.key
+*.pem
+*credential*
+*token*.json
+!assets/research_manifest.template.json
+
+# === 运行产物 ===
+raw/
+*.log
+
+# === macOS / 编辑器 ===
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

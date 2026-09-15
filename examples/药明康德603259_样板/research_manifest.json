@@ -1,0 +1,253 @@
+{
+  "meta": {
+    "company": "药明康德",
+    "code": "603259.SH",
+    "research_date": "2026-09-14",
+    "current_price": 158.86,
+    "shares_billion": 30.31,
+    "market_cap_billion": 4815.0,
+    "note": "总股本 30.31 亿股（A 股 24.73 亿股 + H 股约 5.1 亿股，含 67.8 亿元零息可转债逐次转股增加部分）；总市值按 A 股收盘价 × 总股本口径。"
+  },
+  "forecast": {
+    "悲观": [
+      { "year": 2026, "revenue_billion": 585.0, "net_profit_billion": 234.0, "eps": 7.72 },
+      { "year": 2027, "revenue_billion": 620.0, "net_profit_billion": 200.0, "eps": 6.60 },
+      { "year": 2028, "revenue_billion": 640.0, "net_profit_billion": 190.0, "eps": 6.27 }
+    ],
+    "中性": [
+      { "year": 2026, "revenue_billion": 595.0, "net_profit_billion": 248.0, "eps": 8.18 },
+      { "year": 2027, "revenue_billion": 705.0, "net_profit_billion": 262.0, "eps": 8.64 },
+      { "year": 2028, "revenue_billion": 820.0, "net_profit_billion": 305.0, "eps": 10.06 }
+    ],
+    "乐观": [
+      { "year": 2026, "revenue_billion": 605.0, "net_profit_billion": 259.0, "eps": 8.55 },
+      { "year": 2027, "revenue_billion": 760.0, "net_profit_billion": 300.0, "eps": 9.90 },
+      { "year": 2028, "revenue_billion": 920.0, "net_profit_billion": 372.0, "eps": 12.27 }
+    ]
+  },
+  "valuation": {
+    "method": "PE",
+    "target_year": 2027,
+    "linked_metric": "net_profit_billion",
+    "linked_value": 262.0,
+    "multiple": 22.0,
+    "equity_value_billion": 5764.0,
+    "price_per_share": 190.2,
+    "note": "以 2027 年中性归母 262 亿元 × 22 倍 PE（当前 PE(TTM) 22.2 倍 ≈ 过去 5 年约 47% 分位）。目标价 190.2 元 = 5764 ÷ 30.31。"
+  },
+  "sotp": {
+    "target_year": 2027,
+    "parts": [
+      { "name": "化学业务（WuXi Chemistry，含 TIDES）", "net_profit_billion": 243.6, "multiple": 22.0, "equity_value_billion": 5359.2, "include_in_profit_reconciliation": true },
+      { "name": "测试业务（WuXi Testing）", "net_profit_billion": 12.1, "multiple": 22.0, "equity_value_billion": 266.2, "include_in_profit_reconciliation": true },
+      { "name": "生物学业务（WuXi Biology）", "net_profit_billion": 6.3, "multiple": 22.0, "equity_value_billion": 138.6, "include_in_profit_reconciliation": true }
+    ],
+    "reconciled_total_net_profit_billion": 262.0,
+    "total_equity_value_billion": 5764.0
+  },
+  "evidence": [
+    {
+      "claim_id": "E001",
+      "claim": "2026H1 营业收入 288.97 亿元，同比增长 38.93%",
+      "level": "已确认收入",
+      "source_type": "interim_report",
+      "source_title": "药明康德 2026 年半年度报告",
+      "source_date": "2026-08-03",
+      "source_ref": "上交所披露 2026 年半年报，利润表/营业收入"
+    },
+    {
+      "claim_id": "E002",
+      "claim": "2026H1 归母净利润 110.80 亿元，同比增长 29.43%；首次半年净利破百亿",
+      "level": "已确认收入",
+      "source_type": "interim_report",
+      "source_title": "药明康德 2026 年半年度报告",
+      "source_date": "2026-08-03",
+      "source_ref": "上交所披露 2026 年半年报，归母净利润"
+    },
+    {
+      "claim_id": "E003",
+      "claim": "2026H1 扣非归母净利润 105.72 亿元，同比增长 89.39%（2025H1 投资收益 36.69 亿元高基数，2026H1 仅 2.28 亿元）",
+      "level": "已确认收入",
+      "source_type": "interim_report",
+      "source_title": "药明康德 2026 年半年度报告",
+      "source_date": "2026-08-03",
+      "source_ref": "半年报扣非归母净利润与投资收益科目"
+    },
+    {
+      "claim_id": "E004",
+      "claim": "截至 2026-06-30 持续经营业务在手订单 664.3 亿元，同比增长 25.2%（约为上半年收入的 2.3 倍）",
+      "level": "事实",
+      "source_type": "interim_report",
+      "source_title": "药明康德 2026 年半年度报告",
+      "source_date": "2026-08-03",
+      "source_ref": "半年报业务回顾·在手订单"
+    },
+    {
+      "claim_id": "E005",
+      "claim": "公司上调 2026 年全年收入指引至 585–605 亿元（原 513–530 亿元），持续经营收入增速由 18%–22% 上调至 35%–39%，资本开支上调至 75–85 亿元，经调整自由现金流上调至 135–145 亿元",
+      "level": "管理层口径",
+      "source_type": "company_announcement",
+      "source_title": "药明康德 2026 年半年度业绩说明与指引上调公告",
+      "source_date": "2026-08-03",
+      "source_ref": "公司公告及 2026 年中期业绩交流电话会"
+    },
+    {
+      "claim_id": "E006",
+      "claim": "2026-08-07 美国哥伦比亚特区联邦地区法院批准公司初步禁令动议，禁止美国国防部执行 1260H 认定，法院认定被告对国有关联与军方的证据解读存在事实缺陷",
+      "level": "事实",
+      "source_type": "company_announcement",
+      "source_title": "药明康德关于 1260H 名单诉讼初步禁令裁决的自愿性公告",
+      "source_date": "2026-08-07",
+      "source_ref": "WuXi AppTec Co., Ltd. v. U.S. Dep't of Defense, No. 1:26-cv-02069 (D.D.C.)"
+    },
+    {
+      "claim_id": "E007",
+      "claim": "2026-06-08 美国国防部将药明康德列入 1260H「中国军事企业」名单（联邦公报 91 FR 35189，名单扩容至约 200 家）",
+      "level": "事实",
+      "source_type": "government",
+      "source_title": "U.S. Department of War 1260H List Update",
+      "source_date": "2026-06-08",
+      "source_ref": "91 Fed. Reg. 35189"
+    },
+    {
+      "claim_id": "E008",
+      "claim": "《生物安全法案》（BIOSECURE Act, P.L. 119-60）于 2025-12-18 生效，除 1260H 路径外，OMB 可依 Section 851(f)(2)(B) 独立于 1260H 名单认定「受关注生物技术公司」，首个名单截止日为 2026-12-18；FY24 NDAA Sec.805 供应链禁令对次级供应商的生效日为 2027-06-30",
+      "level": "事实",
+      "source_type": "government",
+      "source_title": "BIOSECURE Act（P.L. 119-60，FY26 NDAA Sec. 851）",
+      "source_date": "2025-12-18",
+      "source_ref": "美国联邦法律文本；OMB 认定截止日 2026-12-18"
+    },
+    {
+      "claim_id": "E009",
+      "claim": "2025 年投资收益 85.88 亿元（同比 +13.21 倍），其中出售药明合联部分股权确认投资收益约 52.08 亿元；2025 年归母 191.51 亿元中约 55.95 亿元来自资产处置净收益",
+      "level": "已确认收入",
+      "source_type": "annual_report",
+      "source_title": "药明康德 2025 年年度报告",
+      "source_date": "2026-03-24",
+      "source_ref": "2025 年报投资收益与非流动性资产处置损益科目"
+    },
+    {
+      "claim_id": "E010",
+      "claim": "2025 年美国客户收入 312.5 亿元，同比增长 34.3%，占持续经营业务收入约 72%",
+      "level": "已确认收入",
+      "source_type": "annual_report",
+      "source_title": "药明康德 2025 年年度报告",
+      "source_date": "2026-03-24",
+      "source_ref": "2025 年报分地区收入披露"
+    },
+    {
+      "claim_id": "E011",
+      "claim": "2026H1 化学业务收入 249.86 亿元（+53.28%），占营收 86.5%，毛利率 56.55%（+7.48pct）；其中小分子 D&M 149.9 亿元（+72.7%）、TIDES 72.6 亿元（+44.3%）",
+      "level": "已确认收入",
+      "source_type": "interim_report",
+      "source_title": "药明康德 2026 年半年度报告",
+      "source_date": "2026-08-03",
+      "source_ref": "半年报分部收入与毛利率明细"
+    },
+    {
+      "claim_id": "E012",
+      "claim": "2026H1 测试业务收入 24.81 亿元（+31.53%），毛利率 37.95%（+11.32pct），其中药物安全性评价收入同比 +42.8%；生物学业务收入 13.92 亿元（+11.21%），毛利率 34.92%（-0.12pct）",
+      "level": "已确认收入",
+      "source_type": "interim_report",
+      "source_title": "药明康德 2026 年半年度报告",
+      "source_date": "2026-08-03",
+      "source_ref": "半年报分部收入与毛利率明细"
+    },
+    {
+      "claim_id": "E013",
+      "claim": "2026H1 应收账款及票据 104.72 亿元，较期初增长约 44%，快于营收增速 38.93%；同期经营现金流净额 96.99 亿元（+30.52%），低于扣非净利增速",
+      "level": "事实",
+      "source_type": "interim_report",
+      "source_title": "药明康德 2026 年半年度报告",
+      "source_date": "2026-08-03",
+      "source_ref": "半年报资产负债表应收账款与现金流量表"
+    },
+    {
+      "claim_id": "E014",
+      "claim": "公司拟派发 2026 年中期红利每 10 股 5.10 元（含税），合计约 15.06 亿元；2025 年度已派现 47.12 亿元",
+      "level": "事实",
+      "source_type": "company_announcement",
+      "source_title": "药明康德 2026 年半年度利润分配方案",
+      "source_date": "2026-08-03",
+      "source_ref": "上交所 2026 年中期分红公告"
+    }
+  ],
+  "quarterly_tracking": [
+    {
+      "indicator": "营业收入同比增速",
+      "latest": "2026H1 +38.93%",
+      "invalidation_or_signal": "单季收入增速跌破 15% → 增长引擎降档，逻辑减弱"
+    },
+    {
+      "indicator": "扣非归母净利润同比增速",
+      "latest": "2026H1 +89.39%",
+      "invalidation_or_signal": "扣非增速连续两季低于 20% → 经营性盈利改善中止"
+    },
+    {
+      "indicator": "销售毛利率",
+      "latest": "2026H1 53.91%（+9.46pct）",
+      "invalidation_or_signal": "毛利率连续两季回落至 48% 以下 → 产能爬坡与折旧压力显性化"
+    },
+    {
+      "indicator": "扣非净利率",
+      "latest": "2026H1 36.6%",
+      "invalidation_or_signal": "跌破 30% → 费用或汇率侵蚀加剧"
+    },
+    {
+      "indicator": "经营现金流／扣非净利润",
+      "latest": "2026H1 0.92 倍",
+      "invalidation_or_signal": "低于 0.7 倍且应收增速持续高于营收 → 利润未转化为现金"
+    },
+    {
+      "indicator": "应收账款及票据／营收（年化）",
+      "latest": "应收较期初 +44% 高于营收 +38.9%",
+      "invalidation_or_signal": "应收增速连续两期高于营收 8pct 以上 → 回款质量恶化"
+    },
+    {
+      "indicator": "持续经营业务在手订单同比增速",
+      "latest": "2026-06-30 同比 +25.2%（664.3 亿元）",
+      "invalidation_or_signal": "增速跌破 15% → 需求端走弱，为最核心的先行指标"
+    },
+    {
+      "indicator": "化学业务收入同比增速",
+      "latest": "2026H1 +53.28%",
+      "invalidation_or_signal": "增速跌破 25% → 占营收 86.5% 的主引擎降速"
+    },
+    {
+      "indicator": "TIDES 业务（多肽/寡核苷酸）收入增速",
+      "latest": "2026H1 +44.3%（全年指引约 +45%）",
+      "invalidation_or_signal": "增速跌破 25% 或公司下调全年 TIDES 指引 → GLP-1 红利兑现结束"
+    },
+    {
+      "indicator": "测试业务毛利率",
+      "latest": "2026H1 37.95%（+11.32pct）",
+      "invalidation_or_signal": "回落至 33% 以下 → 差异化能力定价失效"
+    },
+    {
+      "indicator": "美国客户收入占比及增速",
+      "latest": "2025 年 312.5 亿元、占持续经营 72%（+34.3%）",
+      "invalidation_or_signal": "美国客户收入连续两期同比负增长 → 地缘政治已实质转化为订单流失"
+    },
+    {
+      "indicator": "资本开支与在建工程转固节奏",
+      "latest": "2026 年指引 75–85 亿元（原 65–75 亿元）",
+      "invalidation_or_signal": "资本开支大幅超指引而收入不及 → 产能消化效率下降、折旧侵蚀毛利"
+    },
+    {
+      "indicator": "1260H 诉讼与 OMB 的 BCC 认定进展",
+      "latest": "2026-08-07 法院批准初步禁令；OMB 独立认定截止日 2026-12-18",
+      "invalidation_or_signal": "被列入 BCC 名单 → 核心逻辑证伪，美国客户长期合作基础受冲击"
+    }
+  ],
+  "final": {
+    "status": "试仓",
+    "core_invalidation": [
+      "在手订单增速跌破 15%（当前 +25.2%）：需求端领先指标的实质恶化",
+      "TIDES 收入增速跌破 25% 或公司下调全年 TIDES 指引：GLP-1 红利兑现结束，占营收 86.5% 的化学业务降速",
+      "被 OMB 依 BIOSECURE Act 第二路径认定为「受关注生物技术公司」（截止日 2026-12-18）：美国客户收入占比约 72%，为核心逻辑证伪条件",
+      "美国客户收入连续两期同比负增长：地缘风险已由「情绪压制」转为「订单流失」",
+      "应收账款与经营现金流连续两期同步恶化（应收增速持续高于营收 8pct 以上且经营现金流／扣非净利 <0.7）：增长质量不再支撑当前估值"
+    ]
+  }
+}
