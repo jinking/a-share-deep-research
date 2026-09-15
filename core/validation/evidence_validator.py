@@ -21,10 +21,18 @@ from ..models.document import SourceDocument
 from ..models.evidence import EvidenceLink
 from ..models.research_state import ResearchState
 from .codes import severity_of
+from .time_model import TimeModel, build_time_model
 
 __all__ = ["Emit", "validate_evidence", "validate_evidence_store"]
 
 Emit = Callable[..., None]
+
+# 「事实」可以建立在什么之上：事实本身，或已确认级（一手来源支撑）
+FACT_BASIS_LEVELS = frozenset({"fact"}) | PRIMARY_REQUIRED_LEVELS
+
+# 不得被标为 supported 的「未确认」等级（v3.0.1 §8）。
+# 注意不含 management_statement —— 管理层口径是**已披露**的信息，不是「未确认」。
+UNCONFIRMED_LEVELS = frozenset({"assumption", "unconfirmed"})
 
 # 仅用于「文档缺失时」判断是否一手来源（缺失必然不是），不参与任何写入。
 _MISSING_DOC = SourceDocument(
@@ -45,7 +53,7 @@ def _check_documents(
     *,
     emit: Emit,
     base_dir: Optional[Path],
-    research_date,
+    time_model: "TimeModel",
 ) -> None:
     for doc in state.documents.values():
         # 1) 可追溯入口
@@ -99,15 +107,29 @@ def _check_documents(
                 doc.url,
             )
 
-        # 3) 时间一致性
-        if research_date is not None and doc.published_date is not None:
-            if doc.published_date > research_date:
+        # 3) 时间一致性：证据发布时间不得晚于研究信息截止时点
+        cutoff = time_model.info_cutoff
+        if cutoff is not None and doc.published_date is not None:
+            if doc.published_date > cutoff:
+                # 新时间模型报 SOURCE_DATE_AFTER_AS_OF；旧模型保留原错误码，行为不变
+                if time_model.is_new_model:
+                    code = "SOURCE_DATE_AFTER_AS_OF"
+                    detail = (
+                        f"published_at={doc.published_at}；"
+                        f"as_of={time_model.raw.get('as_of')}"
+                    )
+                else:
+                    code = "SOURCE_DATE_AFTER_RESEARCH_DATE"
+                    detail = (
+                        f"published_at={doc.published_at}；"
+                        f"research_date={time_model.raw.get('research_date')}"
+                    )
                 _emit(
                     emit,
-                    severity_of("SOURCE_DATE_AFTER_RESEARCH_DATE"),
-                    "SOURCE_DATE_AFTER_RESEARCH_DATE",
-                    f"证据发布时间晚于研究日期: {doc.document_id}",
-                    f"published_at={doc.published_at}；research_date={research_date}",
+                    severity_of(code),
+                    code,
+                    f"证据发布时间晚于研究截止时点: {doc.document_id}",
+                    detail,
                 )
 
 
@@ -217,6 +239,49 @@ def _check_independence(
     )
 
 
+def _check_claim_basis(state: ResearchState, claim: Claim, *, emit: Emit) -> None:
+    """Claim 的「依据」是否成立（v3.0.1 §8 / §9）。
+
+    两条结构性规则，都不涉及语义理解：
+
+    - `basis_claim_ids` 必须指向真实存在的 Claim（否则依据是空的）；
+    - `fact` 级的结论不能建立在 `inference` / `assumption` / `unconfirmed` 之上，
+      因为那等于把「推导」当「事实」用。推导链本身可以叠推导，
+      只有 fact 这一层要求依据足够硬。
+    """
+    basis = [clean_str(c) for c in (claim.basis_claim_ids or []) if clean_str(c)]
+    if not basis:
+        return
+
+    unknown = [cid for cid in basis if cid not in state.claims]
+    if unknown:
+        _emit(
+            emit,
+            severity_of("CLAIM_BASIS_UNKNOWN"),
+            "CLAIM_BASIS_UNKNOWN",
+            f"Claim 的依据指向了不存在的 Claim: {claim.claim_id}",
+            f"basis_claim_ids={unknown}；claims.jsonl 中无此 claim_id",
+        )
+
+    if claim.level != "fact":
+        return
+
+    weak = [
+        f"{cid}({state.claims[cid].level})"
+        for cid in basis
+        if cid in state.claims and state.claims[cid].level not in FACT_BASIS_LEVELS
+    ]
+    if weak:
+        _emit(
+            emit,
+            severity_of("CLAIM_BASIS_LEVEL_INVALID"),
+            "CLAIM_BASIS_LEVEL_INVALID",
+            f"fact Claim 依赖了未确认的推导: {claim.claim_id}",
+            f"依据={weak}；事实级只能建立在事实/确认级之上，"
+            "否则应把本 Claim 降级为 inference",
+        )
+
+
 def _check_claims(state: ResearchState, *, emit: Emit) -> None:
     for claim in state.claims.values():
         links = state.links_of(claim.claim_id)
@@ -240,8 +305,45 @@ def _check_claims(state: ResearchState, *, emit: Emit) -> None:
                 f"links={[l.evidence_id for l in links]}；有效链接={len(alive)}",
             )
 
+        # 未确认的东西不能被标成 supported —— 否则「等级」就成了装饰（§8）
+        if (
+            claim.level in UNCONFIRMED_LEVELS
+            and claim.status == "supported"
+            and claim.materiality in STRICT_MATERIALITIES
+        ):
+            _emit(
+                emit,
+                severity_of("CLAIM_UNCONFIRMED_SUPPORTED"),
+                "CLAIM_UNCONFIRMED_SUPPORTED",
+                f"未确认等级的 Claim 不能标为 supported: {claim.claim_id}",
+                f"level={claim.level}；materiality={claim.materiality}；"
+                "请改为 status=pending，或补齐口径后升级等级",
+            )
+
+        _check_claim_basis(state, claim, emit=emit)
         _claim_level_policy(state, claim, links, emit=emit)
         _check_independence(state, claim, links, emit=emit)
+
+
+def _check_candidates(state: ResearchState, *, emit: Emit) -> None:
+    """线索层检查（v3.0.1 §5）。
+
+    线索本身不参与证据校验的通过口径；这里只拦住一种误用：
+    把自己标成 `promoted` 却没有对应正式 Document —— 那等于用状态冒充证据。
+    """
+    for candidate in state.candidates.values():
+        if candidate.status != "promoted":
+            continue
+        doc_id = clean_str(candidate.promoted_document_id)
+        if not doc_id or doc_id not in state.documents:
+            _emit(
+                emit,
+                severity_of("CANDIDATE_PROMOTED_WITHOUT_DOCUMENT"),
+                "CANDIDATE_PROMOTED_WITHOUT_DOCUMENT",
+                f"线索标为 promoted 但没有正式 Document: {candidate.candidate_id}",
+                f"promoted_document_id={candidate.promoted_document_id or '(空)'}；"
+                "promoted 只是跟进状态，证据仍只认 Document + EvidenceLink",
+            )
 
 
 def _check_manifest_refs(
@@ -290,13 +392,23 @@ def _check_manifest_refs(
             continue
         claim = state.claims.get(claim_id)
         if claim is None:
-            _emit(
-                emit,
-                severity_of("EVIDENCE_REF_UNKNOWN"),
-                "EVIDENCE_REF_UNKNOWN",
-                f"manifest 引用了不存在的 Claim: {claim_id}",
-                f"evidence_refs[{i}]；claims.jsonl 中无此 claim_id",
-            )
+            if claim_id in state.candidates:
+                _emit(
+                    emit,
+                    severity_of("CANDIDATE_USED_AS_EVIDENCE"),
+                    "CANDIDATE_USED_AS_EVIDENCE",
+                    f"manifest 引用了线索（Candidate）而不是 Claim: {claim_id}",
+                    f"evidence_refs[{i}]；线索 ≠ 证据，"
+                    "必须先经正式 Document + EvidenceLink 升级为 Claim",
+                )
+            else:
+                _emit(
+                    emit,
+                    severity_of("EVIDENCE_REF_UNKNOWN"),
+                    "EVIDENCE_REF_UNKNOWN",
+                    f"manifest 引用了不存在的 Claim: {claim_id}",
+                    f"evidence_refs[{i}]；claims.jsonl 中无此 claim_id",
+                )
             continue
         if importance and importance != claim.materiality:
             _emit(
@@ -308,12 +420,46 @@ def _check_manifest_refs(
             )
 
 
+def _resolve_time_model(
+    *,
+    state: ResearchState,
+    manifest: Optional[Dict[str, Any]],
+    as_of: Optional[str] = None,
+    market_data_as_of: Optional[str] = None,
+    generated_at: Optional[str] = None,
+    research_date=None,
+) -> TimeModel:
+    """决定「证据时效」用哪个时点。
+
+    优先级（后者覆盖前者）：state 字段 → manifest.meta → 显式参数。
+    `research_date` 只作为旧模型的回退，新模型一律以 `as_of` 为准。
+    """
+    meta: Dict[str, Any] = {}
+    for key in ("as_of", "market_data_as_of", "generated_at"):
+        value = getattr(state, key, None)
+        if value:
+            meta[key] = value
+    meta.update((manifest or {}).get("meta") or {})
+    if research_date is not None:
+        meta["research_date"] = research_date
+    if as_of is not None:
+        meta["as_of"] = as_of
+    if market_data_as_of is not None:
+        meta["market_data_as_of"] = market_data_as_of
+    if generated_at is not None:
+        meta["generated_at"] = generated_at
+    return build_time_model(meta)
+
+
 def validate_evidence(
     state: ResearchState,
     *,
     emit: Emit,
     manifest: Optional[Dict[str, Any]] = None,
     research_date: Optional[str] = None,
+    as_of: Optional[str] = None,
+    market_data_as_of: Optional[str] = None,
+    generated_at: Optional[str] = None,
     strict: bool = True,
     store_issues: Iterable[Issue] = (),
     documents_base_dir: Optional[str] = None,
@@ -352,10 +498,18 @@ def validate_evidence(
     if isinstance(research_date, str):
         research_date = parse_date(research_date)
 
-    _check_documents(
-        state, emit=counting_emit, base_dir=base_dir, research_date=research_date
+    time_model = _resolve_time_model(
+        state=state,
+        manifest=manifest,
+        as_of=as_of,
+        market_data_as_of=market_data_as_of,
+        generated_at=generated_at,
+        research_date=research_date,
     )
+
+    _check_documents(state, emit=counting_emit, base_dir=base_dir, time_model=time_model)
     _check_claims(state, emit=counting_emit)
+    _check_candidates(state, emit=counting_emit)
     if manifest:
         _check_manifest_refs(state, manifest, emit=counting_emit)
 
@@ -364,7 +518,8 @@ def validate_evidence(
         "INFO",
         "EVIDENCE_SUMMARY",
         "Evidence 校验完成",
-        f"documents={len(state.documents)}；claims={len(state.claims)}；links={len(state.links)}",
+        f"candidates={len(state.candidates)}；documents={len(state.documents)}；"
+        f"claims={len(state.claims)}；links={len(state.links)}",
     )
     return summary
 
@@ -374,6 +529,9 @@ def validate_evidence_store(
     *,
     emit: Emit,
     research_date: Optional[str] = None,
+    as_of: Optional[str] = None,
+    market_data_as_of: Optional[str] = None,
+    generated_at: Optional[str] = None,
     documents_base_dir: Optional[str] = None,
     store_issues: Iterable[Issue] = (),
 ) -> Dict[str, int]:
@@ -383,6 +541,9 @@ def validate_evidence_store(
         emit=emit,
         manifest=None,
         research_date=research_date,
+        as_of=as_of,
+        market_data_as_of=market_data_as_of,
+        generated_at=generated_at,
         strict=True,
         store_issues=store_issues,
         documents_base_dir=documents_base_dir,

@@ -29,7 +29,14 @@ from core.validation import validate_evidence_store  # noqa: E402
 def main() -> int:
     ap = argparse.ArgumentParser(description="Evidence Store 独立验收")
     ap.add_argument("evidence_dir", help="evidence/ 目录")
-    ap.add_argument("--research-date", dest="research_date", help="研究日期（YYYY-MM-DD）")
+    ap.add_argument("--research-date", dest="research_date", help="旧时间模型：研究日期（YYYY-MM-DD）")
+    ap.add_argument("--as-of", dest="as_of", help="新时间模型：研究信息截止时点（ISO8601）")
+    ap.add_argument(
+        "--market-data-as-of", dest="market_data_as_of", help="新时间模型：行情数据截止时点（ISO8601）"
+    )
+    ap.add_argument(
+        "--generated-at", dest="generated_at", help="新时间模型：报告生成时间（ISO8601）"
+    )
     ap.add_argument("--out", help="验收报告输出目录（可选，写 validation_report.md）")
     ap.add_argument(
         "--fail-on",
@@ -64,9 +71,17 @@ def main() -> int:
 
     issues: List[Issue] = []
     summary = validate_evidence_store(
-        store.state(research_date=args.research_date),
+        store.state(
+            research_date=args.research_date,
+            as_of=args.as_of,
+            market_data_as_of=args.market_data_as_of,
+            generated_at=args.generated_at,
+        ),
         emit=lambda s, c, m, d="": issues.append(Issue(s, c, m, d)),
         research_date=args.research_date,
+        as_of=args.as_of,
+        market_data_as_of=args.market_data_as_of,
+        generated_at=args.generated_at,
         documents_base_dir=str(path),
         store_issues=store.issues,
     )

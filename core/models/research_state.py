@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from ..issue import Issue
+from .candidate import EvidenceCandidate
 from .claim import STRICT_MATERIALITIES, Claim
 from .document import SourceDocument
 from .evidence import EvidenceLink
@@ -24,7 +25,14 @@ class ResearchState:
     documents: Dict[str, SourceDocument] = field(default_factory=dict)
     claims: Dict[str, Claim] = field(default_factory=dict)
     links: List[EvidenceLink] = field(default_factory=list)
+    # 线索（v3.0.1）：只记录「看到过」，绝不参与证据校验的通过口径
+    candidates: Dict[str, EvidenceCandidate] = field(default_factory=dict)
+    # 旧时间模型（v2 / 旧 v3）：单一研究日期，语义模糊，仅作兼容回退
     research_date: Optional[str] = None
+    # 新时间模型（v3.0.1 §4）：信息截止时点 / 行情截止时点 / 报告生成时间
+    as_of: Optional[str] = None
+    market_data_as_of: Optional[str] = None
+    generated_at: Optional[str] = None
     manifest: Dict[str, Any] = field(default_factory=dict)
 
     # ---- 装配 ----
@@ -32,6 +40,10 @@ class ResearchState:
     def add_document(self, doc: SourceDocument) -> SourceDocument:
         self.documents[doc.document_id] = doc
         return doc
+
+    def add_candidate(self, candidate: EvidenceCandidate) -> EvidenceCandidate:
+        self.candidates[candidate.candidate_id] = candidate
+        return candidate
 
     def add_claim(self, claim: Claim) -> Claim:
         self.claims[claim.claim_id] = claim
@@ -83,6 +95,17 @@ class ResearchState:
         issues: List[Issue] = []
 
         for link in self.links_missing_claims():
+            if link.claim_id in self.candidates:
+                issues.append(
+                    Issue(
+                        "P0",
+                        "CANDIDATE_USED_AS_EVIDENCE",
+                        f"证据绑定到了线索（Candidate）而不是 Claim: {link.evidence_id}",
+                        f"claim_id={link.claim_id} 是 candidates.jsonl 中的线索；"
+                        "线索 ≠ 证据，必须先经正式 Document + EvidenceLink 升级",
+                    )
+                )
+                continue
             issues.append(
                 Issue(
                     "P1",
@@ -93,6 +116,17 @@ class ResearchState:
             )
 
         for link in self.dangling_links():
+            if link.document_id in self.candidates:
+                issues.append(
+                    Issue(
+                        "P0",
+                        "CANDIDATE_USED_AS_EVIDENCE",
+                        f"证据指向了线索（Candidate）而不是 Document: {link.evidence_id}",
+                        f"document_id={link.document_id} 是 candidates.jsonl 中的线索；"
+                        "线索不能作为正式证据来源",
+                    )
+                )
+                continue
             claim = self.claims.get(link.claim_id)
             strict = claim is None or claim.materiality in STRICT_MATERIALITIES
             issues.append(
@@ -126,6 +160,7 @@ class ResearchState:
 
     def summary(self) -> Dict[str, int]:
         return {
+            "candidates": len(self.candidates),
             "documents": len(self.documents),
             "claims": len(self.claims),
             "links": len(self.links),

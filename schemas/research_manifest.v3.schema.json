@@ -9,11 +9,34 @@
     "manifest_version": { "const": 3 },
     "meta": {
       "type": "object",
-      "required": ["company", "code", "research_date", "current_price", "shares_billion", "market_cap_billion"],
+      "required": ["company", "code", "current_price", "shares_billion", "market_cap_billion"],
+      "anyOf": [
+        { "required": ["as_of"], "title": "新时间模型（v3.0.1）" },
+        { "required": ["research_date"], "title": "旧时间模型（兼容读取，Validator 报 P2 TIME_MODEL_LEGACY）" }
+      ],
       "properties": {
         "company": { "type": "string" },
         "code": { "type": "string" },
-        "research_date": { "type": "string", "pattern": "^\\d{4}-?\\d{2}-?\\d{2}$" },
+        "as_of": {
+          "type": "string",
+          "description": "研究信息截止时点；Evidence 的 published_at 不得晚于该时点",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}([T ]\\d{2}:\\d{2}(:\\d{2})?([+-]\\d{2}:?\\d{2}|Z)?)?$"
+        },
+        "market_data_as_of": {
+          "type": "string",
+          "description": "行情数据截止时点（当前价 / 市值 / 技术面 / K 线）；不得晚于 generated_at",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}([T ]\\d{2}:\\d{2}(:\\d{2})?([+-]\\d{2}:?\\d{2}|Z)?)?$"
+        },
+        "generated_at": {
+          "type": "string",
+          "description": "报告生成时间；必须与报告 title / h1 small / footer / 顶部注释及文件名一致",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}([T ]\\d{2}:\\d{2}(:\\d{2})?([+-]\\d{2}:?\\d{2}|Z)?)?$"
+        },
+        "research_date": {
+          "type": "string",
+          "description": "旧时间模型字段，仅向后兼容；新产物请改用 as_of",
+          "pattern": "^\\d{4}-?\\d{2}-?\\d{2}$"
+        },
         "current_price": { "type": "number", "exclusiveMinimum": 0 },
         "shares_billion": { "type": "number", "exclusiveMinimum": 0 },
         "market_cap_billion": { "type": "number", "exclusiveMinimum": 0 },

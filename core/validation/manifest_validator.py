@@ -13,6 +13,7 @@ from typing import Any, Callable, Dict, Optional
 from ..models.base import clean_str
 from ..models.claim import MATERIALITIES
 from .codes import severity_of
+from .time_model import build_time_model, has_malformed_time_field, validate_time_model
 
 __all__ = ["SUPPORTED_VERSIONS", "detect_manifest_version", "validate_manifest_v3"]
 
@@ -67,13 +68,28 @@ def validate_manifest_v3(
         )
 
     meta = data.get("meta") or {}
-    if not clean_str(meta.get("research_date")):
+    time_model = build_time_model(meta)
+
+    bad_field = has_malformed_time_field(meta)
+    if bad_field:
         emit(
             severity_of("MANIFEST_V3_STRUCTURE"),
             "MANIFEST_V3_STRUCTURE",
-            "v3 manifest 缺少 meta.research_date",
-            "缺该字段将无法执行「证据发布时间不得晚于研究日期」校验",
+            f"v3 manifest 的 meta.{bad_field} 不是合法时间",
+            f"meta.{bad_field}={meta.get(bad_field)!r}；"
+            "期望 ISO8601（如 2026-09-15T09:00:00+08:00）",
         )
+    elif not time_model.has_any:
+        emit(
+            severity_of("MANIFEST_V3_STRUCTURE"),
+            "MANIFEST_V3_STRUCTURE",
+            "v3 manifest 缺少时间模型（as_of 或 research_date）",
+            "缺该字段将无法执行「证据发布时间不得晚于研究时点」校验；"
+            "新模型用 as_of / market_data_as_of / generated_at，旧模型用 research_date",
+        )
+
+    # 时间语义：旧模型提示（P2）与行情/生成时点倒挂（P1）
+    validate_time_model(time_model, emit=emit)
 
     refs = data.get("evidence_refs")
     if not isinstance(refs, list) or not refs:

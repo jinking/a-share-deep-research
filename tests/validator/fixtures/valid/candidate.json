@@ -1,0 +1,14 @@
+{
+  "candidate_id": "CAN_1a2b3c4d",
+  "claim_id": "C_FIN_REV_2026H1",
+  "source_type": "media",
+  "title": "财联社：意华股份高速连接器进展",
+  "url": "https://www.cls.cn/detail/123",
+  "snippet": "媒体口径，非公司披露",
+  "discovered_at": "2026-09-14T20:10:00+08:00",
+  "provider": "neodata",
+  "upstream_hint": "CLS_20260915_001",
+  "status": "new",
+  "promoted_document_id": null,
+  "note": null
+}

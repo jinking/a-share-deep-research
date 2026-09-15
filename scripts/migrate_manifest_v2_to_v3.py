@@ -71,6 +71,9 @@ def migrate(
     evidence_dir: Optional[Path] = None,
     critical_ids: Optional[List[str]] = None,
     research_date: Optional[str] = None,
+    as_of: Optional[str] = None,
+    market_data_as_of: Optional[str] = None,
+    generated_at: Optional[str] = None,
 ) -> Tuple[Dict[str, Any], Dict[str, int]]:
     critical_ids = set(critical_ids or [])
     company = (data.get("meta") or {}).get("company") or ""
@@ -86,6 +89,15 @@ def migrate(
         "final": data.get("final") or {},
         "evidence_refs": [],
     }
+    # 新时间模型（v3.0.1 §4）：迁移本身不臆造时点，只搬运调用方明确给出的值。
+    # 未给出时保留 v2 的 research_date（旧模型，Validator 报 P2 TIME_MODEL_LEGACY）。
+    for key, value in (
+        ("as_of", as_of),
+        ("market_data_as_of", market_data_as_of),
+        ("generated_at", generated_at),
+    ):
+        if value:
+            v3["meta"][key] = value
     if evidence_dir is not None:
         v3["meta"].setdefault("evidence_dir", evidence_dir.name)
 
@@ -191,6 +203,13 @@ def main() -> int:
     ap.add_argument("--evidence-dir", help="同时生成 Evidence Store 的目录")
     ap.add_argument("--critical", help="逗号分隔的 claim_id，迁移时标记为 critical")
     ap.add_argument("--research-date", help="覆盖 meta.research_date")
+    ap.add_argument("--as-of", dest="as_of", help="新时间模型：研究信息截止时点（ISO8601）")
+    ap.add_argument(
+        "--market-data-as-of", dest="market_data_as_of", help="新时间模型：行情数据截止时点（ISO8601）"
+    )
+    ap.add_argument(
+        "--generated-at", dest="generated_at", help="新时间模型：报告生成时间（ISO8601）"
+    )
     args = ap.parse_args()
 
     src = Path(args.manifest)
@@ -213,6 +232,9 @@ def main() -> int:
         evidence_dir=Path(args.evidence_dir) if args.evidence_dir else None,
         critical_ids=critical,
         research_date=args.research_date,
+        as_of=args.as_of,
+        market_data_as_of=args.market_data_as_of,
+        generated_at=args.generated_at,
     )
 
     out = Path(args.out)

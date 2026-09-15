@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from core.models import Claim, EvidenceLink, SourceDocument
+from core.models import Claim, EvidenceCandidate, EvidenceLink, SourceDocument
 
 jsonschema = pytest.importorskip("jsonschema")
 
@@ -19,6 +19,7 @@ SCHEMAS = {
     "document": ROOT / "schemas" / "document.schema.json",
     "claim": ROOT / "schemas" / "claim.schema.json",
     "evidence_link": ROOT / "schemas" / "evidence_link.schema.json",
+    "candidate": ROOT / "schemas" / "evidence_candidate.schema.json",
     "manifest": ROOT / "schemas" / "research_manifest.v3.schema.json",
 }
 
@@ -38,6 +39,8 @@ def _validator(name: str):
     ("document", "valid/document.json"),
     ("claim", "valid/claim.json"),
     ("evidence_link", "valid/evidence_link.json"),
+    ("candidate", "valid/candidate.json"),
+    ("manifest", "valid/manifest_v3_new_time.json"),
 ])
 def test_valid_fixtures_match_schema(name, fixture):
     _validator(name).validate(_load(FIXTURES / fixture))
@@ -47,6 +50,7 @@ def test_valid_fixtures_match_schema(name, fixture):
     ("document", "invalid/document_no_source.json"),
     ("claim", "invalid/claim_bad_level.json"),
     ("evidence_link", "invalid/evidence_link_bad_support.json"),
+    ("candidate", "invalid/candidate_bad_status.json"),
     ("manifest", "invalid/manifest_v3_no_refs.json"),
 ])
 def test_invalid_fixtures_are_rejected(name, fixture):
@@ -82,6 +86,21 @@ def test_model_and_schema_agree_on_support_types():
     assert set(SUPPORT_TYPES) == schema_enum
 
 
+def test_model_and_schema_agree_on_candidate_statuses():
+    from core.models import CANDIDATE_STATUSES
+
+    schema_enum = set(_load(SCHEMAS["candidate"])["properties"]["status"]["enum"])
+    assert set(CANDIDATE_STATUSES) == schema_enum
+
+
+def test_candidate_schema_reuses_source_types():
+    """线索与 Document 共用同一套来源类型，避免两处枚举漂移。"""
+    from core.models import SOURCE_TYPES
+
+    schema_enum = set(_load(SCHEMAS["candidate"])["properties"]["source_type"]["enum"])
+    assert set(SOURCE_TYPES) == schema_enum
+
+
 def test_model_from_dict_accepts_schema_valid_fixtures():
     doc = SourceDocument.from_dict(_load(FIXTURES / "valid/document.json"))
     doc.validate()
@@ -89,3 +108,5 @@ def test_model_from_dict_accepts_schema_valid_fixtures():
     claim.validate()
     link = EvidenceLink.from_dict(_load(FIXTURES / "valid/evidence_link.json"))
     link.validate()
+    candidate = EvidenceCandidate.from_dict(_load(FIXTURES / "valid/candidate.json"))
+    candidate.validate()

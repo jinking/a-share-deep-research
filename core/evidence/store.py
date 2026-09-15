@@ -5,6 +5,7 @@
 目录约定：
     research_XXXXXX/
     └── evidence/
+        ├── candidates.jsonl      # 线索（v3.0.1）：候选 ≠ 证据
         ├── documents.jsonl
         ├── claims.jsonl
         ├── evidence_links.jsonl
@@ -22,6 +23,7 @@ from typing import Any, Dict, Iterable, List, Optional
 
 from ..issue import Issue
 from ..models.base import EvidenceModelError, iso_now
+from ..models.candidate import EvidenceCandidate
 from ..models.claim import Claim
 from ..models.document import SourceDocument
 from ..models.evidence import EvidenceLink
@@ -31,12 +33,14 @@ from .hasher import make_document_id, sha256_file
 __all__ = [
     "EvidenceStoreError",
     "EvidenceStore",
+    "CANDIDATES_FILE",
     "DOCUMENTS_FILE",
     "CLAIMS_FILE",
     "LINKS_FILE",
     "RAW_DIR",
 ]
 
+CANDIDATES_FILE = "candidates.jsonl"
 DOCUMENTS_FILE = "documents.jsonl"
 CLAIMS_FILE = "claims.jsonl"
 LINKS_FILE = "evidence_links.jsonl"
@@ -86,12 +90,17 @@ def _write_jsonl(path: Path, rows: Iterable[Dict[str, Any]]) -> None:
 class EvidenceStore:
     def __init__(self, root: Path):
         self.root = Path(root)
+        self.candidates: Dict[str, EvidenceCandidate] = {}
         self.documents: Dict[str, SourceDocument] = {}
         self.claims: Dict[str, Claim] = {}
         self.links: List[EvidenceLink] = []
         self.issues: List[Issue] = []
 
     # ---------- 路径 ----------
+
+    @property
+    def candidates_path(self) -> Path:
+        return self.root / CANDIDATES_FILE
 
     @property
     def documents_path(self) -> Path:
@@ -123,7 +132,12 @@ class EvidenceStore:
         store = cls(Path(root))
         store.root.mkdir(parents=True, exist_ok=True)
         store.raw_dir.mkdir(parents=True, exist_ok=True)
-        for path in (store.documents_path, store.claims_path, store.links_path):
+        for path in (
+            store.candidates_path,
+            store.documents_path,
+            store.claims_path,
+            store.links_path,
+        ):
             if not path.exists():
                 path.write_text("", encoding="utf-8")
         return store
@@ -138,6 +152,31 @@ class EvidenceStore:
         if not self.root.exists():
             raise EvidenceStoreError(f"Evidence 目录不存在: {self.root}")
         self.issues = []
+
+        for row in _read_jsonl(self.candidates_path, self.issues, CANDIDATES_FILE):
+            try:
+                candidate = EvidenceCandidate.from_dict(row)
+                candidate.validate()
+            except EvidenceModelError as exc:
+                self.issues.append(
+                    Issue(
+                        "P1",
+                        "EVIDENCE_MODEL_INVALID",
+                        f"{CANDIDATES_FILE} 存在非法 EvidenceCandidate",
+                        str(exc),
+                    )
+                )
+                continue
+            if candidate.candidate_id in self.candidates:
+                self.issues.append(
+                    Issue(
+                        "P1",
+                        "EVIDENCE_DUPLICATE_ID",
+                        f"candidate_id 重复: {candidate.candidate_id}",
+                        f"{CANDIDATES_FILE} 中存在多行同一 candidate_id",
+                    )
+                )
+            self.candidates[candidate.candidate_id] = candidate
 
         for row in _read_jsonl(self.documents_path, self.issues, DOCUMENTS_FILE):
             try:
@@ -194,6 +233,10 @@ class EvidenceStore:
 
     def save(self) -> None:
         """把内存状态写回 JSONL（按 evidence_id 排序，便于 diff）。"""
+        _write_jsonl(
+            self.candidates_path,
+            [c.to_dict() for c in sorted(self.candidates.values(), key=lambda c: c.candidate_id)],
+        )
         _write_jsonl(self.documents_path, [d.to_dict() for d in self.documents.values()])
         _write_jsonl(self.claims_path, [c.to_dict() for c in self.claims.values()])
         ordered = sorted(self.links, key=lambda l: (l.claim_id, l.evidence_id))
@@ -271,6 +314,15 @@ class EvidenceStore:
         self.documents[doc.document_id] = doc
         return doc
 
+    def add_candidate(self, candidate: EvidenceCandidate) -> EvidenceCandidate:
+        """登记一条线索。线索不是证据——它不会进入任何证据校验的通过口径。"""
+        candidate.validate()
+        self.candidates[candidate.candidate_id] = candidate
+        return candidate
+
+    def candidate_of(self, candidate_id: str) -> Optional[EvidenceCandidate]:
+        return self.candidates.get(candidate_id)
+
     def add_claim(self, claim: Claim) -> Claim:
         claim.validate()
         self.claims[claim.claim_id] = claim
@@ -293,16 +345,28 @@ class EvidenceStore:
 
     # ---------- 读取 ----------
 
-    def state(self, *, research_date: Optional[str] = None) -> ResearchState:
+    def state(
+        self,
+        *,
+        research_date: Optional[str] = None,
+        as_of: Optional[str] = None,
+        market_data_as_of: Optional[str] = None,
+        generated_at: Optional[str] = None,
+    ) -> ResearchState:
         return ResearchState(
             documents=dict(self.documents),
             claims=dict(self.claims),
             links=list(self.links),
+            candidates=dict(self.candidates),
             research_date=research_date,
+            as_of=as_of,
+            market_data_as_of=market_data_as_of,
+            generated_at=generated_at,
         )
 
     def summary(self) -> Dict[str, int]:
         return {
+            "candidates": len(self.candidates),
             "documents": len(self.documents),
             "claims": len(self.claims),
             "links": len(self.links),

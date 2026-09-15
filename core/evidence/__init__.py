@@ -20,6 +20,7 @@ from .independence import (
 )
 from .locator import describe_locator, has_locator, locator_coverage, validate_locator
 from .store import (
+    CANDIDATES_FILE,
     CLAIMS_FILE,
     DOCUMENTS_FILE,
     LINKS_FILE,
@@ -27,14 +28,25 @@ from .store import (
     EvidenceStore,
     EvidenceStoreError,
 )
+from .verbatim import (
+    TEXT_SUFFIXES,
+    VerbatimError,
+    extract_verbatim,
+    text_supports_excerpt,
+)
 
 __all__ = [
     "EvidenceStore",
     "EvidenceStoreError",
+    "CANDIDATES_FILE",
     "DOCUMENTS_FILE",
     "CLAIMS_FILE",
     "LINKS_FILE",
     "RAW_DIR",
+    "TEXT_SUFFIXES",
+    "VerbatimError",
+    "text_supports_excerpt",
+    "extract_verbatim",
     "sha256_bytes",
     "sha256_text",
     "sha256_file",

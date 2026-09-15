@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/jinking/a-share-deep-research/schemas/evidence_candidate.schema.json",
+  "title": "EvidenceCandidate",
+  "description": "线索：搜索结果 / neodata 摘要 / 媒体与券商转述。线索 ≠ 证据，不满足一手来源、direct 支持、locator 与原文摘录要求，也不参与独立来源计数。",
+  "type": "object",
+  "required": ["candidate_id", "source_type", "title", "discovered_at", "status"],
+  "additionalProperties": false,
+  "properties": {
+    "candidate_id": {
+      "type": "string",
+      "pattern": "^CAN_[0-9a-f]{8}$",
+      "description": "CAN_<hash前8位>；与 document_id 同一套指纹思路"
+    },
+    "claim_id": {
+      "type": ["string", "null"],
+      "description": "该线索想支持的 Claim；尚不确定时可为空。注意这里只能是 claim_id，不能填 candidate_id"
+    },
+    "source_type": {
+      "type": "string",
+      "description": "与 SourceDocument 同一套来源类型；线索常用于 broker_report / media / third_party_database 等非一手来源",
+      "enum": [
+        "annual_report",
+        "interim_report",
+        "quarterly_report",
+        "company_announcement",
+        "exchange_filing",
+        "company_ir",
+        "customer_announcement",
+        "government",
+        "official_database",
+        "broker_report",
+        "media",
+        "social_media",
+        "data_vendor",
+        "third_party_database"
+      ]
+    },
+    "title": { "type": "string", "minLength": 1 },
+    "url": {
+      "type": ["string", "null"],
+      "description": "线索出处链接；仅表示「可点开看看」，不构成可校验来源"
+    },
+    "snippet": { "type": ["string", "null"], "description": "摘要片段，不得直接当作 evidence_text 使用" },
+    "discovered_at": { "type": "string", "minLength": 1, "description": "发现时间（ISO8601）" },
+    "provider": { "type": ["string", "null"], "description": "发现该线索的取数通道，如 neodata / westock-cli" },
+    "upstream_hint": {
+      "type": ["string", "null"],
+      "description": "上游出处提示，用于判断多条线索是否同源（同源不构成独立来源）"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["new", "reviewed", "promoted", "rejected", "duplicate"],
+      "description": "promoted 仅表示跟进状态；即使 promoted，也必须存在正式 Document 才能算证据"
+    },
+    "promoted_document_id": {
+      "type": ["string", "null"],
+      "pattern": "^DOC_[0-9a-f]{8}$",
+      "description": "promote 成功后回填的正式 Document；status=promoted 时必须有值"
+    },
+    "note": { "type": ["string", "null"] }
+  }
+}

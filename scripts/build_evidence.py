@@ -28,6 +28,18 @@ Agent 不再手工算 hash、手工建证据目录。
 
     # 5) 查看当前证据库清单
     python3 scripts/build_evidence.py show research_sz002897/evidence
+
+    # 6) 登记一条「线索」——线索 ≠ 证据（v3.0.1 §5）
+    python3 scripts/build_evidence.py add-candidate research_sz002897/evidence \
+      --type media --title "财联社：意华股份高速连接器进展" \
+      --url "https://www.cls.cn/detail/123" --claim C_ORDER_224G_STATUS \
+      --provider neodata --upstream CLS_20260915_001
+
+    # 7) 列出线索
+    python3 scripts/build_evidence.py candidates research_sz002897/evidence
+
+线索要变成正式证据，走 `promote_evidence_candidate.py`（唯一通道）：
+    python3 scripts/promote_evidence_candidate.py research_sz002897/evidence --plan promote_plan.json
 """
 
 from __future__ import annotations
@@ -42,6 +54,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from core.evidence import EvidenceStore, EvidenceStoreError, sha256_file  # noqa: E402
 from core.evidence.locator import describe_locator  # noqa: E402
 from core.issue import Issue  # noqa: E402
+from core.models.base import iso_now  # noqa: E402
+from core.models.candidate import (  # noqa: E402
+    CANDIDATE_STATUSES,
+    EvidenceCandidate,
+    make_candidate_id,
+)
 from core.validation import validate_evidence_store  # noqa: E402
 
 
@@ -65,10 +83,73 @@ def _print_issues(issues: List[Issue]) -> None:
 def cmd_init(args) -> int:
     store = EvidenceStore.init(args.dir)
     print(f"✅ 已初始化 Evidence Store: {store.root}")
+    print(f"   - {store.candidates_path.name}  （线索：线索 ≠ 证据）")
     print(f"   - {store.documents_path.name}")
     print(f"   - {store.claims_path.name}")
     print(f"   - {store.links_path.name}")
     print(f"   - {store.raw_dir.name}/  （原始证据文件放这里）")
+    return 0
+
+
+def cmd_add_candidate(args) -> int:
+    store = EvidenceStore.open(args.dir) if Path(args.dir).exists() else EvidenceStore.init(args.dir)
+    if not store.documents_path.exists():
+        store.save()
+    discovered_at = args.discovered_at or iso_now()
+    try:
+        cand_id = args.id or make_candidate_id(
+            url=args.url,
+            title=args.title,
+            discovered_at=discovered_at,
+            provider=args.provider,
+        )
+        candidate = EvidenceCandidate(
+            candidate_id=cand_id,
+            source_type=args.type,
+            title=args.title,
+            discovered_at=discovered_at,
+            status=args.status,
+            claim_id=args.claim,
+            url=args.url,
+            snippet=args.snippet,
+            provider=args.provider,
+            upstream_hint=args.upstream,
+            note=args.note,
+        )
+        store.add_candidate(candidate)
+    except Exception as exc:
+        print(f"❌ {exc}")
+        return 2
+    store.save()
+    print(f"✅ 已登记线索: {candidate.candidate_id}")
+    print(f"   title        : {candidate.title}")
+    print(f"   source_type  : {candidate.source_type}")
+    print(f"   discovered_at: {candidate.discovered_at}")
+    print(f"   url          : {candidate.url}")
+    print(f"   upstream_hint: {candidate.upstream_hint}")
+    print("   ⚠️  线索不是证据：要支撑 Claim 必须走 promote_evidence_candidate.py 拿到原件")
+    return 0
+
+
+def cmd_candidates(args) -> int:
+    store = EvidenceStore.open(args.dir)
+    rows = sorted(store.candidates.values(), key=lambda c: c.candidate_id)
+    if args.status:
+        rows = [c for c in rows if c.status == args.status]
+    print(f"线索（candidates.jsonl）: {len(rows)} 条   ← 线索 ≠ 证据，不参与证据校验")
+    for cand in rows:
+        print(f"  {cand.candidate_id}  [{cand.status}/{cand.source_type}] {cand.title}")
+        if cand.claim_id:
+            print(f"      claim: {cand.claim_id}")
+        if cand.url:
+            print(f"      url  : {cand.url}")
+        if cand.promoted_document_id:
+            print(f"      → {cand.promoted_document_id}")
+        if cand.note:
+            print(f"      note : {cand.note}")
+    if store.issues:
+        print("\n[STORE 读取问题]")
+        _print_issues(list(store.issues))
     return 0
 
 
@@ -156,7 +237,10 @@ def cmd_validate(args) -> int:
 def cmd_show(args) -> int:
     store = EvidenceStore.open(args.dir)
     print(f"Evidence Store: {store.root}")
-    print(f"documents={len(store.documents)}  claims={len(store.claims)}  links={len(store.links)}")
+    print(
+        f"candidates={len(store.candidates)}（线索，不计入证据）  "
+        f"documents={len(store.documents)}  claims={len(store.claims)}  links={len(store.links)}"
+    )
     if store.documents:
         print("\n[DOCUMENTS]")
         for doc in store.documents.values():
@@ -212,6 +296,26 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("show", help="查看证据库清单")
     p.add_argument("dir")
     p.set_defaults(func=cmd_show)
+
+    p = sub.add_parser("add-candidate", help="登记一条线索（线索 ≠ 证据）")
+    p.add_argument("dir")
+    p.add_argument("--type", required=True, help="source_type")
+    p.add_argument("--title", required=True)
+    p.add_argument("--url", help="线索出处链接")
+    p.add_argument("--claim", help="该线索想支持的 Claim id")
+    p.add_argument("--provider", help="发现渠道，如 neodata / westock")
+    p.add_argument("--upstream", dest="upstream", help="上游出处提示（判断是否同源）")
+    p.add_argument("--snippet", help="线索摘要（会被注明为非证据）")
+    p.add_argument("--discovered-at", dest="discovered_at")
+    p.add_argument("--status", default="new", choices=list(CANDIDATE_STATUSES))
+    p.add_argument("--id", dest="id", help="显式 candidate_id（默认按 url/标题指纹生成）")
+    p.add_argument("--note")
+    p.set_defaults(func=cmd_add_candidate)
+
+    p = sub.add_parser("candidates", help="列出线索（不参与证据校验）")
+    p.add_argument("dir")
+    p.add_argument("--status", choices=list(CANDIDATE_STATUSES))
+    p.set_defaults(func=cmd_candidates)
 
     return ap
 

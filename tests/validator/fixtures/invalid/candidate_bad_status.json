@@ -1,0 +1,14 @@
+{
+  "candidate_id": "CAN_1a2b3c4d",
+  "claim_id": null,
+  "source_type": "media",
+  "title": "某条线索",
+  "url": "https://www.cls.cn/detail/123",
+  "snippet": null,
+  "discovered_at": "2026-09-14T20:10:00+08:00",
+  "provider": null,
+  "upstream_hint": null,
+  "status": "已采纳",
+  "promoted_document_id": null,
+  "note": null
+}

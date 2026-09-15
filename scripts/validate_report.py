@@ -42,13 +42,19 @@ if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
 from core.evidence import EvidenceStore, EvidenceStoreError  # noqa: E402
+from core.models.base import parse_datetime  # noqa: E402
 from core.validation import (  # noqa: E402
     detect_manifest_version,
     validate_evidence,
     validate_manifest_v3,
 )
 
-VERSION = "2.0.0"
+VERSION = "2.1.0"
+
+# 报告内「生成时间」的书写形式：「生成于 2026-09-15 09:05:32」「报告生成时间：2026-09-15 09:05:32」
+GENERATED_AT_RE = re.compile(r"生成(?:于|时间)[：:\s]*(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2}:\d{2})")
+# 文件名末尾的生成时间戳：<名称>_20260915_090532.html
+FILENAME_TS_RE = re.compile(r"(\d{8})_(\d{6})")
 
 SCENARIO_ALIASES = {
     "bear": "悲观", "pessimistic": "悲观", "悲观": "悲观",
@@ -393,6 +399,82 @@ def _emit_into(findings: List[Finding]):
     return emit
 
 
+def validate_generated_at(
+    report: Path,
+    raw: str,
+    manifest_data: Optional[Dict[str, Any]],
+    findings: List[Finding],
+) -> None:
+    """`meta.generated_at` 必须与报告内时间戳及文件名一致（v3.0.1 §4）。
+
+    只在 manifest 声明了 `generated_at` 时执行；v2 与旧 v3 完全不受影响。
+    检查两处，任一不一致即 P1 `GENERATED_AT_MISMATCH`：
+
+    1. 文件名里的 `<YYYYMMDD>_<HHMMSS>`；
+    2. 报告正文出现的「生成于 / 生成时间：」时间戳（title / h1 small / footer /
+       顶部注释等位置都用这一种写法）。
+
+    报告通篇没有任何机器可读的生成时间时同样报 P1——manifest 已经声明了
+    generated_at，报告却没有承载它，这正是要消除的时间歧义。
+    """
+    if not manifest_data:
+        return
+    meta = manifest_data.get("meta") or {}
+    declared = meta.get("generated_at")
+    if not declared:
+        return
+
+    expected = parse_datetime(declared)
+    if expected is None:
+        # 字段格式非法由 manifest_validator 报结构错误，这里不重复报
+        return
+
+    expected_compact = expected.strftime("%Y%m%d_%H%M%S")
+    expected_text = expected.strftime("%Y-%m-%d %H:%M:%S")
+
+    # 1) 文件名
+    match = FILENAME_TS_RE.search(report.stem)
+    if not match:
+        fail(
+            findings,
+            "P1",
+            "GENERATED_AT_MISMATCH",
+            "报告文件名缺少生成时间戳，无法与 manifest.generated_at 对齐",
+            f"generated_at={declared}；文件名={report.name}；期望形如 *_YYYYMMDD_HHMMSS",
+        )
+    elif f"{match.group(1)}_{match.group(2)}" != expected_compact:
+        fail(
+            findings,
+            "P1",
+            "GENERATED_AT_MISMATCH",
+            "报告文件名时间戳与 manifest.generated_at 不一致",
+            f"文件名={match.group(1)}_{match.group(2)}；generated_at={expected_compact}",
+        )
+
+    # 2) 报告内时间戳（title / h1 small / footer / 顶部注释）
+    found = GENERATED_AT_RE.findall(raw)
+    if not found:
+        fail(
+            findings,
+            "P1",
+            "GENERATED_AT_MISMATCH",
+            "报告内没有可校验的生成时间戳",
+            f"generated_at={declared}；期望报告在 title / h1 small / footer / 顶部注释中出现"
+            f"「生成于 {expected_text}」",
+        )
+        return
+
+    wrong = [f"{d} {t}" for d, t in found if f"{d} {t}" != expected_text]
+    if wrong:
+        fail(
+            findings,
+            "P1",
+            "GENERATED_AT_MISMATCH",
+            "报告内生成时间与 manifest.generated_at 不一致",
+            f"报告={sorted(set(wrong))}；generated_at={expected_text}",
+        )
+
+
 def validate_manifest_layer(data: Dict[str, Any], findings: List[Finding]) -> int:
     """v2 / v3 manifest 结构校验；返回识别到的 manifest_version。"""
     version = detect_manifest_version(data)
@@ -437,13 +519,17 @@ def validate_evidence_layer(
         fail(findings, "P0", "EVIDENCE_STORE_MISSING", "Evidence Store 无法读取", str(exc))
         return None
 
-    research_date = None
-    if manifest_data:
-        research_date = (manifest_data.get("meta") or {}).get("research_date")
+    meta = (manifest_data or {}).get("meta") or {}
+    research_date = meta.get("research_date") if manifest_data else None
 
     strict = force_strict or version >= 3
     return validate_evidence(
-        store.state(research_date=research_date),
+        store.state(
+            research_date=research_date,
+            as_of=meta.get("as_of"),
+            market_data_as_of=meta.get("market_data_as_of"),
+            generated_at=meta.get("generated_at"),
+        ),
         emit=_emit_into(findings),
         manifest=manifest_data,
         research_date=research_date,
@@ -558,6 +644,7 @@ def main():
             manifest_data = data
             validate_manifest(data, findings)
             validate_manifest_layer(data, findings)
+            validate_generated_at(report, raw, data, findings)
 
     evidence_summary = validate_evidence_layer(
         findings,

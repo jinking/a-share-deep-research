@@ -4,6 +4,14 @@
 from __future__ import annotations
 
 from .base import EvidenceModelError, as_jsonable, clean_str, iso_now, parse_date, parse_datetime
+from .candidate import (
+    CANDIDATE_ID_PREFIX,
+    CANDIDATE_STATUSES,
+    TERMINAL_CANDIDATE_STATUSES,
+    EvidenceCandidate,
+    is_candidate_id,
+    make_candidate_id,
+)
 from .claim import (
     CLAIM_CATEGORIES,
     CLAIM_LEVELS,
@@ -42,4 +50,10 @@ __all__ = [
     "SUPPORT_TYPES",
     "LOCATOR_FIELDS",
     "ResearchState",
+    "EvidenceCandidate",
+    "CANDIDATE_ID_PREFIX",
+    "CANDIDATE_STATUSES",
+    "TERMINAL_CANDIDATE_STATUSES",
+    "is_candidate_id",
+    "make_candidate_id",
 ]

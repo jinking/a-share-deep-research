@@ -9,8 +9,23 @@ import pytest
 
 from core.evidence import EvidenceStore, sha256_file
 from core.evidence.hasher import make_document_id, verify_file_hash
-from core.models import Claim, EvidenceLink, EvidenceModelError, SourceDocument
-from helpers import base_state, make_claim, make_document, make_link, write_store
+from core.models import (
+    Claim,
+    EvidenceCandidate,
+    EvidenceLink,
+    EvidenceModelError,
+    SourceDocument,
+    make_candidate_id,
+)
+from helpers import (
+    base_state,
+    collect,
+    make_candidate,
+    make_claim,
+    make_document,
+    make_link,
+    write_store,
+)
 
 
 # --------------------------------------------------------------------------- #
@@ -185,3 +200,84 @@ def test_json_serialization_roundtrip():
     assert Claim.from_dict(claim.to_dict()) == claim
     link = make_link()
     assert EvidenceLink.from_dict(link.to_dict()) == link
+
+
+# --------------------------------------------------------------------------- #
+# EvidenceCandidate：线索 ≠ 证据（v3.0.1 §5）
+# --------------------------------------------------------------------------- #
+
+
+def test_candidate_valid_and_survives_roundtrip():
+    candidate = make_candidate()
+    candidate.validate()
+    assert EvidenceCandidate.from_dict(candidate.to_dict()) == candidate
+
+
+def test_candidate_bad_fields_fail_fast():
+    with pytest.raises(EvidenceModelError):
+        make_candidate("E001").validate()  # 缺 CAN_ 前缀
+    with pytest.raises(EvidenceModelError):
+        make_candidate(source_type="weibo").validate()
+    with pytest.raises(EvidenceModelError):
+        make_candidate(status="done").validate()
+    with pytest.raises(EvidenceModelError):
+        make_candidate(title="  ").validate()
+    with pytest.raises(EvidenceModelError):
+        make_candidate(discovered_at="昨天").validate()
+
+
+def test_candidate_id_is_stable_and_url_first():
+    a = make_candidate_id(url="https://x/a")
+    b = make_candidate_id(url="https://x/a", title="完全不同的标题")
+    assert a == b
+    assert a.startswith("CAN_") and len(a) == 12
+    assert make_candidate_id(title="线索", provider="neodata", discovered_at="2026-09-14") != a
+
+
+def test_candidate_id_requires_something():
+    with pytest.raises(ValueError):
+        make_candidate_id()
+
+
+def test_store_roundtrip_candidates(tmp_path):
+    store = EvidenceStore.init(tmp_path / "evidence")
+    store.add_candidate(make_candidate())
+    store.save()
+
+    reloaded = EvidenceStore.open(tmp_path / "evidence")
+    assert reloaded.issues == []
+    assert reloaded.candidates["CAN_test0001"].provider == "neodata"
+    assert reloaded.summary()["candidates"] == 1
+
+
+def test_duplicate_candidate_id_is_detected(tmp_path):
+    store = EvidenceStore.init(tmp_path / "evidence")
+    store.add_candidate(make_candidate())
+    store.save()
+    with store.candidates_path.open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps(make_candidate().to_dict(), ensure_ascii=False) + "\n")
+
+    reloaded = EvidenceStore.open(tmp_path / "evidence")
+    hit = [i for i in reloaded.issues if i.code == "EVIDENCE_DUPLICATE_ID"]
+    assert hit and "candidate_id" in hit[0].message
+
+
+def test_candidate_does_not_count_as_independent_source():
+    """线索不参与独立来源计数：只挂 Conand，来源数仍为 0。"""
+    state = base_state()
+    state.add_claim(make_claim("C_ORDER_NEW", claim="某订单线索", category="order", materiality="normal"))
+    state.add_candidate(make_candidate(claim_id="C_ORDER_NEW"))
+    assert state.independent_source_count("C_ORDER_NEW") == 0
+    assert state.documents_of("C_ORDER_NEW") == []
+
+
+def test_candidate_is_not_a_primary_source():
+    """即便线索的 source_type 看起来像一手来源，也不构成一手证据。"""
+    state = base_state()
+    state.add_claim(make_claim("C_REV_X", category="financial", level="confirmed_revenue", materiality="critical"))
+    state.add_candidate(
+        make_candidate("CAN_fake0001", source_type="interim_report", claim_id="C_REV_X")
+    )
+    issues = collect(state)
+    # 没有任何 Document → 依旧报「缺一手来源」，线索不能顶替
+    assert "EVIDENCE_PRIMARY_REQUIRED" in [i.code for i in issues]

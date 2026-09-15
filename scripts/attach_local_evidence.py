@@ -13,6 +13,8 @@
    自动校验 evidence_text 是否为该文件的真实子串，不是就整体拒绝。
 
 第 3 条是关键纪律的代码化：摘录只能来自原文，不能"看着像"就写。
+校验实现统一在 `core.evidence.verbatim`，与 `promote_evidence_candidate.py`
+共用同一套逻辑 —— 防脑补的闸门只能有一个，否则迟早两处漂移。
 
 执行是两阶段的，保证原子性：
     Pass 1/2  只解析与校验（跑在虚拟文档视图上，不碰 store）
@@ -66,7 +68,6 @@ from __future__ import annotations
 import argparse
 import copy
 import json
-import re
 import shutil
 import sys
 from pathlib import Path
@@ -76,45 +77,16 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from core.evidence import EvidenceStore  # noqa: E402
 from core.evidence.hasher import make_document_id, sha256_file  # noqa: E402
+from core.evidence.verbatim import TEXT_SUFFIXES, text_supports_excerpt  # noqa: E402
 from core.models.base import iso_now  # noqa: E402
 from core.models.document import SourceDocument  # noqa: E402
 from core.models.evidence import EvidenceLink  # noqa: E402
 
 __all__ = ["apply_plan", "text_supports_excerpt", "AttachError", "TEXT_SUFFIXES"]
 
-# 可以参与「摘录必须来自原文」校验的文本类后缀
-TEXT_SUFFIXES = (".txt", ".md", ".markdown", ".csv", ".tsv", ".json", ".jsonl", ".html", ".htm")
-
 
 class AttachError(Exception):
     """计划文件本身有问题。"""
-
-
-def text_supports_excerpt(excerpt: str, path: Path) -> Tuple[bool, str]:
-    """校验 excerpt 是否为文本文件真实子串。
-
-    返回 (是否通过, 说明)。无法判定时（二进制文件）返回 (True, 说明)。
-    """
-    suffix = path.suffix.lower()
-    if suffix not in TEXT_SUFFIXES:
-        return True, f"非文本后缀（{suffix or '无'}），跳过子串校验"
-    if not excerpt:
-        return False, "evidence_text 为空"
-    try:
-        content = path.read_text(encoding="utf-8")
-    except UnicodeDecodeError:
-        return True, "文件非 UTF-8，跳过子串校验"
-
-    if excerpt in content:
-        return True, "摘录命中原文"
-
-    # 宽容处理：换行/连续空白差异（表格逐行摘录时常见）
-    def squash(text: str) -> str:
-        return re.sub(r"\s+", " ", text).strip()
-
-    if squash(excerpt) in squash(content):
-        return True, "摘录命中原文（忽略空白差异）"
-    return False, "evidence_text 不是原文子串 —— 疑似臆造摘录，已拒绝"
 
 
 def _load_plan(path: Path) -> Dict[str, Any]:

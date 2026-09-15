@@ -10,10 +10,20 @@ from typing import Any, Dict, List, Optional
 
 from core.evidence import EvidenceStore, sha256_file
 from core.issue import Issue
-from core.models import Claim, EvidenceLink, ResearchState, SourceDocument
+from core.models import (
+    Claim,
+    EvidenceCandidate,
+    EvidenceLink,
+    ResearchState,
+    SourceDocument,
+    make_candidate_id,
+)
 from core.validation import validate_evidence
 
 RESEARCH_DATE = "2026-09-14"
+AS_OF = "2026-09-15T09:00:00+08:00"
+MARKET_AS_OF = "2026-09-14T15:00:00+08:00"
+GENERATED_AT = "2026-09-15T09:05:32+08:00"
 
 
 # --------------------------------------------------------------------------- #
@@ -66,6 +76,25 @@ def make_link(claim_id: str = "C_FIN_REV_2026H1", document_id: str = "DOC_h1repo
     }
     data.update(overrides)
     return EvidenceLink(**data)
+
+
+def make_candidate(candidate_id: str = "CAN_test0001", **overrides) -> EvidenceCandidate:
+    data: Dict[str, Any] = {
+        "candidate_id": candidate_id,
+        "source_type": "media",
+        "title": "财联社：意华股份高速连接器进展",
+        "discovered_at": "2026-09-14T20:10:00+08:00",
+        "status": "new",
+        "claim_id": None,
+        "url": "https://www.cls.cn/detail/123",
+        "snippet": "媒体口径，非公司披露",
+        "provider": "neodata",
+        "upstream_hint": "CLS_20260915_001",
+        "promoted_document_id": None,
+        "note": None,
+    }
+    data.update(overrides)
+    return EvidenceCandidate(**data)
 
 
 def base_state() -> ResearchState:
