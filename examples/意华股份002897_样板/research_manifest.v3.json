@@ -3,6 +3,9 @@
   "meta": {
     "company": "意华股份",
     "code": "002897.SZ",
+    "as_of": "2026-09-14T15:00:00+08:00",
+    "market_data_as_of": "2026-09-14T15:00:00+08:00",
+    "generated_at": "2026-09-15T09:05:32+08:00",
     "research_date": "2026-09-14",
     "current_price": 71.39,
     "shares_billion": 1.9386,
@@ -177,10 +180,6 @@
       "importance": "critical"
     },
     {
-      "claim_id": "E006",
-      "importance": "critical"
-    },
-    {
       "claim_id": "E007",
       "importance": "critical"
     },
@@ -202,6 +201,34 @@
     },
     {
       "claim_id": "E012",
+      "importance": "normal"
+    },
+    {
+      "claim_id": "C_FIN_FX_LOSS_2026H1",
+      "importance": "critical"
+    },
+    {
+      "claim_id": "C_MKT_CLOSE_20260914",
+      "importance": "critical"
+    },
+    {
+      "claim_id": "C_MKT_CAP_20260914",
+      "importance": "critical"
+    },
+    {
+      "claim_id": "C_SHARE_CAPITAL_20260630",
+      "importance": "normal"
+    },
+    {
+      "claim_id": "C_SHARE_CAPITAL_20260910",
+      "importance": "critical"
+    },
+    {
+      "claim_id": "C_DIVIDEND_TOTAL_2025",
+      "importance": "normal"
+    },
+    {
+      "claim_id": "C_RELATED_PURCHASE_TOTAL_2026H1",
       "importance": "normal"
     }
   ]

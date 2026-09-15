@@ -1,18 +1,18 @@
 {
-  "validator_version": "2.0.0",
+  "validator_version": "2.1.0",
   "report": "examples/意华股份002897_深度研究_20260915_090532.html",
   "manifest": "examples/意华股份002897_样板/research_manifest.v3.json",
   "evidence_dir": "examples/意华股份002897_样板/evidence",
   "evidence_summary": {
     "P0": 0,
-    "P1": 15,
+    "P1": 0,
     "P2": 0,
     "INFO": 1
   },
-  "status": "FAIL",
+  "status": "PASS",
   "summary": {
     "P0": 0,
-    "P1": 15,
+    "P1": 0,
     "P2": 0,
     "INFO": 6
   },
@@ -48,100 +48,10 @@
       "detail": ""
     },
     {
-      "severity": "P1",
-      "code": "EVIDENCE_NO_SOURCE",
-      "message": "Document 既无 url 也无 local_path: DOC_6121db64",
-      "detail": "DOC_6121db64 | interim_report | 意华股份 2026 年半年度报告（未经审计） | (2026-08-25)"
-    },
-    {
-      "severity": "P1",
-      "code": "EVIDENCE_NO_SOURCE",
-      "message": "Document 既无 url 也无 local_path: DOC_d7e5798b",
-      "detail": "DOC_d7e5798b | company_ir | 深圳证券交易所互动易公司回复 | (2026-09-14)"
-    },
-    {
-      "severity": "P1",
-      "code": "EVIDENCE_NO_SOURCE",
-      "message": "Document 既无 url 也无 local_path: DOC_3ae8c988",
-      "detail": "DOC_3ae8c988 | broker_report | neodata 汇总机构评级与盈利预测 | (2026-09-15)"
-    },
-    {
-      "severity": "P1",
-      "code": "SOURCE_DATE_AFTER_RESEARCH_DATE",
-      "message": "证据发布时间晚于研究日期: DOC_3ae8c988",
-      "detail": "published_at=2026-09-15；research_date=2026-09-14"
-    },
-    {
-      "severity": "P1",
-      "code": "EVIDENCE_NO_SOURCE",
-      "message": "Document 既无 url 也无 local_path: DOC_fae6a760",
-      "detail": "DOC_fae6a760 | company_announcement | 意华股份 2025 年年度权益分派实施公告 | (2026-05-29)"
-    },
-    {
-      "severity": "P1",
-      "code": "EVIDENCE_LOCATOR_MISSING",
-      "message": "critical Claim 的证据没有任何定位: E001",
-      "detail": "evidence=['EV_E001_01']；需要 page/section/paragraph/table 至少一种"
-    },
-    {
-      "severity": "P1",
-      "code": "EVIDENCE_TEXT_MISSING",
-      "message": "critical Claim 缺少可供人工审查的证据摘录: E001",
-      "detail": "evidence_text 为必填（原文摘录，便于人工复核）"
-    },
-    {
-      "severity": "P1",
-      "code": "EVIDENCE_LOCATOR_MISSING",
-      "message": "critical Claim 的证据没有任何定位: E002",
-      "detail": "evidence=['EV_E002_01']；需要 page/section/paragraph/table 至少一种"
-    },
-    {
-      "severity": "P1",
-      "code": "EVIDENCE_TEXT_MISSING",
-      "message": "critical Claim 缺少可供人工审查的证据摘录: E002",
-      "detail": "evidence_text 为必填（原文摘录，便于人工复核）"
-    },
-    {
-      "severity": "P1",
-      "code": "EVIDENCE_LOCATOR_MISSING",
-      "message": "critical Claim 的证据没有任何定位: E004",
-      "detail": "evidence=['EV_E004_01']；需要 page/section/paragraph/table 至少一种"
-    },
-    {
-      "severity": "P1",
-      "code": "EVIDENCE_TEXT_MISSING",
-      "message": "critical Claim 缺少可供人工审查的证据摘录: E004",
-      "detail": "evidence_text 为必填（原文摘录，便于人工复核）"
-    },
-    {
-      "severity": "P1",
-      "code": "EVIDENCE_LOCATOR_MISSING",
-      "message": "critical Claim 的证据没有任何定位: E005",
-      "detail": "evidence=['EV_E005_01']；需要 page/section/paragraph/table 至少一种"
-    },
-    {
-      "severity": "P1",
-      "code": "EVIDENCE_TEXT_MISSING",
-      "message": "critical Claim 缺少可供人工审查的证据摘录: E005",
-      "detail": "evidence_text 为必填（原文摘录，便于人工复核）"
-    },
-    {
-      "severity": "P1",
-      "code": "EVIDENCE_LOCATOR_MISSING",
-      "message": "critical Claim 的证据没有任何定位: E007",
-      "detail": "evidence=['EV_E007_01']；需要 page/section/paragraph/table 至少一种"
-    },
-    {
-      "severity": "P1",
-      "code": "EVIDENCE_TEXT_MISSING",
-      "message": "critical Claim 缺少可供人工审查的证据摘录: E007",
-      "detail": "evidence_text 为必填（原文摘录，便于人工复核）"
-    },
-    {
       "severity": "INFO",
       "code": "EVIDENCE_SUMMARY",
       "message": "Evidence 校验完成",
-      "detail": "documents=8；claims=12；links=15"
+      "detail": "candidates=10；documents=7；claims=19；links=23"
     }
   ]
 }

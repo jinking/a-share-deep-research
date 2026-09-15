@@ -1,0 +1,39 @@
+{
+  "retrieved_from": "http://irm.cninfo.com.cn/newircs/index/search",
+  "keyWord": "224G",
+  "searchTypes": 1,
+  "retrieved_at": "2026-09-15T22:40:00+08:00",
+  "results": [
+    {
+      "esId": "1_2317360772716019712",
+      "indexId": "2317360772716019712",
+      "contentType": 1,
+      "trade": [
+        "制造业"
+      ],
+      "mainContent": "请问贵司224g高速连接器的进展如何了？之前董秘有回答预计年中会研发完成并验证",
+      "stockCode": "002897",
+      "secid": "9900032890",
+      "companyShortName": "意华股份",
+      "boardType": [
+        "012002"
+      ],
+      "pubDate": "1784512301000",
+      "updateDate": "1784535962000",
+      "author": "2193735558267006976",
+      "authorName": "irm3133609",
+      "pubClient": "5",
+      "score": 0.0,
+      "topStatus": 0,
+      "praiseCount": 0,
+      "praiseStatus": false,
+      "favoriteStatus": false,
+      "attentionCompany": false,
+      "isCheck": "1",
+      "qaStatus": 0,
+      "packageDate": "2026-07-20",
+      "remindStatus": false,
+      "interviewLive": false
+    }
+  ]
+}
