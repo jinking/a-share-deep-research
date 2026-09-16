@@ -240,9 +240,22 @@ python3 scripts/validate_report.py <report.html> \
 17. `basis_claim_ids` 是否指向真实存在的 Claim（`CLAIM_BASIS_UNKNOWN`，P1）；`fact` 是否建立在未确认的推导之上（`CLAIM_BASIS_LEVEL_INVALID`，P1）；
 18. `unconfirmed` / `assumption` 等级的 Claim 是否被标成 critical-supported（`CLAIM_UNCONFIRMED_SUPPORTED`，P1）；
 19. **跨产物一致性（v3.0.2）**：报告里的锚点声明是否与 Claim Ledger 一致（`REPORT_*`，P0/P1，见下方规则 N）；
-20. **摘录验证状态（v3.0.2）**：critical Claim 的摘录是否真的验证过，而非「没法比对所以跳过」（`EVIDENCE_EXCERPT_UNVERIFIED`，P1）；
+20. **摘录验证状态（v3.0.2 → v3.0.3 收严）**：critical Claim 的摘录是否真的验证过，而非「没法比对所以跳过」（`EVIDENCE_EXCERPT_UNVERIFIED`，P1）；
 21. **时间模型完整性（v3.0.2）**：正式 v3 是否同时给出 `as_of` / `market_data_as_of` / `generated_at`（`TIME_MODEL_INCOMPLETE`，P1）；
-22. **Provider ≠ Source（v3.0.2）**：取数服务商是否被错当成一手来源（provider 白名单见 `core/models/provenance.py`）。
+22. **Provider ≠ Source，且 Provider 永远不是 Primary（v3.0.2 → v3.0.3）**：取数服务商是否被错当成一手来源
+    —— 现在连写都不许写（`source_type` 只允许 `data_vendor` / `third_party_database`，`is_primary` 恒 False，
+    声明 `upstream_*` 也不再授予一手资格；provider 白名单见 `core/models/provenance.py`）；
+23. **Claim 版本指纹（v3.0.3）**：报告锚点是否声明了 `data-claim-fingerprint` 且与当前 Claim 一致
+    —— `claim_id` / `level` / `status` 全对也可能复述的是上一版结论（`REPORT_CLAIM_REVISION_MISMATCH`，P0）；
+24. **摘录状态由机器重算（v3.0.3）**：落盘的 `excerpt_verification_status=verified` 是否经得起重算
+    —— 落盘值只是缓存（`EVIDENCE_EXCERPT_VERIFICATION_MISMATCH`，P0）；
+25. **上游引用可核实（v3.0.3）**：`upstream_document_id` 指向的 Document 是否存在、上游链是否成环
+    （`EVIDENCE_UPSTREAM_UNKNOWN`，P1）；外部系统编号应写 `upstream_external_id`；
+26. **strict Claim 反向覆盖（v3.0.3）**：`scope=report` 的 critical / major Claim 是否都进了
+    `manifest.evidence_refs`（`MANIFEST_STRICT_CLAIM_MISSING`，P1）——
+    `Claim Ledger → manifest.evidence_refs → Report Claim Anchor` 三层都不可绕过；
+27. **promotion 原子性（v3.0.3）**：raw 与 JSONL 是否在同一事务里落盘，
+    失败后不留「登记了但原件不在」或「原件在但没登记」（见 `tests/integration/test_promotion_atomic.py`）。
 
 只跑跨产物一致性（改报告文案时最快定位漂移）：
 
@@ -271,10 +284,17 @@ python3 scripts/promote_evidence_candidate.py <research_xxx/evidence> --plan pro
 PDF 等二进制原件跳过硬闸（第一版不做 OCR），此时请把**官方文本层**一起留存并单独比对，
 并把摘录状态如实写为 `unverified`——**「跳过校验」不等于「已验证」**。落盘后脚本会自动重算摘录验证状态。
 
+计划文件里**不得出现** `excerpt_verification_status` / `_method` / `_source`：那三个字段是机器结论的缓存，
+出现即拒绝（「唯一写入口」从约定变成闸门）。raw 与 JSONL 由同一个事务落盘，失败两侧一起回滚。
+
 ```bash
-# 独立重算摘录验证状态（先报告，确认无误再加 --write）
+# 独立重算摘录验证状态：默认「重算 + 比对」，mismatch 或 critical unverified 即非 0
 python3 scripts/verify_excerpts.py <research_xxx/evidence>
-python3 scripts/verify_excerpts.py <research_xxx/evidence> --write
+python3 scripts/verify_excerpts.py <research_xxx/evidence> --write   # 确需刷新缓存时才写回
+
+# 报告锚点指纹：先 --check 再 --write（不要手填）
+python3 scripts/stamp_claim_fingerprints.py <report.html> --evidence-dir <research_xxx/evidence> --check
+python3 scripts/stamp_claim_fingerprints.py <report.html> --evidence-dir <research_xxx/evidence> --write
 ```
 
 证据库自身的构建与自检：
@@ -442,23 +462,32 @@ PDF 产出的**最低合格线 = 内嵌图像数 > 0**（报告含 ECharts 时�
 
 ### N. 报告锚定即声明：Claim 降级后，报告不得继续保留旧确定性表述
 
-报告里的关键结论写成**锚点**（HTML `data-claim-id` / `data-claim-level` / `data-claim-status`；
-Markdown `<!-- claim:ID level=... status=... -->`），锚点上的 `level` / `status`
-**必须与 Claim Ledger 一致**。
+报告里的关键结论写成**锚点**（HTML `data-claim-id` / `data-claim-level` / `data-claim-status` /
+`data-claim-fingerprint`；Markdown `<!-- claim:ID level=... status=... fingerprint=... -->`），
+锚点上的 `level` / `status` / 指纹**必须与 Claim Ledger 一致**。
 
 ```html
-<span data-claim-id="C_PE_TTM_20260914" data-claim-level="unconfirmed" data-claim-status="pending">
+<span data-claim-id="C_PE_TTM_20260914" data-claim-level="unconfirmed"
+      data-claim-status="pending" data-claim-fingerprint="6e31ab49f0028c17">
   PE（TTM）约 53.8×（口径未定，仅作参考）
 </span>
 ```
 
 - **未声明 `level` / `status` 的锚点按 `fact` / `supported` 解读**（锚定即声明）。
   不确定等级的结论，要么如实声明等级，要么干脆不锚——**不要为了「有个锚点」而写上 `fact`**。
+- **指纹必填（v3.0.3）**：`claim_id` / `level` / `status` 全对，也可能复述的是**上一版**结论
+  ——「在研」被留成「已量产」就是这类。指纹由 `scripts/stamp_claim_fingerprints.py` 现算盖章，
+  **不要手填**；不符或缺失都报 P0 `REPORT_CLAIM_REVISION_MISMATCH`（缺失也挡，
+  否则「把属性删掉」会成为绕过路径）。
 - 必须锚的是：影响**预测 / 估值 / 风险 / 最终状态 / 证伪条件**的结论，以及关键财务事实与订单/客户/量产状态；
   `manifest.evidence_refs` 中 `importance=critical` 的 Claim **必须在报告里有至少一个落点**。
+- **反向覆盖（v3.0.3）**：`Claim.scope=report`（默认）的 critical / major Claim **必须**进
+  `manifest.evidence_refs`，否则 P1 `MANIFEST_STRICT_CLAIM_MISSING`。
+  确有内部中间结论时标 `scope=internal`，**不要靠删 manifest 隐藏**。
 - 不要求每句话都锚；也**不允许**为「形式完整」给所有文字建 Claim。
 - 语法、强制范围与反例见 `references/报告Claim绑定规范.md`；
-  负样本 `examples/invalid/意华股份002897_旧结论漂移样板/` **必须 FAIL**——那是这条规则的守卫。
+  负样本 `examples/invalid/意华股份002897_旧结论漂移样板/` 与
+  四个绕过夹具 `tests/fixtures/invalid/` **必须 FAIL**——那是这条规则的守卫。
 
 ---
 
@@ -470,8 +499,8 @@ Markdown `<!-- claim:ID level=... status=... -->`），锚点上的 `level` / `s
 | `references/搜索与证据规则.md` | 一手资料优先级、必搜清单、证据账本 |
 | `references/估值与公司类型适配.md` | 不同类型A股公司的建模/估值选择 |
 | `references/产物验收规则.md` | **P0/P1/P2 验收规则与阻断条件**（Validator 判定标准） |
-| `references/证据对象规范.md` | **v3.0.2 证据对象规范**：三层对象 + 线索层、ID 规范、错误码表、定位与独立性、Provider ≠ Source、摘录验证状态、原子落盘、时间模型 |
-| `references/报告Claim绑定规范.md` | **v3.0.2 报告锚点规范**：锚点语法（HTML/Markdown）、「锚定即声明」、强制范围、跨产物错误码、反例 |
+| `references/证据对象规范.md` | **v3.0.2 / v3.0.3 证据对象规范**：三层对象 + 线索层、ID 规范、错误码表、定位与独立性、Provider ≠ Source（且永不是 Primary）、摘录验证状态（含机器重算）、原子落盘、时间模型 |
+| `references/报告Claim绑定规范.md` | **v3.0.2 / v3.0.3 报告锚点规范**：锚点语法（HTML/Markdown）、「锚定即声明」、**Claim 版本指纹**、强制范围、跨产物错误码、反例 |
 | `references/样板案例-意华股份.md` | **首个通过独立验收（PASS）的完整产物**：三情景×三年建模逻辑、manifest 写法、6 个已踩坑位 |
 | `references/实战案例-立讯精密.md` | 双路取数、现金流归因、质押遗漏等复盘 |
 | `references/版本对比方法.md` | 同一标的多版研报对照（保留旧版 + SOP 版 + 7 章对比页） |
@@ -483,14 +512,16 @@ Markdown `<!-- claim:ID level=... status=... -->`），锚点上的 `level` / `s
 | `providers/` | 数据源 provider 层：`base.py` 接口 + `westock_npm.py` / `westock_cli.py` / `neodata.py`；新增源只需写子类并注册 |
 | `providers/neodata.py` | neodata 检索源与凭证管理（`--status` / `--query` / `--save-token`） |
 | `scripts/validate_report.py` | **独立产物验收器**（结构/数学/模型口径/证据层级/跨产物一致性；`--claim-only` 只跑跨产物） |
-| `scripts/verify_excerpts.py` | 重算 Evidence Store 的摘录验证状态（`--write` 才写回，状态只由机器比对产生） |
+| `scripts/verify_excerpts.py` | 重算并**比对** Evidence Store 的摘录验证状态（默认不一致即非 0，`--write` 才写回；状态只由机器比对产生） |
+| `scripts/stamp_claim_fingerprints.py` | **报告 Claim 锚点指纹盖章器**（幂等；`--check` 只校验、`--write` 才落盘）；指纹由 Ledger 现算，不要手填 |
 | `scripts/install_westock_cli.sh` | 安装腾讯官方 Go CLI 到技能私有目录 `tools/bin/`（不改系统 PATH、无需 sudo） |
 | `scripts/cross_validate.py` | 搜索值与结构化值交叉验证 |
 | `scripts/validate_report.py` | **独立产物验收器**：结构、数学、模型口径一致性、证据层级（`--manifest` 严格模式 / `--report-only` 体检） |
 | `scripts/build_evidence.py` | v3 证据库构建与自检：`init` / `register` / `verify` / `validate` / `show` / `add-candidate` / `candidates` |
-| `scripts/promote_evidence_candidate.py` | **线索 → 证据唯一通道**：两阶段原子执行，自动算 SHA256、补定位、抽原文摘录 |
+| `scripts/promote_evidence_candidate.py` | **线索 → 证据唯一通道**：两阶段原子执行，自动算 SHA256、补定位、抽原文摘录；raw 与 JSONL **同事务**落盘（v3.0.3） |
 | `scripts/attach_local_evidence.py` | 把本地原件绑到已登记的 Document 上并补 locator / 摘录（防脑补硬闸） |
 | `scripts/validate_evidence.py` | v3 证据库独立验收（不需要报告与 manifest），支持 `--fail-on LEVELS` |
+| `tests/fixtures/invalid/` | **v3.0.3 信任边界负向夹具**：Claim 版本漂移 / 假已验证摘录 / 服务商冒充一手 / manifest 漏登 strict Claim，每个夹具都**必须 FAIL** |
 | `scripts/build_kline.py` | `raw/kline.txt` → 研报内联 JS 数组（日 K，升序重排 + 统计校验） |
 | `scripts/apply_firstscreen.py` | 给已有报告注入「V1 版式首屏」（真实行情 + 近 3 个月日 K 线），正文不动；副标题自动带秒级生成时间 |
 | `scripts/stamp_report.py` | **生成时间盖章器**：四处时间戳统一刷新为 `YYYY-MM-DD HH:MM:SS`，幂等；`--check` 校验、`--rename` 同步文件名 |

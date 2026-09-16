@@ -1,5 +1,155 @@
 # Changelog
 
+## v3.0.3 — Trust Boundary Hardening（把「声明」换成「算出来」）
+
+v3.0.2 之后，`Report → Claim → EvidenceLink → SourceDocument → Original Source` 这条链每一层都能被验。
+但**验的对象仍是字段值**，于是留下四条「字段自己说了算」的缝：
+
+| 缝 | 怎么绕过 |
+|---|---|
+| Claim 版本 | 只改 Ledger 里 Claim 的正文，`claim_id` / `level` / `status` 全不动，报告里的旧结论照样 PASS |
+| 摘录验证 | `excerpt_verification_status` 是个普通字段，写 `verified` 就是「已验证」 |
+| 来源一手性 | 服务商声明一个 `upstream_*` 就换到 Primary 资格 |
+| manifest 覆盖 | 把 critical Claim 从 `manifest.evidence_refs` 里删掉，就没人问「关键结论被覆盖了吗」 |
+
+（第五条是工程性的：promote 主路径还在用 `shutil.copy2` + `save()`，「原子落盘」只在测试里存在。）
+
+v3.0.3 只回答一个问题：**系统里的「可信状态」，是程序证明出来的，还是某个输入字段自己声明出来的？**
+答案全部改成前者。Evidence Layer 到此进入 Feature Freeze。
+
+### 新增：Claim 指纹（§4）
+
+- `core/models/fingerprint.py`：`normalize_claim_text()`（NFKC + 全空白折叠）+
+  `canonical_json()` + `claim_fingerprint()` = `sha256(...)[:16]`，
+  payload 固定为 `{claim_id, claim, level, status}`。
+- `Claim.claim_fingerprint` 是**派生属性，不落盘** —— 存进 `claims.jsonl` 只会多一份可能与本体不一致的副本。
+- 报告锚点新增 `data-claim-fingerprint`（HTML）/ `fingerprint=`（Markdown）。
+- 新错误码 P0 `REPORT_CLAIM_REVISION_MISMATCH`。**一个码覆盖两种形态**：
+  指纹与当前 Claim 不符、**以及锚点根本没声明指纹**。
+  后者必须一起挡 —— 否则「把属性删掉」就成了最省事的绕过方式。
+- 刻意**不做** `hash(报告可见文本) == hash(claim.claim)`：报告允许对结论做人类可读改写，
+  本版只保证「报告锚点对应当前这一版 Claim」。
+- `scripts/stamp_claim_fingerprints.py`：幂等盖章器（`--check` 只校验、`--write` 才落盘）。
+- 样板 19 处锚点已补指纹。
+
+### 变更：摘录验证状态 = 机器结论的缓存，不是用户断言（§5）
+
+- `core/evidence/excerpt.py` 新增 `compare_link_verification()` / `compare_excerpt_verification()`：
+  重算并与落盘值比对，输出 `{stored, recomputed, match, method, source}`，**只读**。
+- 新错误码 P0 `EVIDENCE_EXCERPT_VERIFICATION_MISMATCH`：`stored=verified` 而重算不通过。
+  只抓**单向** —— 反方向（存的是 unverified、实际能验证）只是缓存陈旧，方向保守，
+  且已被 P1 `EVIDENCE_EXCERPT_UNVERIFIED` 拦住。
+- **拿不到原文不算 mismatch**（`source is None`）。与既定口径同构：
+  「文件在但摘要不符」= P0，「登记了 hash 但文件不在」= P2。
+  我们证明的是「现在比不了」，不是「摘录是假的」。
+- `scripts/promote_evidence_candidate.py`：计划文件出现
+  `excerpt_verification_*` 三字段一律拒绝（`PROMOTION_VERIFICATION_FIELD_FORBIDDEN`）——
+  「唯一写入口」从约定变成闸门。同时对**全部**链接重算，不再有「已声明就跳过」的口子。
+- `scripts/verify_excerpts.py` 默认行为改为「重算 + 比对」，mismatch 或 critical unverified 即非 0；
+  `--write` 才刷新缓存。
+
+### 变更：Promotion 主路径真正使用原子落盘（§6）
+
+- raw 统一走 `store.add_raw_file()`（`raw/.staging` → 复核 sha256 → `os.replace`），
+  禁止 `shutil.copy2` 直写。
+- JSONL 统一走 `store.save_atomic()`，禁止 `store.save()`。
+- 新增 `RawTransaction`：把 raw 与 JSONL 包成**一个**事务，失败两侧一起回滚。
+- `apply_promotion(..., persist=False)` 可只做内存构建（dry-run 不再触碰磁盘）。
+- 7 类故障注入验证「重新 load 后与操作前完全一致」：raw 复制失败 / raw hash 不符 /
+  源文件缺失 / JSONL 暂存失败 / **第二个 JSONL replace 失败** / Document 校验失败 /
+  Link 校验失败 / Candidate 状态写失败 / 盖章失败。
+
+### 变更：Provider 永远不是 Primary Source（§7）
+
+v3.0.2 只拦住「未声明 upstream 就自称一手」，于是「声明 upstream」成了通行证。
+
+- `is_primary` 改为：`is_data_vendor` → **恒 False**（无例外），否则看 `source_type`。
+- 服务商的 `source_type` 只允许 `data_vendor` / `third_party_database`
+  （`core/models/provenance.py: VENDOR_SOURCE_TYPES`）—— 连写都不许写，**声明 upstream 也不行**。
+- `upstream_document_id` 语义收窄为「本库 Document ID」。新错误码 P1 `EVIDENCE_UPSTREAM_UNKNOWN`：
+  指向不存在的 Document、或上游链成环。
+- 新增字段 `upstream_external_id`（外部系统编号，不做存在性校验），
+  避免一个字段同时表达「本库对象 ID」与「外部引用 ID」。
+- 独立性：外部上游 ID 参与合并；**成环时整环收敛成一个来源** ——
+  否则两条互相转载的稿件就能满足「双源确认」。
+
+### 新增：strict Claim 必须反向进入 Manifest（§8）
+
+- `Claim` 新增 `scope`（`report` 默认 / `internal`）+ 派生属性 `needs_manifest_entry`。
+- 新错误码 P1 `MANIFEST_STRICT_CLAIM_MISSING`：`scope=report` 的 critical / major Claim
+  缺席 `manifest.evidence_refs`。既有规则只保证「引用的都存在」，不保证「该引的都引了」。
+- 内部中间结论请**显式**标 `scope=internal`，而不是靠删 manifest 隐藏 ——
+  让「为什么它不在清单里」变成一条可审查的记录。
+- 最终反向链三层不可绕过：`Claim Ledger → manifest.evidence_refs → Report Claim Anchor`。
+
+### 修复：Schema 与 Runtime 时间契约不一致（§9）
+
+`research_manifest.v3.schema.json` 原本写的是
+`anyOf: [required as_of, required research_date]`，于是 `as_of` 单独出现、或只配一个时点，
+**Schema 判 PASS 而 Runtime 报 `TIME_MODEL_INCOMPLETE`** —— 两边说法不一致。
+
+改为同一套规则：
+
+```json
+{ "if": { "required": ["as_of"] },
+  "then": { "required": ["as_of", "market_data_as_of", "generated_at"] },
+  "else": { "required": ["research_date"] } }
+```
+
+契约一致性由 `tests/validator/test_time_contract.py` 逐组合双向断言
+（schema 判定 == runtime 判定），只测单边会各自绿、合起来矛盾。
+
+### 变更：CI 升级为五闸门
+
+| 闸门 | 内容 | 断言 |
+|---|---|---|
+| 1 | `pytest -q` | 504 个用例全绿 |
+| 2 | v2 manifest 存量样板回归 | 行为零变化（仍 PASS） |
+| 3.0 | `scripts/verify_excerpts.py` | 摘录**重算**：mismatch=0 且 critical unverified=0 |
+| 3a | `validate_evidence.py --fail-on P0,P1,P2` | 证据库 P0=P1=P2=0 |
+| 3b | 报告 + v3 manifest + 证据库三段串联 | P0=P1=0，且跨产物 summary 归零 |
+| 4a | `--claim-only` 正样本 | PASS |
+| 4b | 负 Golden Sample | **必须 FAIL** 且命中 4 类预期错误码 |
+| 4c | `pytest tests/integration/test_report_drift.py` | 故障注入真的被抓住 |
+| 5a | `pytest tests/integration/test_trust_boundary.py` | 四类绕过路径全部被抓住，且每个夹具**精确隔离**一条 fault |
+| 5b | `pytest tests/integration/test_promotion_atomic.py` | 失败后重新 load 与操作前逐项一致 |
+
+闸门 3.0 必须在 3a **之前**：它答的是「摘录是不是原文」，而 3a 的 `EVIDENCE_HASH_*`
+只答「原件有没有被换掉」—— 两个问题，不能互相替代。
+闸门 5a 另有一条守卫（`test_required_bypass_categories_are_all_present`）防止「删掉夹具 = 闸门静默变小」。
+
+### 新增：Trust Boundary 负向夹具（§10 / §13）
+
+`tests/fixtures/invalid/`（**整库级**绕过夹具，与 `tests/validator/fixtures/` 的单对象 schema 夹具不同）：
+
+| 夹具 | 绕过方式 | 必须报出 |
+|---|---|---|
+| `stale_claim_fingerprint` | 只改 Claim 正文，锚点 id/level/status 全对 | P0 `REPORT_CLAIM_REVISION_MISMATCH` |
+| `fake_verified_excerpt` | 手工写 `excerpt_verification_status=verified` | P0 `EVIDENCE_EXCERPT_VERIFICATION_MISMATCH` |
+| `vendor_fake_primary` | 手改 JSONL 把服务商写成 `official_database` | P1 `EVIDENCE_MODEL_INVALID` |
+| `manifest_missing_strict_claim` | 从 manifest 删掉一条 major Claim | P1 `MANIFEST_STRICT_CLAIM_MISSING` |
+
+每个夹具在 `case.json` 里声明期望的错误码与级别，并带 `expect_exclusive: true` ——
+如果它开始顺带报出别的码，夹具就已经不能精确定位那条绕过路径了，测试会直接喊出来。
+
+### 测试
+
+- 全量 **504 个用例通过**（v3.0.2 基线 363 → 新增 141）。
+- 新增文件：`test_claim_fingerprint.py` 18、`test_excerpt_trust.py` 17、
+  `test_promotion_atomic.py` 13、`test_provider_primary.py` 20、
+  `test_manifest_reverse_coverage.py` 16、`test_time_contract.py` 31、
+  `test_trust_boundary.py` 23；另有 schema 一致性 +3。
+- 本地五道闸门实测：Gate3.0 全一致、Gate3a `P0=P1=P2=0`、Gate3b/4a PASS、
+  Gate4b `rc=1` 命中 4 类错误码（并额外命中 3 处指纹缺失 —— 该负样板生成于 v3.0.2 之前，
+  锚点本来就没有指纹，这正是 `REPORT_CLAIM_REVISION_MISMATCH` 要说的）、
+  Gate5a 23 passed、Gate5b 13 passed。
+
+### 冻结
+
+从 v3.0.3 起 **Evidence Layer 进入 Feature Freeze**：除 bug 修复外不再扩
+Evidence level / locator 类型 / Store 层级 / 错误码体系 / 来源类型大扩展。
+下一阶段为 `v3.1 Forecast Lineage`（回答「预测是怎么推出来的」）。
+
 ## v3.0.2 — Cross-Artifact Consistency（把可信的证据层延伸到最终交付物）
 
 v3.0 / v3.0.1 把证据库做成了可校验对象：`Document → Claim → EvidenceLink` 三层都能被机器验，

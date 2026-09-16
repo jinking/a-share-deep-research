@@ -33,6 +33,7 @@ a-share-stock-deep-research/
 │   ├── issue.py                  #   验收问题的中性载体
 │   ├── models/                   #   SourceDocument / EvidenceCandidate / Claim / EvidenceLink / ResearchState
 │   │                             #   + provenance.py（Provider ≠ Source 白名单与默认来源类型）
+│   │                             #   + fingerprint.py（v3.0.3 Claim 版本指纹：报告锚点绑定的真值来源）
 │   ├── evidence/                 #   store（JSONL 证据库，原子落盘）/ hasher / locator / independence
 │   │                             #   / verbatim（摘录子串）/ excerpt（摘录验证状态，唯一写入通道）
 │   ├── report/                   #   v3.0.2 报告侧：Claim 锚点模型 + HTML/Markdown 解析
@@ -40,14 +41,16 @@ a-share-stock-deep-research/
 │                                 #   / time_model / codes（错误码目录）
 ├── schemas/                      # document / claim / evidence_link / research_manifest.v3
 ├── tests/                        # pytest 回归（validator / report / providers / evidence / integration）
+│   └── fixtures/invalid/         #   v3.0.3 信任边界负向夹具（整库级绕过路径，见 CHANGELOG v3.0.3）
 ├── scripts/
 │   ├── fetch_stock.py            #   三源协同取数 + 搜索清单
 │   ├── cross_validate.py         #   搜索值与结构化值交叉验证
 │   ├── validate_report.py        #   独立产物验收器（结构/数学/模型口径/证据层级/跨产物一致性）
 │   ├── build_evidence.py         #   v3 证据库构建与自检（init/register/verify/validate/show/add-candidate/candidates）
-│   ├── promote_evidence_candidate.py  # v3.0.1 线索 → 正式证据（唯一通道，两阶段原子执行）
+│   ├── promote_evidence_candidate.py  # v3.0.1 线索 → 正式证据（唯一通道，两阶段原子执行；v3.0.3 raw+JSONL 同事务）
 │   ├── attach_local_evidence.py  #   v3.0 绑定本地原件 + 补定位/摘录（防脑补硬闸）
-│   ├── verify_excerpts.py        #   v3.0.2 重算摘录验证状态（--write 才写回，机器比对）
+│   ├── verify_excerpts.py        #   v3.0.2 重算摘录验证状态（默认比对，--write 才写回）
+│   ├── stamp_claim_fingerprints.py    # v3.0.3 报告锚点指纹盖章（--check 只校验 / --write 才落盘）
 │   ├── validate_evidence.py      #   v3 证据库独立验收（不需要报告与 manifest）
 │   ├── migrate_manifest_v2_to_v3.py  # v2 → v3 迁移（产物标记 needs_verification）
 │   ├── build_kline.py            #   raw/kline.txt → 研报内联 JS 数组
@@ -59,7 +62,7 @@ a-share-stock-deep-research/
 ├── assets/                       # 报告模板（.md 内容结构 + .html 统一版式）+ manifest 模板
 ├── examples/                     # 示例产物：意华股份成品报告 + 样板（manifest + 证据库 + 验收结果）
 │   └── invalid/                  #   负样本：保留旧结论的漂移样板（必须 FAIL，反向验收用）
-├── .github/workflows/test.yml    # CI 四闸门：pytest + v2 存量回归 + v3 严格验收 + 跨产物一致性
+├── .github/workflows/test.yml    # CI 五闸门：pytest + v2 存量回归 + 摘录重算 + v3 严格验收 + 跨产物一致性 + 信任边界
 └── tools/bin/                    # 私有二进制（安装后生成，可随时删除；不入库，见 .gitignore）
 ```
 
@@ -178,28 +181,67 @@ research_sz002897/
     └── raw/                   # 原始证据文件（另有 raw/.staging/ 供原子落盘暂存）
 ```
 
-### Provider ≠ Source（v3.0.2）
+### Provider ≠ Source，且 Provider 永远不是 Primary（v3.0.2 → v3.0.3）
 
 `westock-data` / `neodata` 这类取数服务是 **Provider**，不是 **Source** —— 搬运交易所公告
-不产生一手性。它们默认 `source_type = data_vendor`，**不得**自称 `official_database`；
-只有显式声明上游官方原件（`upstream_source_type` / `upstream_document_id`）才允许写一手类型。
-独立性按 `upstream_document_id` **多级传递**归并，因此「westock-data + 公司公告」只算**一个**来源。
+不产生一手性。它们默认 `source_type = data_vendor`，**且只能**是 `data_vendor` / `third_party_database`：
+
+- **声明上游不再授予一手资格**（v3.0.2 的那条通行证已废除）。一手性属于上游那份原件本身，
+  上游关系只用来**合并来源独立性**；
+- `upstream_document_id` 只写**本库** Document ID，必须真实存在（否则 P1 `EVIDENCE_UPSTREAM_UNKNOWN`）；
+  外部系统编号写 `upstream_external_id`；
+- 独立性沿 `upstream_document_id` **多级传递**归并，因此「westock-data + 公司公告」只算**一个**来源；
+  **成环时整环只算一个** —— 否则两条互相转载的稿件就能满足「双源确认」。
 
 这条规则由 `core/models/provenance.py` + `SourceDocument.validate` 强制，不靠自觉。
 
-### 摘录验证状态（v3.0.2）
+### 摘录验证状态：机器结论的缓存（v3.0.2 → v3.0.3）
 
 `evidence_text` 必须声明 `excerpt_verification_status`：`verified` / `unverified` / `not_applicable`，
 且 `verified` 必须说明手段（`direct_text` / `text_layer` / `manual` / `ocr`）。
 **「跳过了校验」不等于「已验证」**：PDF 无文本层、只有 URL、原件缺失 → `unverified`；
 未声明状态同样按未验证处理。critical Claim 的 `unverified` 摘录 = P1 `EVIDENCE_EXCERPT_UNVERIFIED`。
 
-状态**只由机器比对产生**，不允许手工填 `verified`：
+状态**只由机器比对产生**，不允许手工填 `verified`。v3.0.3 更进一步：**落盘值只是缓存**，
+校验器会重新算一遍并与它比对 —— `stored=verified` 而重算对不上原文（原文在、可比对、不命中）
+= P0 `EVIDENCE_EXCERPT_VERIFICATION_MISMATCH`；promote 计划里出现这三个字段会被直接拒绝。
 
 ```bash
-python3 scripts/verify_excerpts.py research_sz002897/evidence          # 只报告
-python3 scripts/verify_excerpts.py research_sz002897/evidence --write  # 写回 evidence_links.jsonl
+python3 scripts/verify_excerpts.py research_sz002897/evidence          # 重算 + 比对（mismatch 即非 0）
+python3 scripts/verify_excerpts.py research_sz002897/evidence --write  # 确需刷新缓存时才写回
 ```
+
+拿不到原文（无本地文件 / PDF 无文本层）时**不报 mismatch** —— 那是「无法比对」，
+由 P2 `EVIDENCE_HASH_UNVERIFIED` 负责，不是「摘录是假的」。
+
+### 报告锚点绑定 Claim 版本（v3.0.3）
+
+`claim_id` / `level` / `status` 全对，报告仍可能复述**上一版**结论。因此锚点还必须声明
+`data-claim-fingerprint`（Markdown 写 `fingerprint=`），指纹由 `core/models/fingerprint.py` 现算：
+
+```text
+sha256(canonical_json({claim_id, normalize_claim_text(claim), level, status}))[:16]
+```
+
+指纹不符、**或压根没声明指纹** → P0 `REPORT_CLAIM_REVISION_MISMATCH`（后者必须一起挡，
+否则「删掉属性」就成了绕过路径）。报告允许改写结论的措辞，本规则比较的是 Claim 版本，不是可见文本。
+
+```bash
+python3 scripts/stamp_claim_fingerprints.py report.html --evidence-dir research_sz002897/evidence --check
+python3 scripts/stamp_claim_fingerprints.py report.html --evidence-dir research_sz002897/evidence --write
+```
+
+### strict Claim 必须反向进 manifest（v3.0.3）
+
+`Claim.scope` 默认 `report`：`scope=report` 的 critical / major Claim **必须**出现在
+`manifest.evidence_refs` 中，否则 P1 `MANIFEST_STRICT_CLAIM_MISSING`。
+
+```text
+Claim Ledger  →  manifest.evidence_refs  →  Report Claim Anchor
+```
+
+三层都不能被绕过。确有内部中间结论时标 `scope=internal`，让「为什么它不在清单里」
+成为一条可审查的记录，而不是靠删 manifest 制造空白。
 
 ### 线索 → 证据（唯一通道）
 
@@ -222,10 +264,12 @@ promote 的硬规则（已代码化，不靠自觉）：
 
 1. **无 url 且无 local_file → 拒绝**。线索不能凭「我记得看过」变成证据。
 2. **文本原件的摘录必须是文件真实子串**（忽略空白差异）。PDF 等二进制第一版不做 OCR，跳过子串校验 —— 此时请把原件的官方文本层一起留存并单独比对（样板即如此），并如实把摘录状态标为 `unverified`，**不要假装它经过了机器复核**。脚本会在落盘后自动调用 `stamp_excerpt_verification` 重算状态。
-3. **两阶段原子执行**：任何一条不通过，整体不落盘；落盘走 `save_atomic()`（`.tmp` + `fsync` → `.bak` → `os.replace`），中途失败回滚，不留半新半旧的证据库。
+3. **两阶段原子执行 + 同事务落盘（v3.0.3）**：任何一条不通过，整体不落盘。raw 走 `raw/.staging` → 复核 sha256 → `os.replace` 进 `raw/`；JSONL 走 `save_atomic()`（`.tmp` + `fsync` → `.bak` → `os.replace`）。两者由 `RawTransaction` 包成**一个**事务，失败两侧一起回滚，不留「Document 登记了但 raw 不在」或「raw 复制了但没登记」。
 4. **幂等**：同一线索重复 promote 到同一份 Document 视为无变化；指向另一份 Document 则明确拒绝。
 5. **promote 永不写 `claims.jsonl`**——Claim 能否 `supported` 只由 Document + EvidenceLink 决定，不由线索决定。
-6. **`load()` 幂等**：可重复调用，每次都清空再重建，不会把同一份 JSONL 读两遍。
+6. **计划文件不得自带 `excerpt_verification_*`（v3.0.3）**：那三个字段是机器结论的缓存，
+   出现即拒绝（`PROMOTION_VERIFICATION_FIELD_FORBIDDEN`）——「唯一写入口」从约定变成闸门。
+7. **`load()` 幂等**：可重复调用，每次都清空再重建，不会把同一份 JSONL 读两遍。
 
 ### 时间模型（v3.0.1）
 
@@ -242,6 +286,10 @@ promote 的硬规则（已代码化，不靠自觉）：
 **v3.0.2 收紧**：一旦声明了 `as_of`，就视作采用新时间模型，**三个时点缺一不可** —— 缺任何一个报
 P1 `TIME_MODEL_INCOMPLETE`。只写一部分会让时效校验悄悄退化，所以宁可拦住。
 只保留 `research_date` 的旧 v3 请走兼容路径（**不要声明 `as_of`**）。
+
+**v3.0.3 对齐**：`schemas/research_manifest.v3.schema.json` 用同一套 `if/then/else` 表达这条规则，
+因此「Schema 通过、Runtime 却报结构错误」这种两边说法不一致的情况不再可能
+（`tests/validator/test_time_contract.py` 逐组合双向断言）。
 
 `published_at` 推荐写到 `YYYY-MM-DDTHH:MM:SS+08:00`；只到「日」时退化为 day-level 比较，
 **禁止**拿 `00:00` 冒充真实时刻。
@@ -275,7 +323,11 @@ python3 scripts/migrate_manifest_v2_to_v3.py research_manifest.json \
 
 v3 新增的 P0 拦截：`EVIDENCE_DOC_MISSING`（文档不存在）、`EVIDENCE_HASH_MISMATCH`（文件被替换）、`EVIDENCE_PRIMARY_REQUIRED`（确认级缺一手来源）、`EVIDENCE_DIRECT_REQUIRED`（已确认订单/收入/量产无 direct 证据）、`CANDIDATE_USED_AS_EVIDENCE`（把线索当证据引用），以及 v3.0.2 的四个跨产物 P0（见上一节）。
 P1 新增：`EVIDENCE_EXCERPT_UNVERIFIED`（摘录未经验证）、`TIME_MODEL_INCOMPLETE`（正式 v3 时间模型缺字段）。
-完整错误码、等级与 materiality 规则、来源独立性判定（含 Provider ≠ Source）见 **`references/证据对象规范.md`**；报告锚点语法见 **`references/报告Claim绑定规范.md`**；Schema 见 `schemas/`。
+**v3.0.3 新增**：P0 `REPORT_CLAIM_REVISION_MISMATCH`（报告复述的不是当前这一版 Claim，或锚点没声明指纹）、
+P0 `EVIDENCE_EXCERPT_VERIFICATION_MISMATCH`（声明 `verified` 但机器重算对不上原文）、
+P1 `EVIDENCE_UPSTREAM_UNKNOWN`（上游引用不存在或成环）、
+P1 `MANIFEST_STRICT_CLAIM_MISSING`（`scope=report` 的 critical/major Claim 未进 manifest）。
+完整错误码、等级与 materiality 规则、来源独立性判定（含 Provider ≠ Source）见 **`references/证据对象规范.md`**；报告锚点语法（含指纹）见 **`references/报告Claim绑定规范.md`**；Schema 见 `schemas/`。
 
 **兼容性**：v2 manifest 继续可用，证据校验自动降级为「引用完整性 + 一条 P2 说明」。
 
@@ -284,19 +336,24 @@ P1 新增：`EVIDENCE_EXCERPT_UNVERIFIED`（摘录未经验证）、`TIME_MODEL_
 这是**预期中间态，不是故障**——接着用 `promote_evidence_candidate.py` / `attach_local_evidence.py` 把手上已有的原件绑上去；
 绑不上的就构成了「待补原始资料清单」。
 
-### 跨产物一致性：报告 ↔ Claim Ledger ↔ manifest（v3.0.2）
+### 跨产物一致性：报告 ↔ Claim Ledger ↔ manifest（v3.0.2 → v3.0.3 补全）
 
 证据库再可信也没用 —— 如果最终交给人的报告还能保留旧结论。v3.0.2 把这条连接做成可机器校验的：
 报告里的关键结论写成**锚点**，锚点上的 `level` / `status` 必须与 Claim Ledger 一致。
 
+v3.0.3 补上最后一段：锚点还必须带上 **Claim 版本指纹**，
+并且 `scope=report` 的 strict Claim 必须反向出现在 `manifest.evidence_refs` 里 ——
+`Claim Ledger → manifest.evidence_refs → Report Claim Anchor` 三层都不可绕过。
+
 ```html
-<span data-claim-id="E007" data-claim-level="management_statement" data-claim-status="supported">
+<span data-claim-id="E007" data-claim-level="management_statement"
+      data-claim-status="supported" data-claim-fingerprint="6e31ab49f0028c17">
   224G 产品仍处于在研阶段
 </span>
 ```
 
 ```markdown
-<!-- claim:E007 level=management_statement status=supported -->
+<!-- claim:E007 level=management_statement status=supported fingerprint=6e31ab49f0028c17 -->
 224G 产品仍处于在研阶段。
 ```
 
@@ -317,38 +374,45 @@ python3 scripts/validate_report.py report.html \
 | `REPORT_PENDING_CLAIM_ASSERTED` | P0 | Ledger `status=pending`，报告却按肯定式陈述 |
 | `REPORT_UNCONFIRMED_AS_FACT` | P0 | Ledger 是 `assumption` / `unconfirmed` / `third_party_consensus`，报告却声明为 `fact` |
 | `REPORT_CLAIM_LEVEL_MISMATCH` | P0 | 声明的 `level` 与 Ledger 不一致 |
+| `REPORT_CLAIM_REVISION_MISMATCH` | P0 | 锚点指纹与当前 Claim 不符，**或锚点没声明指纹**（v3.0.3） |
 | `REPORT_CLAIM_STATUS_MISMATCH` | P1 | 声明的 `status` 与 Ledger 不一致 |
 | `REPORT_CRITICAL_CLAIM_MISSING` | P1 | `importance=critical` 的 Claim 在报告里没有任何落点 |
 
 完整语法、强制范围与反例见 `references/报告Claim绑定规范.md`。
-负样本 `examples/invalid/意华股份002897_旧结论漂移样板/` 保留旧结论，**必须 FAIL**。
+负样本 `examples/invalid/意华股份002897_旧结论漂移样板/` 保留旧结论，**必须 FAIL**；
+另有四个整库级绕过夹具见 `tests/fixtures/invalid/`。
 
 ### CI 断言什么
 
-四道闸门，全部为阻断式：
+五道闸门，全部为阻断式：
 
 | 闸门 | 命令 | 断言 |
 |---|---|---|
-| 1 | `pytest -q` | 363 个用例全绿 |
+| 1 | `pytest -q` | 504 个用例全绿 |
 | 2 | `validate_report.py --manifest research_manifest.json` | 存量 v2 样板行为零变化（仍 PASS） |
+| 3.0 | `verify_excerpts.py` | 摘录**重算**：mismatch=0 且 critical unverified=0 |
 | 3a | `validate_evidence.py --fail-on P0,P1,P2` | 证据库 P0=P1=P2=0 |
 | 3b | `validate_report.py --manifest ...v3.json --evidence-dir ...` | 报告 + manifest + 证据库三段串联 P0=P1=0，且跨产物 summary 归零 |
 | 4a | `validate_report.py ... --claim-only` | 正样本 PASS |
 | 4b | 负 Golden Sample（同上，`examples/invalid/…`） | **必须 FAIL** 且命中 4 类预期错误码，否则视为闸门失效 |
 | 4c | `pytest tests/integration/test_report_drift.py` | 故障注入（Claim 降级后旧报告必须 FAIL）真的被抓住 |
+| 5a | `pytest tests/integration/test_trust_boundary.py` | 四类绕过路径全部被抓住，且每个夹具**精确隔离**一条 fault |
+| 5b | `pytest tests/integration/test_promotion_atomic.py` | promotion 失败后重新 load 与操作前逐项一致 |
 
 闸门 3a 连 P2 一起挡，是有意的：按既定口径「文件在但摘要不符」= P0 `EVIDENCE_HASH_MISMATCH`，
 而「登记了 hash 但原件没随仓库提交」= P2 `EVIDENCE_HASH_UNVERIFIED`。**两者刻意分开、不可混改等级**，
 所以只能由闸门把 P2 一并纳入阻断——否则删掉一个原件，构建照样通过。
+闸门 3.0 必须排在 3a 之前：它答的是「摘录是不是原文」，3a 只答「原件有没有被换掉」——两个问题，不能互相替代。
 闸门 4 刻意由三部分组成（正样本过 / 负样本挂 / 故障注入被抓）：「正样本 PASS」证明不了闸门有效，
 只有负样本真的挂掉才算验过。
+闸门 5a 还带一条守卫（`test_required_bypass_categories_are_all_present`），防止「删掉夹具 = 闸门静默变小」。
 `examples/意华股份002897_样板` 已做到严格 PASS（7 Documents / 19 Claims / 23 Links，全部绑定官方原件）。
 
 开发与测试：
 
 ```bash
 pip install -r requirements-dev.txt
-pytest -q          # 363 个用例：模型/Store/归一化/证据错误码/独立性/时间模型/线索与摄入/manifest v3/迁移/Schema/绑定原件/确定性取数/跨产物一致性/端到端
+pytest -q          # 501 个用例：模型/Store/归一化/证据错误码/独立性/时间模型/线索与摄入/manifest v3/迁移/Schema/绑定原件/确定性取数/跨产物一致性/信任边界/端到端
 ```
 
 ## 生成时间与文件名（精确到秒）
