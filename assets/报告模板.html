@@ -10,6 +10,9 @@
   · 生成时间：报告落盘时间必须精确到秒（YYYY-MM-DD HH:MM:SS），出现在 title / h1 small /
     footer / 顶部注释块四处；交付前统一跑 scripts/stamp_report.py 盖章（幂等，勿手写）。
   · 文件名：<公司简称><代码>_深度研究_YYYYMMDD_HHMMSS.html（同样精确到秒）
+  · Claim 锚点（v3.0.2，强制）：影响预测/估值/风险/最终状态/证伪条件的结论，以及关键财务
+    事实、关键订单客户量产状态，必须用 data-claim-id 锚回 Claim Ledger；等级与状态必须与
+    Ledger 一致。写法与后果见第 1 章前的注释块，规范全文见 references/报告Claim绑定规范.md。
 -->
 <head>
 <meta charset="UTF-8">
@@ -213,6 +216,44 @@
 <!-- ============ 1. 核心结论 ============ -->
 <h2><span class="n">1</span>核心结论</h2>
 <div class="card"><p>【当前状态 + 核心理由 + 最大争议 + 最关键前提，一段话讲清】</p></div>
+
+<!--
+  ============ Claim 锚点（v3.0.2，必读） ============
+  凡是「影响预测/估值/风险/最终状态/证伪条件」的结论，以及关键财务事实、
+  关键订单/客户/量产状态，必须锚回 Claim Ledger 里的 Claim：
+
+      <span data-claim-id="E007"
+            data-claim-level="management_statement"
+            data-claim-status="supported">224G 产品仍处于在研阶段</span>
+
+  · data-claim-id     必填。报告不得引用 claims.jsonl 里不存在的 Claim。
+  · data-claim-level  建议必填。必须与 Ledger 的 level 一致；不写＝按「事实」解读。
+  · data-claim-status 建议必填。必须与 Ledger 的 status 一致；不写＝按「supported」解读。
+
+  后果（由 scripts/validate_report.py 强制）：
+      pending 的 Claim 被当成事实说   → P0 REPORT_PENDING_CLAIM_ASSERTED
+      未确认等级被写成 fact/confirmed → P0 REPORT_UNCONFIRMED_AS_FACT
+      level 与 Ledger 不一致          → P0 REPORT_CLAIM_LEVEL_MISMATCH
+      引用了不存在的 Claim            → P0 REPORT_CLAIM_UNKNOWN
+      status 与 Ledger 不一致         → P1 REPORT_CLAIM_STATUS_MISMATCH
+      critical Claim 无任何落点       → P1 REPORT_CRITICAL_CLAIM_MISSING
+
+  直觉规则：**锚定即声明**。绑了 claim_id，就等于「我复述的是这个 Claim」，
+  复述必须与 Ledger 一致。不确定等级的结论就不要锚，或者如实写它的等级。
+  完整规范见 references/报告Claim绑定规范.md。
+-->
+
+<!-- 示例：一条已确认的一手事实 -->
+<div class="card"><p>
+  <span data-claim-id="E001" data-claim-level="fact" data-claim-status="supported">2026H1 营业收入 28.63 亿元（同比 -5.97%）</span>，
+  <span data-claim-id="E004" data-claim-level="fact" data-claim-status="supported">经营活动现金流净额 2.70 亿元（同比 +159.59%）</span>。
+</p></div>
+
+<!-- 示例：一条未确认的第三方口径（note: 必须把「未确认」写出来，不能当事实） -->
+<div class="card"><p>
+  <span data-claim-id="C_PE_TTM_20260914" data-claim-level="unconfirmed" data-claim-status="pending">第三方口径 PE(TTM) 约 53.8×，TTM 口径未完成独立复核</span>，
+  不作为正式估值依据。
+</p></div>
 
 <!-- ============ 2. 一句话投资逻辑 ============ -->
 <h2><span class="n">2</span>一句话投资逻辑</h2>

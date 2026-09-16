@@ -16,6 +16,12 @@ v3 产物（manifest_version = 3）必须同时提供 Evidence Store：
       --evidence-dir research_sz002897/evidence \
       --out validation
 
+只跑跨产物一致性（报告 ↔ Claim Ledger ↔ manifest.evidence_refs，v3.0.2 §14 Gate 4）：
+    python3 scripts/validate_report.py report.html \
+      --manifest research_manifest.v3.json \
+      --evidence-dir research_sz002897/evidence \
+      --claim-only --out validation
+
 只检查旧报告结构（无法完成数学/证据强校验）：
     python3 scripts/validate_report.py old_report.html --report-only --out validation
 
@@ -43,13 +49,15 @@ if str(_ROOT) not in sys.path:
 
 from core.evidence import EvidenceStore, EvidenceStoreError  # noqa: E402
 from core.models.base import parse_datetime  # noqa: E402
+from core.report import parse_report_claims  # noqa: E402
 from core.validation import (  # noqa: E402
     detect_manifest_version,
     validate_evidence,
     validate_manifest_v3,
+    validate_report_claims,
 )
 
-VERSION = "2.1.0"
+VERSION = "2.2.0"
 
 # 报告内「生成时间」的书写形式：「生成于 2026-09-15 09:05:32」「报告生成时间：2026-09-15 09:05:32」
 GENERATED_AT_RE = re.compile(r"生成(?:于|时间)[：:\s]*(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2}:\d{2})")
@@ -482,11 +490,27 @@ def validate_manifest_layer(data: Dict[str, Any], findings: List[Finding]) -> in
     return version
 
 
+def _open_store(evidence_dir: Optional[str], findings: List[Finding]) -> Optional[EvidenceStore]:
+    """打开 Evidence Store；打开失败即报 P0（目录不存在 / 无法读取）。"""
+    if evidence_dir is None:
+        return None
+    path = Path(evidence_dir)
+    if not path.exists():
+        fail(findings, "P0", "EVIDENCE_STORE_MISSING", "Evidence Store 目录不存在", str(path))
+        return None
+    try:
+        return EvidenceStore.open(path)
+    except EvidenceStoreError as exc:
+        fail(findings, "P0", "EVIDENCE_STORE_MISSING", "Evidence Store 无法读取", str(exc))
+        return None
+
+
 def validate_evidence_layer(
     findings: List[Finding],
     *,
     manifest_data: Optional[Dict[str, Any]],
     evidence_dir: Optional[str],
+    store: Optional[EvidenceStore] = None,
     force_strict: bool = False,
 ) -> Optional[Dict[str, int]]:
     """Evidence 层校验。
@@ -508,15 +532,7 @@ def validate_evidence_layer(
             )
         return None
 
-    path = Path(evidence_dir)
-    if not path.exists():
-        fail(findings, "P0", "EVIDENCE_STORE_MISSING", "Evidence Store 目录不存在", str(path))
-        return None
-
-    try:
-        store = EvidenceStore.open(path)
-    except EvidenceStoreError as exc:
-        fail(findings, "P0", "EVIDENCE_STORE_MISSING", "Evidence Store 无法读取", str(exc))
+    if store is None:
         return None
 
     meta = (manifest_data or {}).get("meta") or {}
@@ -535,8 +551,51 @@ def validate_evidence_layer(
         research_date=research_date,
         strict=strict,
         store_issues=store.issues,
-        documents_base_dir=str(path),
+        documents_base_dir=str(Path(evidence_dir)),
     )
+
+
+def validate_report_claim_layer(
+    raw: str,
+    manifest_data: Optional[Dict[str, Any]],
+    store: Optional[EvidenceStore],
+    findings: List[Finding],
+) -> Optional[Dict[str, int]]:
+    """跨产物一致性：报告 Claim 锚点 ↔ Claim Ledger ↔ manifest.evidence_refs（v3.0.2 §6）。
+
+    只在「v3 manifest + 已打开 Evidence Store」时执行：
+
+    - v2 根本没有 Claim Ledger，无从对照（行为零变化）；
+    - v3 但 Evidence Store 打不开时，EVIDENCE_STORE_MISSING 已经报过，不重复报。
+    """
+    if store is None or not manifest_data:
+        return None
+    if detect_manifest_version(manifest_data) < 3:
+        return None
+
+    refs = parse_report_claims(raw)
+    summary = {"P0": 0, "P1": 0, "P2": 0}
+
+    def emit(severity: str, code: str, message: str, detail: str = "") -> None:
+        summary[severity] = summary.get(severity, 0) + 1
+        fail(findings, severity, code, message, detail)
+
+    validate_report_claims(
+        refs,
+        claims=store.claims,
+        evidence_refs=manifest_data.get("evidence_refs"),
+        emit=emit,
+    )
+
+    anchored = sorted({r.claim_id for r in refs if r.claim_id and r.claim_id in store.claims})
+    fail(
+        findings,
+        "INFO",
+        "REPORT_CLAIM_SUMMARY",
+        f"报告 Claim 锚点 {len(refs)} 处，已与 Claim Ledger 对照",
+        f"P0={summary['P0']} P1={summary['P1']}；落点 Claim={anchored or '无'}",
+    )
+    return summary
 
 
 def summarize(findings: List[Finding]) -> Dict[str, int]:
@@ -553,6 +612,7 @@ def write_outputs(
     findings: List[Finding],
     evidence_dir: Optional[str] = None,
     evidence_summary: Optional[Dict[str, int]] = None,
+    claim_summary: Optional[Dict[str, int]] = None,
 ):
     outdir.mkdir(parents=True, exist_ok=True)
     stats = summarize(findings)
@@ -563,6 +623,7 @@ def write_outputs(
         "manifest": str(manifest) if manifest else None,
         "evidence_dir": evidence_dir,
         "evidence_summary": evidence_summary,
+        "claim_summary": claim_summary,
         "status": "PASS" if passed else "FAIL",
         "summary": stats,
         "findings": [asdict(x) for x in findings],
@@ -582,6 +643,11 @@ def write_outputs(
             f"- Evidence 层: P0={evidence_summary.get('P0',0)} ｜ P1={evidence_summary.get('P1',0)} ｜ P2={evidence_summary.get('P2',0)}"
             if evidence_summary
             else "- Evidence 层: 未执行（未提供 --evidence-dir）"
+        ),
+        (
+            f"- 跨产物一致性（报告 ↔ Claim Ledger）: P0={claim_summary.get('P0',0)} ｜ P1={claim_summary.get('P1',0)}"
+            if claim_summary
+            else "- 跨产物一致性（报告 ↔ Claim Ledger）: 未执行（需要 v3 manifest + Evidence Store）"
         ),
         "",
         "## 验收结果",
@@ -613,6 +679,12 @@ def main():
     ap.add_argument("--evidence-dir", dest="evidence_dir", help="v3 Evidence Store 目录（含 documents.jsonl / claims.jsonl / evidence_links.jsonl）")
     ap.add_argument("--strict-evidence", dest="strict_evidence", action="store_true", help="即使 manifest 是 v2，也执行完整证据校验")
     ap.add_argument("--report-only", action="store_true", help="只检查旧报告文本；不能证明模型数学/证据一致性")
+    ap.add_argument(
+        "--claim-only",
+        dest="claim_only",
+        action="store_true",
+        help="只跑跨产物一致性（报告 Claim 锚点 ↔ Claim Ledger ↔ manifest.evidence_refs）",
+    )
     ap.add_argument("--out", default="validation", help="验收报告输出目录，默认 validation")
     args = ap.parse_args()
 
@@ -628,10 +700,14 @@ def main():
     if manifest_path is not None and not manifest_path.exists():
         print(f"❌ manifest 不存在: {manifest_path}")
         return 2
+    if args.claim_only and not args.evidence_dir:
+        print("❌ --claim-only 必须同时提供 --evidence-dir（跨产物一致性需要 Claim Ledger）")
+        return 2
 
     findings: List[Finding] = []
     raw, text = report_text(report)
-    validate_report_structure(report, raw, text, findings, strict_manifest_expected=not args.report_only)
+    if not args.claim_only:
+        validate_report_structure(report, raw, text, findings, strict_manifest_expected=not args.report_only)
 
     manifest_data: Optional[Dict[str, Any]] = None
     if manifest_path is not None:
@@ -642,16 +718,24 @@ def main():
             data = {}
         if data:
             manifest_data = data
-            validate_manifest(data, findings)
-            validate_manifest_layer(data, findings)
-            validate_generated_at(report, raw, data, findings)
+            if not args.claim_only:
+                validate_manifest(data, findings)
+                validate_manifest_layer(data, findings)
+                validate_generated_at(report, raw, data, findings)
 
-    evidence_summary = validate_evidence_layer(
-        findings,
-        manifest_data=manifest_data,
-        evidence_dir=args.evidence_dir,
-        force_strict=args.strict_evidence,
-    )
+    store = _open_store(args.evidence_dir, findings)
+
+    evidence_summary: Optional[Dict[str, int]] = None
+    if not args.claim_only:
+        evidence_summary = validate_evidence_layer(
+            findings,
+            manifest_data=manifest_data,
+            evidence_dir=args.evidence_dir,
+            store=store,
+            force_strict=args.strict_evidence,
+        )
+
+    claim_summary = validate_report_claim_layer(raw, manifest_data, store, findings)
 
     passed, payload = write_outputs(
         Path(args.out),
@@ -660,15 +744,20 @@ def main():
         findings,
         evidence_dir=args.evidence_dir,
         evidence_summary=evidence_summary,
+        claim_summary=claim_summary,
     )
     stats = payload["summary"]
     print("=" * 72)
-    print(f"Research Artifact Validator v{VERSION}")
+    print(f"Research Artifact Validator v{VERSION}" + ("（跨产物一致性模式）" if args.claim_only else ""))
     print(f"状态: {'✅ PASS' if passed else '❌ FAIL'}")
     print(f"P0={stats.get('P0',0)}  P1={stats.get('P1',0)}  P2={stats.get('P2',0)}  INFO={stats.get('INFO',0)}")
     if evidence_summary is not None:
         print(
             f"Evidence 层: P0={evidence_summary.get('P0',0)}  P1={evidence_summary.get('P1',0)}  P2={evidence_summary.get('P2',0)}"
+        )
+    if claim_summary is not None:
+        print(
+            f"跨产物一致性: P0={claim_summary.get('P0',0)}  P1={claim_summary.get('P1',0)}  P2={claim_summary.get('P2',0)}"
         )
     for f in findings:
         if f.severity in {"P0", "P1"}:
