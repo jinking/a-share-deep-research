@@ -75,6 +75,7 @@ from __future__ import annotations
 import argparse
 import copy
 import json
+import os
 import shutil
 import sys
 from pathlib import Path
@@ -112,11 +113,75 @@ _BINDABLE_FIELDS = (
     "provider",
     "upstream_source_type",
     "upstream_document_id",
+    "upstream_external_id",
+)
+
+# 计划文件**不得**出现的字段（v3.0.3 §5）：摘录验证状态是机器结论的缓存，
+# 不是可以自己声明的东西。允许它出现在 plan 里 = 允许「批量宣布已验证」。
+FORBIDDEN_VERIFICATION_FIELDS = (
+    "excerpt_verification_status",
+    "excerpt_verification_method",
+    "excerpt_verification_source",
 )
 
 
 class PromotionError(Exception):
     """计划文件本身有问题（无法解析、结构不对）。"""
+
+
+def _discard_quietly(path: Path) -> None:
+    try:
+        path.unlink()
+    except FileNotFoundError:
+        pass
+
+
+class RawTransaction:
+    """本次 promote 落进 `raw/` 的文件清单，失败时整体撤销（v3.0.3 §6）。
+
+    为什么需要它：`raw/` 是磁盘，JSONL 也是磁盘，两者分属不同的写操作。
+    如果只是「先复制 raw、再写 JSONL」，中间任何一步失败都会留下半成品——
+
+        raw 已复制，但 Document / Link 未登记   → 下次 load 出来的原件是孤儿
+        Document 已登记，但 raw 不存在           → 证据链指向空气
+
+    事务边界应当是「raw + JSONL 一起生效，或者一起不生效」。做法很朴素：
+    落地前把同名旧文件挪到 `<name>.rollback`，记录每一笔；成功就删备份，
+    失败就删新文件、把备份挪回来。
+    """
+
+    def __init__(self, store: EvidenceStore) -> None:
+        self.store = store
+        self.entries: List[Tuple[Path, Optional[Path]]] = []  # (落地文件, 被覆盖的原文件备份)
+
+    def add(self, src) -> Path:
+        src = Path(src)
+        target = self.store.raw_dir / src.name
+        backup: Optional[Path] = None
+        if target.exists():
+            backup = target.with_name(target.name + ".rollback")
+            os.replace(target, backup)
+        try:
+            landed = self.store.add_raw_file(src)
+        except BaseException:
+            if backup is not None:
+                os.replace(backup, target)
+            raise
+        self.entries.append((landed, backup))
+        return landed
+
+    def rollback(self) -> None:
+        for landed, backup in reversed(self.entries):
+            _discard_quietly(landed)
+            if backup is not None:
+                os.replace(backup, backup.with_name(backup.name[: -len(".rollback")]))
+        self.entries.clear()
+
+    def commit(self) -> None:
+        for _landed, backup in self.entries:
+            if backup is not None:
+                _discard_quietly(backup)
+        self.entries.clear()
 
 
 def load_plan(path) -> Dict[str, Any]:
@@ -155,10 +220,21 @@ def apply_promotion(
     dry_run: bool = False,
     base_dir=None,
     emit=print,
+    persist: bool = True,
 ) -> Tuple[bool, Dict[str, int]]:
     """把 promote 计划应用到 store；返回 (是否成功, 统计)。
 
-    两阶段：先把所有改动算进动作列表并校验，全部通过后才 commit。
+    三段式，任何一段失败都整体不生效（v3.0.3 §6）：
+
+        Pass 1/2 解析 + 校验（只碰内存快照，不碰磁盘）
+        Pass 3   raw/ 经 staging 落地（add_raw_file：暂存 → 复核 sha256 → os.replace）
+                 + 内存构建 + 摘录状态重算
+        Pass 3'  save_atomic()：四个 JSONL 全部暂存成功后才逐个替换
+
+    失败时回滚**两侧**：内存状态从快照恢复，raw/ 由 RawTransaction 撤销。
+    这样「重新打开 Store 后 documents / links / candidates / raw 与操作前一致」成立。
+
+    persist=False 仅供单测：只改内存、不写盘（老行为）。CLI 主路径永远走默认值 True。
     base_dir：解析计划内相对路径（local_file）的基准目录，默认当前工作目录。
     """
     if not isinstance(plan, dict):
@@ -197,6 +273,21 @@ def apply_promotion(
         eid = f"EV_{claim_id}_{n:02d}"
         used_evidence_ids.add(eid)
         return eid
+
+    # ---------------- Pass 0：输入契约（计划文件不得自带验证状态，§5） ----------------
+    for item in promotions:
+        if not isinstance(item, dict):
+            continue
+        for idx, lk in enumerate(item.get("links") or []):
+            if not isinstance(lk, dict):
+                continue
+            bad = [f for f in FORBIDDEN_VERIFICATION_FIELDS if f in lk]
+            if bad:
+                errors.append(
+                    f"{item.get('candidate_id')}: links[{idx}] 不得声明 {', '.join(bad)}"
+                    " —— PROMOTION_VERIFICATION_FIELD_FORBIDDEN：摘录验证状态只能由"
+                    " stamp_excerpt_verification 从原文重算产生，不允许外部声明（§5）"
+                )
 
     # ---------------- Pass 1/2：解析 + 校验（不碰任何东西） ----------------
     for item in promotions:
@@ -301,7 +392,12 @@ def apply_promotion(
                 probe.url = url
             if source_group and not probe.source_group:
                 probe.source_group = source_group
-            for field in ("provider", "upstream_source_type", "upstream_document_id"):
+            for field in (
+                "provider",
+                "upstream_source_type",
+                "upstream_document_id",
+                "upstream_external_id",
+            ):
                 value = _clean(doc_spec.get(field))
                 if value and not getattr(probe, field):
                     setattr(probe, field, value)
@@ -328,6 +424,7 @@ def apply_promotion(
                     provider=provider,
                     upstream_source_type=_clean(doc_spec.get("upstream_source_type")) or None,
                     upstream_document_id=_clean(doc_spec.get("upstream_document_id")) or None,
+                    upstream_external_id=_clean(doc_spec.get("upstream_external_id")) or None,
                 )
                 probe.validate()
             except Exception as exc:
@@ -416,9 +513,8 @@ def apply_promotion(
                     support_type=_clean(lk.get("support_type")) or "direct",
                     confidence=float(lk.get("confidence", 1.0)),
                     note=_clean(lk.get("note")) or None,
-                    excerpt_verification_status=_clean(lk.get("excerpt_verification_status")) or None,
-                    excerpt_verification_method=_clean(lk.get("excerpt_verification_method")) or None,
-                    excerpt_verification_source=_clean(lk.get("excerpt_verification_source")) or None,
+                    # 摘录验证三字段**刻意不从计划读取**：它们由 Pass 4 机器重算（v3.0.3 §5）。
+                    # 计划里出现这三个字段已在 Pass 0 被拒。
                 )
                 link.validate()
             except Exception as exc:
@@ -471,8 +567,9 @@ def apply_promotion(
         emit("（dry-run：以上改动均未落盘）")
         return True, stats
 
-    # ---------------- Pass 3：落盘（异常则回滚内存状态） ----------------
+    # ---------------- Pass 3：落盘（异常则回滚两侧） ----------------
     snapshot = copy.deepcopy(store)
+    raw_tx = RawTransaction(store)
     try:
         store.raw_dir.mkdir(parents=True, exist_ok=True)
 
@@ -480,7 +577,9 @@ def apply_promotion(
             if src is not None:
                 target = store.raw_dir / src.name
                 if src.resolve() != target.resolve():
-                    shutil.copy2(src, target)
+                    # 经 raw/.staging 暂存 + 复核落地副本 sha256 后才进 raw/，
+                    # 失败不留残片（v3.0.2 §10）。禁止直接 shutil.copy2 到 raw/。
+                    raw_tx.add(src)
             if old is None:
                 store.documents[new.document_id] = new
                 emit(f"  ✅ 新建 Document {new.document_id}  ({new.source_type})  {new.title}")
@@ -498,23 +597,29 @@ def apply_promotion(
             cand.promoted_document_id = doc_id
             emit(f"  ✅ {cand.candidate_id} → promoted（{doc_id}）")
 
-        # ---------------- Pass 4：摘录验证状态（v3.0.2 §9） ----------------
-        declared = {l.evidence_id for l in link_actions if l.excerpt_verification_status}
-        pending = [l for l in store.links if l.evidence_id not in declared]
-        counts = stamp_excerpt_verification(store, base_dir=store.root, links=pending)
+        # ---------------- Pass 4：摘录验证状态（v3.0.2 §9 / v3.0.3 §5） ----------------
+        # 对**全部**链接重算，而不是只算本次新增的。原先「跳过调用方已显式声明的那几条」
+        # 留了一个口子：只要在计划里写好 status=verified，那几条就永远不被复核。
+        counts = stamp_excerpt_verification(store, base_dir=store.root)
         emit(
-            "  ℹ️ 摘录验证："
+            "  ℹ️ 摘录验证（全部由原文重算）："
             f"verified={counts['verified']}  unverified={counts['unverified']}  "
-            f"无需验证={counts['skipped']}（已显式声明 {len(declared)} 条）"
+            f"无需验证={counts['skipped']}"
         )
-    except Exception as exc:  # 落盘阶段异常 → 回滚，不留半成品
+
+        if persist:
+            # 四个 JSONL 全部暂存成功后才逐个替换；中途失败用 .bak 回滚（§10）
+            store.save_atomic()
+    except Exception as exc:
         store.documents = snapshot.documents
         store.claims = snapshot.claims
         store.links = snapshot.links
         store.candidates = snapshot.candidates
-        emit(f"❌ 落盘阶段异常，已回滚：{exc}")
+        raw_tx.rollback()
+        emit(f"❌ 落盘阶段异常，已回滚（内存 + raw）：{exc}")
         return False, dict(EMPTY_STATS)
 
+    raw_tx.commit()
     return True, stats
 
 
@@ -545,15 +650,13 @@ def main() -> int:
         store, plan, dry_run=args.dry_run, base_dir=plan_path.parent
     )
     if ok:
-        if not args.dry_run:
-            store.save()
         print("")
         print(
             f"✅ 完成：promote {stats['promoted']} 条线索；"
             f"新建 {stats['documents_created']} / 复用 {stats['documents_reused']} 份 Document；"
             f"新增 {stats['links_added']} 条链接"
             + (f"；跳过 {stats['unchanged']} 条（已是 promoted）" if stats["unchanged"] else "")
-            + ("（dry-run，未落盘）" if args.dry_run else "")
+            + ("（dry-run，未落盘）" if args.dry_run else "（已原子落盘：raw + JSONL 一起生效）")
         )
     print("=" * 72)
     return 0 if ok else 1

@@ -33,6 +33,8 @@ __all__ = [
     "resolve_verification_source",
     "verify_excerpt_against_text",
     "compute_excerpt_verification",
+    "compare_link_verification",
+    "compare_excerpt_verification",
     "stamp_excerpt_verification",
 ]
 
@@ -105,6 +107,63 @@ def _display_path(path: Path, relative_to: Optional[Path]) -> str:
     return str(path)
 
 
+def compare_link_verification(
+    link: EvidenceLink,
+    document: Optional[SourceDocument],
+    *,
+    base_dir: Optional[Path] = None,
+    relative_to: Optional[Path] = None,
+) -> Optional[Dict[str, Any]]:
+    """把一条链接的**落盘状态**与**现算结果**对照。
+
+    v3.0.3 §5 的核心原则：持久化的验证状态只是机器结论的缓存，
+    **不是**用户断言。所以要能随时重算并回头质问缓存：
+
+        {"evidence_id": "EV_E001_01",
+         "stored": "verified",
+         "recomputed": "unverified",
+         "match": false}
+
+    `stored` 为 None 表示原链路根本没声明过状态（未声明＝未验证）。
+    没有 `evidence_text` 时返回 None——没有验证对象，谈不上比对。
+    """
+    result = compute_excerpt_verification(link, document, base_dir=base_dir, relative_to=relative_to)
+    if result is None:
+        return None
+    stored = (link.excerpt_verification_status or "").strip() or None
+    return {
+        "evidence_id": link.evidence_id,
+        "claim_id": link.claim_id,
+        "document_id": link.document_id,
+        "stored": stored,
+        "recomputed": result["status"],
+        "match": stored == result["status"],
+        "method": result["method"],
+        "source": result["source"],
+    }
+
+
+def compare_excerpt_verification(
+    store, base_dir: Optional[Path] = None, links: Optional[Iterable[EvidenceLink]] = None
+) -> List[Dict[str, Any]]:
+    """重算整个 store 的摘录验证状态，逐条与落盘值比对（**只读**，不修改任何对象）。
+
+    返回 `compare_link_verification` 的行列表；无摘录的链接不出现。
+    """
+    root = Path(base_dir) if base_dir is not None else store.root
+    rows: List[Dict[str, Any]] = []
+    for link in store.links if links is None else links:
+        row = compare_link_verification(
+            link,
+            store.documents.get(link.document_id),
+            base_dir=root,
+            relative_to=root,
+        )
+        if row is not None:
+            rows.append(row)
+    return rows
+
+
 def stamp_excerpt_verification(
     store, base_dir: Optional[Path] = None, links: Optional[Iterable[EvidenceLink]] = None
 ) -> Dict[str, int]:
@@ -113,7 +172,8 @@ def stamp_excerpt_verification(
     这是**唯一**写入 `excerpt_verification_*` 的通道：让状态来自真实的原文比对，
     而不是来自人手填写的「已验证」。返回 {"verified": n, "unverified": n, "skipped": n}。
 
-    `links` 可指定只处理其中一部分（用于保留调用方已显式声明的结果）。
+    `links` 可指定只处理其中一部分——**唯一的合法用途**是「只处理本次新增的链接」，
+    绝不能用来保留外部传入的声明值（v3.0.3 §5 禁止 plan 自带验证状态）。
     """
     stats = {"verified": 0, "unverified": 0, "skipped": 0}
     root = Path(base_dir) if base_dir is not None else store.root

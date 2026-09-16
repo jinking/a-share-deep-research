@@ -5,6 +5,8 @@ from __future__ import annotations
 
 from .excerpt import (
     TEXTLAYER_SUFFIX,
+    compare_excerpt_verification,
+    compare_link_verification,
     compute_excerpt_verification,
     resolve_verification_source,
     stamp_excerpt_verification,
@@ -63,6 +65,8 @@ __all__ = [
     "verify_excerpt_against_text",
     "compute_excerpt_verification",
     "stamp_excerpt_verification",
+    "compare_link_verification",
+    "compare_excerpt_verification",
     "sha256_bytes",
     "sha256_text",
     "sha256_file",

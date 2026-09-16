@@ -11,8 +11,14 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, List, Optional
 
+from ..evidence.excerpt import compare_link_verification
 from ..evidence.hasher import sha256_file
-from ..evidence.independence import describe_groups, group_documents, shared_upstream_hint
+from ..evidence.independence import (
+    describe_groups,
+    group_documents,
+    shared_upstream_hint,
+    upstream_cycle,
+)
 from ..evidence.locator import describe_locator, validate_locator
 from ..issue import Issue
 from ..models.base import clean_str, parse_date
@@ -149,6 +155,7 @@ def _claim_level_policy(
     links: List[EvidenceLink],
     *,
     emit: Emit,
+    base_dir: Optional[Path] = None,
 ) -> None:
     docs = [state.documents.get(l.document_id) for l in links]
     docs = [d for d in docs if d is not None]
@@ -310,7 +317,96 @@ def _check_claim_basis(state: ResearchState, claim: Claim, *, emit: Emit) -> Non
         )
 
 
-def _check_claims(state: ResearchState, *, emit: Emit) -> None:
+def _check_excerpt_verification(
+    state: ResearchState, *, emit: Emit, base_dir: Optional[Path] = None
+) -> None:
+    """重算摘录验证状态，与落盘值比对（v3.0.3 §5）。
+
+    为什么非要重算：落盘的 `excerpt_verification_status` 只是**机器结论的缓存**。
+    只要它是一个普通字段，就能被手工改成 `verified`——于是「摘录是不是原文」
+    又退化成一句可以被声明的话。这里把它重新算一遍，专门抓「声明已验证、
+    实际对不上原文」的条目。
+
+    只抓**单向**：`stored=verified` 而重算不通过才算错。反过来
+    （存的是 unverified、实际能验证）只是缓存陈旧，方向是保守的——
+    而且那种情况已经被 `EVIDENCE_EXCERPT_UNVERIFIED` 拦住了，不必再报一条。
+
+    **拿不到原文不算 mismatch**（`source is None`）。这一条与 v3.0.2 的既定口径同构：
+    「文件在但摘要不符」= P0（证据被替换），「登记了 hash 但文件不在」= P2（无法校验）。
+    原件不在时，我们证明的是「现在比不了」，不是「摘录是假的」——后者才是 P0 该管的事。
+    原件缺失本身由 `EVIDENCE_HASH_UNVERIFIED`(P2) 负责，不在这里越界。
+
+    没有 `documents_base_dir` 时同样直接跳过：拿不到原件就无从重算，
+    此时「无法校验」不能被当成「校验通过」，但也不该凭空报错。
+    """
+    if base_dir is None:
+        return
+    for link in state.links:
+        row = compare_link_verification(
+            link, state.documents.get(link.document_id), base_dir=base_dir
+        )
+        if (
+            row is None
+            or row["stored"] != "verified"
+            or row["recomputed"] == "verified"
+            or row["source"] is None
+        ):
+            continue
+        _emit(
+            emit,
+            severity_of("EVIDENCE_EXCERPT_VERIFICATION_MISMATCH"),
+            "EVIDENCE_EXCERPT_VERIFICATION_MISMATCH",
+            f"摘录被声明为已验证，重算却不通过: {link.evidence_id}",
+            f"claim={link.claim_id}；stored=verified；recomputed={row['recomputed']}；"
+            f"比对源={row['source'] or '无可比对文本'}；"
+            "落盘状态必须由 stamp_excerpt_verification 机器产生，不得手工声明",
+        )
+
+
+def _check_upstreams(state: ResearchState, *, emit: Emit) -> None:
+    """上游引用必须能解析到真实原件（v3.0.3 §7）。
+
+    为什么：`upstream_document_id` 是独立性合并的依据（见 `core.evidence.independence`）。
+    如果它只是「一句话」，那么「我的上游是某份官方原件」就永远无法被核实 ——
+    写什么都能让两个 Document 归并到同一个来源，或反过来假装彼此独立。
+
+    `upstream_document_id` 的语义被收窄为**本库中的 Document ID**，因此：
+
+    - 指向本库不存在的 ID → P1（无法核实）；
+    - 上游链成环（A→B→A）→ P1（永远走不到真实原件；且环会让「互相转载」
+      看起来像两个独立来源，这是危险方向，必须报出来）。
+
+    需要保存**外部系统**的上游编号时用 `upstream_external_id`，它不参与存在性校验
+    —— 本库无从证明外部系统里是否存在那个编号，所以我们不假装知道。
+    """
+    for doc in state.documents.values():
+        upstream = clean_str(doc.upstream_document_id)
+        if not upstream:
+            continue
+        if upstream not in state.documents:
+            _emit(
+                emit,
+                severity_of("EVIDENCE_UPSTREAM_UNKNOWN"),
+                "EVIDENCE_UPSTREAM_UNKNOWN",
+                f"上游引用的 Document 不存在，无法核实: {doc.document_id}",
+                f"upstream_document_id={upstream}；"
+                "该字段只接受本库的 document_id（DOC_ 前缀）。"
+                "外部系统的编号请写 upstream_external_id",
+            )
+            continue
+        cycle = upstream_cycle(doc, state.documents)
+        if cycle:
+            _emit(
+                emit,
+                severity_of("EVIDENCE_UPSTREAM_UNKNOWN"),
+                "EVIDENCE_UPSTREAM_UNKNOWN",
+                f"上游链循环引用，永远到不了真实原件: {doc.document_id}",
+                "循环=" + " → ".join(cycle + [cycle[0]]) + "；"
+                "环路会被独立性计算收敛为一个来源（不能当成两个独立来源）",
+            )
+
+
+def _check_claims(state: ResearchState, *, emit: Emit, base_dir: Optional[Path] = None) -> None:
     for claim in state.claims.values():
         links = state.links_of(claim.claim_id)
         alive = [l for l in links if l.document_id in state.documents]
@@ -349,7 +445,7 @@ def _check_claims(state: ResearchState, *, emit: Emit) -> None:
             )
 
         _check_claim_basis(state, claim, emit=emit)
-        _claim_level_policy(state, claim, links, emit=emit)
+        _claim_level_policy(state, claim, links, emit=emit, base_dir=base_dir)
         _check_independence(state, claim, links, emit=emit)
 
 
@@ -374,11 +470,47 @@ def _check_candidates(state: ResearchState, *, emit: Emit) -> None:
             )
 
 
+def _check_strict_coverage(
+    state: ResearchState, refs: List[Any], *, emit: Emit
+) -> None:
+    """反向覆盖：报告可见的 strict Claim 不得从 manifest 里消失（v3.0.3 §8）。
+
+    只挡「manifest 引用了不存在的 Claim」是不够的 —— 那只保证「引用的都对」，
+    不保证「该引用的都引了」。把一条 critical Claim 从 `evidence_refs` 里删掉，
+    报告侧「关键 Claim 有没有落点」就没有人问了，删除成了绕过路径。
+
+    这里的口径：`scope=report` 的 critical / major Claim 必须出现，
+    缺席即 P1。内部中间结论请显式标 `scope=internal` —— 让「为什么它不在清单里」
+    变成一条可审查的记录，而不是一片空白。
+
+    注意 `importance` 写错不属于本规则：只要 claim_id 在清单里就算覆盖，
+    等级不一致由 `EVIDENCE_IMPORTANCE_MISMATCH` 单独负责。
+    """
+    referenced = {
+        clean_str(ref.get("claim_id"))
+        for ref in refs
+        if isinstance(ref, dict)
+    }
+    for claim in state.claims.values():
+        if not claim.needs_manifest_entry or claim.claim_id in referenced:
+            continue
+        _emit(
+            emit,
+            severity_of("MANIFEST_STRICT_CLAIM_MISSING"),
+            "MANIFEST_STRICT_CLAIM_MISSING",
+            f"{claim.materiality} Claim 未进入 manifest.evidence_refs: {claim.claim_id}",
+            f"scope={claim.scope}；materiality={claim.materiality}；"
+            "面向报告的关键结论必须登记在 manifest 中，"
+            "否则「关键结论是否被覆盖」无人校验。"
+            "若是内部中间结论，请把 Claim 的 scope 显式改为 internal",
+        )
+
+
 def _check_manifest_refs(
     state: ResearchState, manifest: Dict[str, Any], *, emit: Emit
 ) -> None:
     refs = manifest.get("evidence_refs")
-    if refs is None:
+    if refs is None or not isinstance(refs, list):
         _emit(
             emit,
             severity_of("EVIDENCE_REFS_EMPTY"),
@@ -387,7 +519,8 @@ def _check_manifest_refs(
             "请在 manifest 中登记 claim_id + importance",
         )
         return
-    if not isinstance(refs, list) or not refs:
+    if not refs:
+        # 空清单只报一次 EVIDENCE_REFS_EMPTY；下面仍然要指出到底漏了哪些 Claim。
         _emit(
             emit,
             severity_of("EVIDENCE_REFS_EMPTY"),
@@ -395,7 +528,6 @@ def _check_manifest_refs(
             "v3 manifest 的 evidence_refs 为空",
             f"当前值={refs!r}",
         )
-        return
 
     for i, ref in enumerate(refs, start=1):
         if not isinstance(ref, dict):
@@ -446,6 +578,9 @@ def _check_manifest_refs(
                 f"manifest importance 与 Claim materiality 不一致: {claim_id}",
                 f"manifest={importance}；claims.jsonl={claim.materiality}",
             )
+
+    # v3.0.3 §8 反向覆盖：正着查完（引用的都存在），还要反着查（该引的都引了）
+    _check_strict_coverage(state, refs, emit=emit)
 
 
 def _resolve_time_model(
@@ -536,7 +671,9 @@ def validate_evidence(
     )
 
     _check_documents(state, emit=counting_emit, base_dir=base_dir, time_model=time_model)
-    _check_claims(state, emit=counting_emit)
+    _check_upstreams(state, emit=counting_emit)
+    _check_excerpt_verification(state, emit=counting_emit, base_dir=base_dir)
+    _check_claims(state, emit=counting_emit, base_dir=base_dir)
     _check_candidates(state, emit=counting_emit)
     if manifest:
         _check_manifest_refs(state, manifest, emit=counting_emit)

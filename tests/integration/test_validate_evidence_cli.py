@@ -85,22 +85,33 @@ def test_fail_on_p0_p2_still_catches_missing_original(tmp_path):
 
 
 def test_missing_original_is_not_confused_with_replaced(tmp_path):
-    """P2（文件缺失）与 P0（文件被替换）必须区分开。"""
+    """P2（文件缺失）与 P0（文件被替换）必须区分开。
+
+    v3.0.3 §5 起，「文件被替换」会同时命中两条 P0：hash 不符（这份原件变了）
+    + 摘录不再命中（建立在它之上的摘录已失效）。两条各自成立、互不重复。
+
+    但「文件缺失」**不能**走到摘录那条：拿不到原文时，我们证明的是「现在比不了」，
+    而不是「摘录是假的」——后者才配得上 P0。原件缺失本身由 P2 `EVIDENCE_HASH_UNVERIFIED`
+    负责，这正是本用例要守住的那条线。
+    """
     store = write_store(tmp_path)
     store.save()
     raw = store.root / "raw" / "2026H1.txt"
 
-    # 文件被替换 → P0
+    # 文件被替换 → 两条 P0：原件变了 + 摘录失效
     raw.write_text("事后被替换的内容", encoding="utf-8")
     replaced = _run(store.root, "--fail-on", "P0,P2")
     assert replaced.returncode == 1
-    assert "P0=1" in replaced.stdout, replaced.stdout
+    assert "P0=2" in replaced.stdout, replaced.stdout
+    assert "EVIDENCE_HASH_MISMATCH" in replaced.stdout
+    assert "EVIDENCE_EXCERPT_VERIFICATION_MISMATCH" in replaced.stdout
 
-    # 文件缺失 → P2，不是 P0
+    # 文件缺失 → P2，不是 P0；也不报摘录 mismatch（无法比对 ≠ 已被证伪）
     raw.unlink()
     missing = _run(store.root, "--fail-on", "P0,P2")
     assert missing.returncode == 1
     assert "P0=0" in missing.stdout and "P2=1" in missing.stdout, missing.stdout
+    assert "EVIDENCE_EXCERPT_VERIFICATION_MISMATCH" not in missing.stdout
 
 
 def test_invalid_fail_on_value_is_arg_error(tmp_path):

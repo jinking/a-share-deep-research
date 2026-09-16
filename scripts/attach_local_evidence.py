@@ -160,8 +160,13 @@ def apply_plan(
                 probe.source_group = item["source_group"]
             if item.get("note"):
                 probe.note = item["note"]
-            # 溯源字段：Provider ≠ Source（v3.0.2 §8）
-            for field in ("provider", "upstream_source_type", "upstream_document_id"):
+            # 溯源字段：Provider ≠ Source（v3.0.2 §8），外部上游 ID 单列（v3.0.3 §7）
+            for field in (
+                "provider",
+                "upstream_source_type",
+                "upstream_document_id",
+                "upstream_external_id",
+            ):
                 if item.get(field) is not None:
                     setattr(probe, field, item[field])
             virtual_docs[doc_id] = probe
@@ -192,6 +197,7 @@ def apply_plan(
                 provider=item.get("provider"),
                 upstream_source_type=item.get("upstream_source_type"),
                 upstream_document_id=item.get("upstream_document_id"),
+                upstream_external_id=item.get("upstream_external_id"),
             )
             try:
                 doc.validate()
@@ -314,6 +320,7 @@ def apply_plan(
             "provider",
             "upstream_source_type",
             "upstream_document_id",
+            "upstream_external_id",
         ):
             setattr(existing, field, getattr(probe, field))
         emit(f"  ✅ 绑定 {existing.document_id} ← {src.name}  sha256={existing.sha256[:12]}…")
