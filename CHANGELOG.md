@@ -1,5 +1,131 @@
 # Changelog
 
+## v3.0.2 — Cross-Artifact Consistency（把可信的证据层延伸到最终交付物）
+
+v3.0 / v3.0.1 把证据库做成了可校验对象：`Document → Claim → EvidenceLink` 三层都能被机器验，
+原件带 SHA256、定位可核、摘录可复核。但**最终交付给人的是报告**，而报告与证据库之间
+原本没有任何可校验的连接 —— 于是出现这类翻车：
+
+| 证据层已经这么做了 | 报告却还是这么写 |
+|---|---|
+| E007 从「送样阶段」纠正为「在研 / 实质性开发阶段」 | 「仍处送样阶段」（引互动易转述） |
+| `C_PE_TTM_20260914` 降级为 `unconfirmed` / `pending` | KPI 卡里 `PE（TTM）53.83×` 当事实展示 |
+| E008 降级为 `third_party_consensus` / `pending` | 「一致预期 4.22 亿元」当已验证事实 |
+
+**证据库自己全绿，交付物却是错的。** 本版把这个缺口堵上，并顺手焊死四个会让证据链
+「看起来在验、其实没验」的松口。
+
+### 新增：跨产物一致性（报告 ↔ Claim Ledger ↔ `manifest.evidence_refs`）
+
+- `core/report/`（`models.py` / `claim_parser.py`）：从最终报告里解析结论锚点。
+  HTML 走 `data-claim-id` / `data-claim-level` / `data-claim-status`（标签不限、属性顺序无关、
+  嵌套同名标签正确配对）；Markdown 走 `<!-- claim:ID level=... status=... -->`（独占一行取下一非空行，同行取前后文）。
+- `core/validation/report_claim_validator.py`：只做**显式 metadata 一致性**，
+  第一版不引入 LLM、不做语气判断。
+- **核心语义：锚定即声明。** 未显式声明 `level` / `status` 的锚点按 `fact` / `supported` 解读
+  （`DEFAULT_ASSERTED_LEVEL` / `DEFAULT_ASSERTED_STATUS`）。这不是苛求，而是唯一能拦住旧报告的写法：
+  旧报告的锚点不会有 `level` / `status`，若「缺省 = 不检查」，「Claim 被降级后旧报告必须 FAIL」就永远触发不了。
+- 新错误码 6 个：P0 `REPORT_CLAIM_UNKNOWN` / `REPORT_PENDING_CLAIM_ASSERTED` /
+  `REPORT_UNCONFIRMED_AS_FACT` / `REPORT_CLAIM_LEVEL_MISMATCH`；
+  P1 `REPORT_CLAIM_STATUS_MISMATCH` / `REPORT_CRITICAL_CLAIM_MISSING`。
+  `UNCONFIRMED_AS_FACT` 与 `LEVEL_MISMATCH` 互斥；非法 level / status 值不另立错误码
+  （畸形值必然对不上 Ledger，一定会被 MISMATCH / UNKNOWN 抓到）。
+- `scripts/validate_report.py` 新增 `--claim-only`：只对锚点与 Ledger，跳过结构与数学，便于改文案时快速定位漂移。
+- 规范文档 `references/报告Claim绑定规范.md`（含语法、强制范围、反例）。
+- **负 Golden Sample**：`examples/invalid/意华股份002897_旧结论漂移样板/` ——
+  保留旧结论的报告，**必须 FAIL**，用来做反向验收（正样本过 ≠ 闸门有效）。
+
+### 变更：Provider ≠ Source（§8）
+
+`westock-data` / `neodata` 这类取数服务是 **Provider**，不是 **Source**。
+搬运交易所公告不产生一手性，但把它们登记成 `official_database` 就能凭空获得「一手来源」资格，
+单独支撑确认级 Claim —— `EVIDENCE_PRIMARY_REQUIRED` 直接形同虚设。
+
+- `core/models/provenance.py`：`DATA_VENDOR_PROVIDERS` 白名单 + `normalize_provider()`
+  （剥括号后缀，如 `westock-data(kline)`）+ `default_source_type_for()`。
+- `SourceDocument` 新增 `provider` / `upstream_source_type` / `upstream_document_id`
+  与派生属性 `is_data_vendor` / `has_declared_upstream`。
+  **硬规则**：`is_data_vendor` 且 `source_type` 是一手来源 且 未声明 `upstream_*` → 拒绝。
+- `source_type` 新增枚举 `data_vendor` / `third_party_database`（均非一手来源）。
+- 独立性合并：`independence_key` 沿 `upstream_document_id` **多级传递**，
+  「westock-data(kline) + 公司公告」算**一个**来源，不再被错当成两个独立来源。
+- 样板纠正：`examples/意华股份002897_样板/` 4 份 westock 文档与 manifest 里的 E006
+  由 `official_database` 改为 `data_vendor` + `provider="westock-data"`。
+
+### 新增：摘录验证状态（§9）
+
+此前只要求 critical Claim 有 `evidence_text`，却不区分「摘录确实来自原文」与
+「没法比对所以跳过了」。PDF 跳过子串校验，于是**「跳过」被当成了「通过」**。
+
+- `EvidenceLink` 新增 `excerpt_verification_status`（`verified` / `unverified` / `not_applicable`）、
+  `_method`（`direct_text` / `text_layer` / `manual` / `ocr`）、`_source`。
+  `verified` 必须声明手段；只写一半（有 method 无 status）同样拒绝。
+- **未声明状态 = 未验证**。critical Claim 的 `unverified` 摘录 → P1 `EVIDENCE_EXCERPT_UNVERIFIED`。
+- `core/evidence/excerpt.py`：`resolve_verification_source()`（PDF → 同名 `.textlayer.txt` 用 `text_layer`；
+  纯文本用 `direct_text`；否则无法比对）+ `stamp_excerpt_verification()` **唯一写入通道**。
+- `core/evidence/verbatim.py` 拆成两个函数：`excerpt_in_file()` **严格**
+  （非文本 / 缺失 / 空 → False，禁止「跳过 = 通过」）给验证路径；
+  `text_supports_excerpt()` 保留原「跳过」语义给 attach 路径，不破坏既有行为。
+- `scripts/verify_excerpts.py`：独立重算入口，`--write` 才写回。状态**只由机器比对产生**，不允许手工填 `verified`。
+- 样板：23 条链接经真实比对写回 `verified`（17 条对官方文本层逐页核对、6 条对文本原件子串校验）。
+
+### 变更：原子落盘（§10）
+
+`save()` 逐个文件直接覆盖，中途失败留下**半新半旧**的证据库 —— `documents.jsonl` 已更新、
+`raw/` 还是旧的，hash 与内容对不上，正好是最危险的状态。
+
+- `EvidenceStore.save_atomic()`：内存算完目标内容 → 逐个写 `.tmp` + `fsync` →
+  原文件 rename 为 `.bak` → `.tmp` `os.replace` 成正式文件 → 任一步失败用 `.bak` 回滚。
+- `EvidenceStore.add_raw_file()`：经 `raw/.staging/` 暂存并**复核落地副本 sha256**
+  与源文件一致，才 `os.replace` 进 `raw/`；失败只删临时文件，`raw/` 保持原样。
+
+### 变更：正式 v3 时间模型必须完整（§11）
+
+v3.0.1 允许三个时间字段「都可缺省」，结果是可以只写一部分：写了 `as_of` 却漏 `market_data_as_of`，
+时效校验悄悄退化而验收照样 PASS。
+
+- 一旦声明 `as_of` 即视为采用新时间模型，**三个时点缺一不可**，否则 P1 `TIME_MODEL_INCOMPLETE`。
+- 三缺 + 有 `research_date` → 兼容路径 P2 `TIME_MODEL_LEGACY`（**不要声明 `as_of`**）；
+  三缺且连 `research_date` 都没有 → P1 `MANIFEST_V3_STRUCTURE`。
+
+### 变更：`published_at` 支持 datetime 精度（§12）
+
+- 允许 `YYYY-MM-DDTHH:MM:SS+08:00`；只写到日时 `published_datetime` 返回 `None`，
+  时效校验退化为 **day-level 比较**；**禁止**拿 `00:00` 冒充真实时刻。
+- 双方都有时刻 → 按 datetime 比较，能抓到「同一日内但晚于 `as_of`」这种 day-level 看不见的倒挂。
+- `schemas/document.schema.json` 的 `published_at` pattern 同步放开。
+
+### 修复：`load()` 幂等（§13）
+
+`EvidenceStore.load()` 原先只清 `issues`，`links` 是 list —— 重复调用会把同一份 JSONL
+读第二遍而**静默翻倍**。现每次 load 都清空 `candidates` / `documents` / `claims` / `links` 再重建。
+
+### 变更：CI 收敛为四闸门（阻断式）
+
+| 闸门 | 内容 | 断言 |
+|---|---|---|
+| 1 | `pytest -q` | 363 个用例全绿 |
+| 2 | v2 manifest 存量样板回归 | 行为零变化（仍 PASS） |
+| 3a | `validate_evidence.py --fail-on P0,P1,P2` | 证据库 P0=P1=P2=0 |
+| 3b | 报告 + v3 manifest + 证据库三段串联 | P0=P1=0，且**跨产物 summary 归零** |
+| 4a | `--claim-only` 正样本 | PASS |
+| 4b | 负 Golden Sample | **必须 FAIL**，且命中 4 类预期错误码，否则视为闸门失效 |
+| 4c | `pytest tests/integration/test_report_drift.py` | 故障注入（Claim 降级后旧报告必须 FAIL）真的被抓住 |
+
+闸门 4 由三部分组成（正样本过 / 负样本挂 / 故障注入被抓），单靠「正样本 PASS」证明不了闸门有效 ——
+这正是「先写失败测试，再实现」在 CI 层的落地。
+
+### 测试
+
+- 全量 **363 个用例通过**（v3.0.1 基线 271 → 新增 92）。
+- 新增用例：`test_cross_artifact.py` 19、`test_claim_parser.py` 20、
+  `test_provenance.py` 13、`test_store_atomic_and_time.py` 13、
+  `test_excerpt_verification.py` 12、`test_report_drift.py` 9，
+  以及 `test_schemas.py` 4 个 schema 一致性、`test_end_to_end.py` 2 个端到端。
+- 本地四道闸门实测：Gate3a `P0=P1=P2=0`；Gate3b `P0=P1=0` 且跨产物 0；
+  Gate4a PASS；Gate4b `rc=1` 命中 `REPORT_UNCONFIRMED_AS_FACT` /
+  `REPORT_PENDING_CLAIM_ASSERTED` / `REPORT_CLAIM_LEVEL_MISMATCH` / `REPORT_CRITICAL_CLAIM_MISSING`。
+
 ## v3.0.1 — 证据链收口（线索层 / 时间模型 / 摄入通道 / 严格样板）
 
 v3.0 把证据变成了可校验对象，但留下四个后果严重的松口：**线索可以直接冒充证据**、

@@ -238,7 +238,20 @@ python3 scripts/validate_report.py <report.html> \
 15. 证据发布时间是否晚于 `as_of`（`SOURCE_DATE_AFTER_AS_OF`，P1）；行情是否晚于 `generated_at`（`MARKET_DATA_AFTER_GENERATED_AT`，P1）；
 16. `generated_at` 是否与报告文件名 `<YYYYMMDD_HHMMSS>` 及报告内「生成于 …」一致（`GENERATED_AT_MISMATCH`，P1）；
 17. `basis_claim_ids` 是否指向真实存在的 Claim（`CLAIM_BASIS_UNKNOWN`，P1）；`fact` 是否建立在未确认的推导之上（`CLAIM_BASIS_LEVEL_INVALID`，P1）；
-18. `unconfirmed` / `assumption` 等级的 Claim 是否被标成 critical-supported（`CLAIM_UNCONFIRMED_SUPPORTED`，P1）。
+18. `unconfirmed` / `assumption` 等级的 Claim 是否被标成 critical-supported（`CLAIM_UNCONFIRMED_SUPPORTED`，P1）；
+19. **跨产物一致性（v3.0.2）**：报告里的锚点声明是否与 Claim Ledger 一致（`REPORT_*`，P0/P1，见下方规则 N）；
+20. **摘录验证状态（v3.0.2）**：critical Claim 的摘录是否真的验证过，而非「没法比对所以跳过」（`EVIDENCE_EXCERPT_UNVERIFIED`，P1）；
+21. **时间模型完整性（v3.0.2）**：正式 v3 是否同时给出 `as_of` / `market_data_as_of` / `generated_at`（`TIME_MODEL_INCOMPLETE`，P1）；
+22. **Provider ≠ Source（v3.0.2）**：取数服务商是否被错当成一手来源（provider 白名单见 `core/models/provenance.py`）。
+
+只跑跨产物一致性（改报告文案时最快定位漂移）：
+
+```bash
+python3 scripts/validate_report.py <report.html> \
+  --manifest <research_manifest.v3.json> \
+  --evidence-dir <research_xxx/evidence> \
+  --claim-only --out <validation目录>
+```
 
 **线索 → 证据（唯一通道）**：
 
@@ -255,7 +268,14 @@ python3 scripts/promote_evidence_candidate.py <research_xxx/evidence> --plan pro
 
 `promote_plan.json` 的 `links[]` 二选一：手写 `evidence_text`（会被子串校验），或只给
 `excerpt_anchor` + `excerpt_tail` **让脚本从原文里剪**——后者不需要被信任，只需要被复核。
-PDF 等二进制原件跳过硬闸（第一版不做 OCR），此时请把**官方文本层**一起留存并单独比对。
+PDF 等二进制原件跳过硬闸（第一版不做 OCR），此时请把**官方文本层**一起留存并单独比对，
+并把摘录状态如实写为 `unverified`——**「跳过校验」不等于「已验证」**。落盘后脚本会自动重算摘录验证状态。
+
+```bash
+# 独立重算摘录验证状态（先报告，确认无误再加 --write）
+python3 scripts/verify_excerpts.py <research_xxx/evidence>
+python3 scripts/verify_excerpts.py <research_xxx/evidence> --write
+```
 
 证据库自身的构建与自检：
 
@@ -406,13 +426,39 @@ PDF 产出的**最低合格线 = 内嵌图像数 > 0**（报告含 ECharts 时�
 - `evidence_text` 必须是原件的真实摘录（`extract_verbatim` 能「给锚点、机器剪」，优先用它）；
 - 拿不到一手原文时**宁可降级、宁可留空**：把 Claim 改成 `pending` / 降级等级，或整条撤回。
   **不允许**为了报告好看而保留一个出处不可考的「事实」；
-- 对方是 PDF 等二进制、又没有官方文本层可比对时，如实记录「本摘录未经机器复核」，不要假装它经过了。
+- 对方是 PDF 等二进制、又没有官方文本层可比对时，如实记录「本摘录未经机器复核」（`unverified`），不要假装它经过了。
+- **Provider ≠ Source**：`westock-data` / `neodata` 这类取数服务是搬运方，不是来源，默认 `data_vendor`。
+  不要把它们的本地文件当成一手来源去支撑「已确认」级结论。
 
 ### M. 时点必须分清：信息截止 ≠ 行情截止 ≠ 报告生成
 
 `as_of` / `market_data_as_of` / `generated_at` 三者各管一段。证据 `published_at` 不得晚于 `as_of`；
 行情不得晚于 `generated_at`；`generated_at` 必须与报告文件名及报告内「生成于 …」一致。
 **不得**用一个 `research_date` 含糊覆盖三种含义——那正是「证据晚于研究时点却查不出来」的根源。
+
+正式 v3 一旦声明 `as_of`，**三个时点缺一不可**（缺一个就是 `TIME_MODEL_INCOMPLETE`），
+不要只写一部分让时效校验悄悄退化。`published_at` 尽量写到秒级，
+只写到「日」时校验会退化为 day-level——不要拿 `00:00` 冒充真实时刻。
+
+### N. 报告锚定即声明：Claim 降级后，报告不得继续保留旧确定性表述
+
+报告里的关键结论写成**锚点**（HTML `data-claim-id` / `data-claim-level` / `data-claim-status`；
+Markdown `<!-- claim:ID level=... status=... -->`），锚点上的 `level` / `status`
+**必须与 Claim Ledger 一致**。
+
+```html
+<span data-claim-id="C_PE_TTM_20260914" data-claim-level="unconfirmed" data-claim-status="pending">
+  PE（TTM）约 53.8×（口径未定，仅作参考）
+</span>
+```
+
+- **未声明 `level` / `status` 的锚点按 `fact` / `supported` 解读**（锚定即声明）。
+  不确定等级的结论，要么如实声明等级，要么干脆不锚——**不要为了「有个锚点」而写上 `fact`**。
+- 必须锚的是：影响**预测 / 估值 / 风险 / 最终状态 / 证伪条件**的结论，以及关键财务事实与订单/客户/量产状态；
+  `manifest.evidence_refs` 中 `importance=critical` 的 Claim **必须在报告里有至少一个落点**。
+- 不要求每句话都锚；也**不允许**为「形式完整」给所有文字建 Claim。
+- 语法、强制范围与反例见 `references/报告Claim绑定规范.md`；
+  负样本 `examples/invalid/意华股份002897_旧结论漂移样板/` **必须 FAIL**——那是这条规则的守卫。
 
 ---
 
@@ -424,7 +470,8 @@ PDF 产出的**最低合格线 = 内嵌图像数 > 0**（报告含 ECharts 时�
 | `references/搜索与证据规则.md` | 一手资料优先级、必搜清单、证据账本 |
 | `references/估值与公司类型适配.md` | 不同类型A股公司的建模/估值选择 |
 | `references/产物验收规则.md` | **P0/P1/P2 验收规则与阻断条件**（Validator 判定标准） |
-| `references/证据对象规范.md` | **v3 证据对象规范**：三层对象 + 线索层、ID 规范、错误码表、定位与独立性要求、线索→证据唯一通道 |
+| `references/证据对象规范.md` | **v3.0.2 证据对象规范**：三层对象 + 线索层、ID 规范、错误码表、定位与独立性、Provider ≠ Source、摘录验证状态、原子落盘、时间模型 |
+| `references/报告Claim绑定规范.md` | **v3.0.2 报告锚点规范**：锚点语法（HTML/Markdown）、「锚定即声明」、强制范围、跨产物错误码、反例 |
 | `references/样板案例-意华股份.md` | **首个通过独立验收（PASS）的完整产物**：三情景×三年建模逻辑、manifest 写法、6 个已踩坑位 |
 | `references/实战案例-立讯精密.md` | 双路取数、现金流归因、质押遗漏等复盘 |
 | `references/版本对比方法.md` | 同一标的多版研报对照（保留旧版 + SOP 版 + 7 章对比页） |
@@ -435,6 +482,8 @@ PDF 产出的**最低合格线 = 内嵌图像数 > 0**（报告含 ECharts 时�
 | `scripts/fetch_stock.py` | **三源协同取数**（core/enhanced/search）+ 搜索清单生成 |
 | `providers/` | 数据源 provider 层：`base.py` 接口 + `westock_npm.py` / `westock_cli.py` / `neodata.py`；新增源只需写子类并注册 |
 | `providers/neodata.py` | neodata 检索源与凭证管理（`--status` / `--query` / `--save-token`） |
+| `scripts/validate_report.py` | **独立产物验收器**（结构/数学/模型口径/证据层级/跨产物一致性；`--claim-only` 只跑跨产物） |
+| `scripts/verify_excerpts.py` | 重算 Evidence Store 的摘录验证状态（`--write` 才写回，状态只由机器比对产生） |
 | `scripts/install_westock_cli.sh` | 安装腾讯官方 Go CLI 到技能私有目录 `tools/bin/`（不改系统 PATH、无需 sudo） |
 | `scripts/cross_validate.py` | 搜索值与结构化值交叉验证 |
 | `scripts/validate_report.py` | **独立产物验收器**：结构、数学、模型口径一致性、证据层级（`--manifest` 严格模式 / `--report-only` 体检） |
