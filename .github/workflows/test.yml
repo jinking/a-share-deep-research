@@ -17,11 +17,11 @@ jobs:
       - name: Install dev dependencies
         run: pip install -r requirements-dev.txt
 
-      # ── 闸门 1/3：单元 + 回归测试 ───────────────────────────────────────
+      # ── 闸门 1/5：单元 + 回归测试 ───────────────────────────────────────
       - name: Gate 1 — unit / regression tests
         run: pytest -q
 
-      # ── 闸门 2/3：存量 v2 样板回归（行为零变化） ────────────────────────
+      # ── 闸门 2/5：存量 v2 样板回归（行为零变化） ────────────────────────
       # v2 manifest 走兼容模式：只做引用完整性，不执行证据真实性校验。
       # 它的作用是保证「新模型没有把老产物改坏」。
       - name: Gate 2 — 存量样板回归（v2 manifest 必须仍然 PASS）
@@ -31,7 +31,17 @@ jobs:
             --manifest "examples/意华股份002897_样板/research_manifest.json" \
             --out /tmp/validation-v2
 
-      # ── 闸门 3/3：v3 严格验收（P0、P1、P2 都必须为 0） ──────────────────
+      # ── 闸门 3.0/5：摘录验证状态由机器重算（落盘值只是缓存） ──────────────
+      # 必须在证据严格验收（3a）**之前**跑：它回答的是「摘录是不是原文」，
+      # 而 3a 的 EVIDENCE_HASH_* 只回答「原件有没有被换掉」。两者是不同的问题，
+      # 不能互相替代（前者管摘录真伪，后者管文档完整性）。
+      # 要求：mismatch=0 且 critical unverified=0 —— 声明 verified 却对不上原文
+      # 是 P0 级事故，不能等到人工复核才发现。
+      - name: Gate 3.0 — 摘录验证状态机器重算（mismatch=0 / critical unverified=0）
+        run: |
+          python scripts/verify_excerpts.py "examples/意华股份002897_样板/evidence"
+
+      # ── 闸门 3/5：v3 严格验收（P0、P1、P2 都必须为 0） ──────────────────
       # v3.0.1 起 Golden Sample 已是「严格 PASS」样本：23 条 EvidenceLink 全部
       # 绑定官方原件（3 份巨潮 PDF 带 SHA256 + 4 份本地取数），每条 critical
       # Claim 都有 locator 与原文摘录。
@@ -92,7 +102,7 @@ jobs:
               )
           PY
 
-      # ── 闸门 4/4：跨产物一致性（v3.0.2 §14） ───────────────────────────
+      # ── 闸门 4/5：跨产物一致性（v3.0.2 §14） ───────────────────────────
       # 回答的是 v3.0.2 §22 那个唯一问题：
       #   当证据层已经把结论改掉以后，最终交付给人的报告还能不能保留旧结论？
       # 答案必须是「不能」——所以这一闸门由三部分组成：正样本必须过、
@@ -139,3 +149,26 @@ jobs:
 
       - name: Gate 4c — 故障注入（Claim 降级后旧报告必须 FAIL）
         run: pytest tests/integration/test_report_drift.py -q
+
+      # ── 闸门 5/5：Trust Boundary Hardening（v3.0.3 §11） ───────────────
+      # 回答的是 v3.0.3 §19 那个唯一问题：
+      #   系统里的「可信状态」，到底是程序证明出来的，还是某个输入字段自己声明出来的？
+      # 这一闸门由两部分组成，缺一不可：
+      #
+      # 5a 四类绕过路径必须全部被抓住（夹具见 tests/fixtures/invalid/）：
+      #    · Claim 版本漂移        → REPORT_CLAIM_REVISION_MISMATCH (P0)
+      #    · 假「已验证」摘录      → EVIDENCE_EXCERPT_VERIFICATION_MISMATCH (P0)
+      #    · 服务商冒充一手来源    → EVIDENCE_MODEL_INVALID (P1)
+      #    · manifest 漏登 strict Claim → MANIFEST_STRICT_CLAIM_MISSING (P1)
+      #    每个夹具都要求**精确隔离**那一条 fault（expect_exclusive）：
+      #    如果它开始顺带报别的码，说明已经不能定位这条绕过路径了。
+      #    test_required_bypass_categories_are_all_present 还防止「删夹具 = 闸门静默变小」。
+      #
+      # 5b 原子落盘的故障注入：第二次 JSONL replace 失败后，重新 load 出来的
+      #    证据库必须与操作前逐项一致（raw / documents / claims / links / candidates）。
+      #    没有这一条，「promotion 失败不留半新半旧」就只是一句承诺。
+      - name: Gate 5a — Trust Boundary 绕过路径（四类必须全部被抓住）
+        run: pytest tests/integration/test_trust_boundary.py -v
+
+      - name: Gate 5b — Atomic Persistence 故障注入（失败必须整体回滚）
+        run: pytest tests/integration/test_promotion_atomic.py -q
