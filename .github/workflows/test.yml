@@ -85,4 +85,57 @@ jobs:
           print("v3 严格验收:", got)
           if got["P0"] or got["P1"]:
               sys.exit(f"::error::v3 严格验收未通过：P0={got['P0']} P1={got['P1']}")
+          claim = payload.get("claim_summary") or {}
+          if claim.get("P0") or claim.get("P1"):
+              sys.exit(
+                  f"::error::跨产物一致性未通过：P0={claim.get('P0')} P1={claim.get('P1')}"
+              )
           PY
+
+      # ── 闸门 4/4：跨产物一致性（v3.0.2 §14） ───────────────────────────
+      # 回答的是 v3.0.2 §22 那个唯一问题：
+      #   当证据层已经把结论改掉以后，最终交付给人的报告还能不能保留旧结论？
+      # 答案必须是「不能」——所以这一闸门由三部分组成：正样本必须过、
+      # 负样本必须挂、故障注入必须真的被抓住。
+
+      - name: Gate 4a — 跨产物一致性（报告 ↔ Claim Ledger ↔ evidence_refs）
+        run: |
+          python scripts/validate_report.py \
+            "examples/意华股份002897_深度研究_20260915_090532.html" \
+            --manifest "examples/意华股份002897_样板/research_manifest.v3.json" \
+            --evidence-dir "examples/意华股份002897_样板/evidence" \
+            --claim-only --out /tmp/claim-v3
+
+      - name: Gate 4b — 负 Golden Sample 必须 FAIL（旧结论漂移一定会被抓住）
+        run: |
+          set +e
+          python scripts/validate_report.py \
+            "examples/invalid/意华股份002897_旧结论漂移样板/意华股份002897_深度研究_20260915_090532.html" \
+            --manifest "examples/invalid/意华股份002897_旧结论漂移样板/research_manifest.v3.json" \
+            --evidence-dir "examples/意华股份002897_样板/evidence" \
+            --claim-only --out /tmp/claim-drift
+          rc=$?
+          set -e
+          python - "$rc" <<'PY'
+          import json
+          import sys
+
+          rc = int(sys.argv[1])
+          payload = json.load(open("/tmp/claim-drift/validation_report.json", encoding="utf-8"))
+          codes = {f["code"] for f in payload["findings"] if f["severity"] in {"P0", "P1"}}
+          required = {
+              "REPORT_UNCONFIRMED_AS_FACT",       # PE(TTM) / 一致预期被当成事实
+              "REPORT_PENDING_CLAIM_ASSERTED",    # pending Claim 被写成确定性结论
+              "REPORT_CLAIM_LEVEL_MISMATCH",      # 在研被当成普通事实
+              "REPORT_CRITICAL_CLAIM_MISSING",    # critical Claim 没有落点
+          }
+          missing = sorted(required - codes)
+          if rc == 0:
+              sys.exit("::error::负 Golden Sample 竟然 PASS —— 跨产物闸门已失效")
+          if missing:
+              sys.exit(f"::error::负 Golden Sample 未命中预期错误码: {missing}")
+          print(f"✅ 负样本按预期 FAIL（rc={rc}，命中 {len(required)} 类错误码）")
+          PY
+
+      - name: Gate 4c — 故障注入（Claim 降级后旧报告必须 FAIL）
+        run: pytest tests/integration/test_report_drift.py -q
