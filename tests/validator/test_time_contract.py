@@ -186,11 +186,24 @@ def test_schema_and_runtime_agree_on_rejection(name, fields, expected):
 # --------------------------------------------------------------------------- #
 
 
+# 精简副本（例如技能安装目录）不带 examples/，用 skipif 逐条跳过 ——
+# 不是 `assert is_file()`：那会把「没随包分发」变成 4 条看起来像故障的红。
+_SAMPLE_MANIFESTS = [
+    "examples/意华股份002897_样板/research_manifest.v3.json",
+    "examples/invalid/意华股份002897_旧结论漂移样板/research_manifest.v3.json",
+]
+
+
 @pytest.mark.parametrize(
     "path",
     [
-        "examples/意华股份002897_样板/research_manifest.v3.json",
-        "examples/invalid/意华股份002897_旧结论漂移样板/research_manifest.v3.json",
+        pytest.param(
+            p,
+            marks=pytest.mark.skipif(
+                not (ROOT / p).is_file(), reason=f"缺少样板 {p}（examples/ 未随包分发）"
+            ),
+        )
+        for p in _SAMPLE_MANIFESTS
     ],
 )
 def test_sample_manifests_match_schema(path):

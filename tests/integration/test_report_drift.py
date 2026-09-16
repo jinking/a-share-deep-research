@@ -22,6 +22,8 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, List
 
+import pytest
+
 from helpers import claim_anchor, minimal_report_html, valid_manifest
 
 from core.evidence import EvidenceStore
@@ -61,10 +63,21 @@ def _codes(out_dir: Path) -> List[str]:
 # 1. §17 负 Golden Sample
 # --------------------------------------------------------------------------- #
 
+# 精简副本（例如技能安装目录）不带 examples/，此时这一段无从执行 —— 跳过而不是报错。
+# 注意只跳过依赖 examples/ 的两条：下面的故障注入用例是自建最小构件，
+# 不需要真实样板，在精简副本里也应当照常跑（它们才是 Gate 4c 的常驻部分）。
+NEGATIVE_SAMPLE_REPORT = NEGATIVE_SAMPLE / "意华股份002897_深度研究_20260915_090532.html"
 
+needs_negative_sample = pytest.mark.skipif(
+    not NEGATIVE_SAMPLE_REPORT.is_file(),
+    reason=f"缺少真实负样板 {NEGATIVE_SAMPLE}（examples/ 未随包分发）",
+)
+
+
+@needs_negative_sample
 def test_negative_sample_exists_and_retains_old_conclusions():
     """负样本必须真的保留旧结论，否则它证明不了任何事。"""
-    report = NEGATIVE_SAMPLE / "意华股份002897_深度研究_20260915_090532.html"
+    report = NEGATIVE_SAMPLE_REPORT
     assert report.is_file()
     text = report.read_text(encoding="utf-8")
     assert "送样阶段" in text
@@ -72,9 +85,10 @@ def test_negative_sample_exists_and_retains_old_conclusions():
     assert "4.22 亿元" in text
 
 
+@needs_negative_sample
 def test_negative_sample_must_fail(tmp_path):
     """旧结论漂移样板必须 FAIL —— 这正是 v3.0.2 存在的理由。"""
-    report = NEGATIVE_SAMPLE / "意华股份002897_深度研究_20260915_090532.html"
+    report = NEGATIVE_SAMPLE_REPORT
     manifest = NEGATIVE_SAMPLE / "research_manifest.v3.json"
     result = _run(report, manifest, SHARED_EVIDENCE, tmp_path / "v")
 
