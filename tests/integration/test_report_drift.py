@@ -101,6 +101,29 @@ CLAIMS = [
      "anchor_level": "unconfirmed", "anchor_status": "pending"},
 ]
 
+_BASELINE_BY_ID = {c["claim_id"]: c for c in CLAIMS}
+
+
+def _claim_obj(c: Dict[str, Any]) -> Claim:
+    return Claim(
+        claim_id=c["claim_id"],
+        claim=f"{c['claim_id']} 的结论",
+        category="financial",
+        level=c["level"],
+        materiality=c["materiality"],
+        status=c["status"],
+    )
+
+
+def _baseline_fingerprint(claim_id: str) -> str:
+    """报告锚点写的是**基线版本**的指纹 —— 因为报告是在基线状态下生成的。
+
+    注入测试改的是 Ledger、不动报告，于是指纹成了「报告有没有跟上 Ledger」的探针。
+    这正是 v3.0.3 §4 存在的理由：claim_id/level/status 可能全都对得上，报告却仍然
+    停留在被推翻的那一版结论上。
+    """
+    return _claim_obj(_BASELINE_BY_ID[claim_id]).claim_fingerprint
+
 
 def _build(tmp_path, *, claims: List[Dict[str, Any]] = CLAIMS) -> Dict[str, Path]:
     """建一个最小但**完整且合法**的三段组合：报告 + v3 manifest + Evidence Store。
@@ -108,7 +131,7 @@ def _build(tmp_path, *, claims: List[Dict[str, Any]] = CLAIMS) -> Dict[str, Path
     这里必须真的能 PASS —— 否则后面任何一个 FAIL 都说不清是「注入造成的」还是
     「基线本来就不合法」。所以三段都按正式产物口径构造：
 
-    - 报告：0–16 章 / 三情景 / 三年 / 12 行跟踪表 / 证据标签 / 生成时间戳；
+    - 报告：0–16 章 / 三情景 / 三年 / 12 行跟踪表 / 证据标签 / 生成时间戳 / Claim 指纹；
     - manifest：完整 v3（meta+forecast+valuation+final）+ 全套时间模型 + evidence_refs；
     - Evidence Store：真实原始文件（可校验 sha256）+ critical Claim 的定位与摘录。
     """
@@ -130,16 +153,7 @@ def _build(tmp_path, *, claims: List[Dict[str, Any]] = CLAIMS) -> Dict[str, Path
         page_count=168,
     )
     for c in claims:
-        store.add_claim(
-            Claim(
-                claim_id=c["claim_id"],
-                claim=f"{c['claim_id']} 的结论",
-                category="financial",
-                level=c["level"],
-                materiality=c["materiality"],
-                status=c["status"],
-            )
-        )
+        store.add_claim(_claim_obj(c))
         store.add_link(
             EvidenceLink(
                 evidence_id=f"EV_{c['claim_id']}_01",
@@ -155,9 +169,15 @@ def _build(tmp_path, *, claims: List[Dict[str, Any]] = CLAIMS) -> Dict[str, Path
     stamp_excerpt_verification(store)   # 摘录验证状态来自真实比对（v3.0.2 §9）
     store.save()
 
-    # ---- 报告：结构完整 + Claim 锚点 + 生成时间戳 ----
+    # ---- 报告：结构完整 + Claim 锚点（带基线指纹）+ 生成时间戳 ----
     anchors = [
-        claim_anchor(c["claim_id"], c["anchor_level"], c["anchor_status"], f"{c['claim_id']} 旧口径结论")
+        claim_anchor(
+            c["claim_id"],
+            c["anchor_level"],
+            c["anchor_status"],
+            f"{c['claim_id']} 旧口径结论",
+            fingerprint=_baseline_fingerprint(c["claim_id"]),
+        )
         for c in claims
         if c.get("anchor_level") is not None
     ]

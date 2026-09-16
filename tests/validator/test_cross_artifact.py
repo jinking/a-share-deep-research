@@ -7,7 +7,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from core.models import Claim
 from core.report import ReportClaimRef
@@ -70,9 +70,18 @@ def make_claims() -> Dict[str, Claim]:
     }
 
 
-def ref(claim_id: str, **kw) -> ReportClaimRef:
+def ref(claim_id: str, *, claims: Optional[Dict[str, Claim]] = None, **kw) -> ReportClaimRef:
+    """构造锚点；默认带上**当前**版本的正确指纹（v3.0.3 §4）。
+
+    传 `claims` 可让指纹对齐自定义 Ledger——否则指纹算的是默认夹具那一版，
+    会被误判成版本漂移。
+    """
     kw.setdefault("text", "锚点文本")
     kw.setdefault("location", "<span#1>")
+    if "declared_fingerprint" not in kw:
+        target = (claims or make_claims()).get(claim_id)
+        # 不存在的 claim 不填指纹：UNKNOWN 分支会先 continue，走不到指纹比对
+        kw["declared_fingerprint"] = target.claim_fingerprint if target is not None else None
     return ReportClaimRef(claim_id=claim_id, **kw)
 
 
@@ -174,9 +183,10 @@ def test_unsupported_ledger_asserted_as_supported_is_p1():
         materiality="normal",
         status="unsupported",
     )
-    assert codes([ref("E003", declared_level="fact", declared_status="supported")], claims=claims) == [
-        "REPORT_CLAIM_STATUS_MISMATCH"
-    ]
+    assert codes(
+        [ref("E003", claims=claims, declared_level="fact", declared_status="supported")],
+        claims=claims,
+    ) == ["REPORT_CLAIM_STATUS_MISMATCH"]
 
 
 # ------------------------------------------ 5. REPORT_UNCONFIRMED_AS_FACT

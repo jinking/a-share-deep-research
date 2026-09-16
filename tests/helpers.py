@@ -393,12 +393,27 @@ def json_roundtrip(obj):
 # --------------------------------------------------------------------------- #
 
 
-def claim_anchor(claim_id: str, level: str, status: str, text: str = "锚点文本") -> str:
-    """生成一段合法的 HTML Claim 锚点（v3.0.2 §5）。"""
-    return (
-        f'<span data-claim-id="{claim_id}" data-claim-level="{level}" '
-        f'data-claim-status="{status}">{text}</span>'
-    )
+def claim_anchor(
+    claim_id: str,
+    level: str,
+    status: str,
+    text: str = "锚点文本",
+    fingerprint: Optional[str] = None,
+) -> str:
+    """生成一段合法的 HTML Claim 锚点（v3.0.2 §5 / v3.0.3 §4）。
+
+    不传 `fingerprint` 会生成一个**旧报告形态**的锚点——它会被
+    `REPORT_CLAIM_REVISION_MISMATCH` 拦下，正好用来构造负样本与「报告没跟上
+    Ledger」的漂移场景。
+    """
+    attrs = [
+        f'data-claim-id="{claim_id}"',
+        f'data-claim-level="{level}"',
+        f'data-claim-status="{status}"',
+    ]
+    if fingerprint is not None:
+        attrs.append(f'data-claim-fingerprint="{fingerprint}"')
+    return f'<span {" ".join(attrs)}>{text}</span>'
 
 
 def minimal_report_html(

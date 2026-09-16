@@ -12,12 +12,17 @@
     REPORT_PENDING_CLAIM_ASSERTED    P0  pending 的 Claim 被当成确定性事实
     REPORT_CLAIM_LEVEL_MISMATCH      P0  报告声明的 level 与 Ledger 不一致
     REPORT_UNCONFIRMED_AS_FACT       P0  未确认等级被写成 fact / confirmed_*
+    REPORT_CLAIM_REVISION_MISMATCH   P0  报告复述的不是当前这一版 Claim（v3.0.3 §4）
     REPORT_CLAIM_STATUS_MISMATCH     P1  报告声明的 status 与 Ledger 不一致
     REPORT_CRITICAL_CLAIM_MISSING    P1  critical Claim 在报告里没有落点
 
 「缺 claim_id / level 写成非法值」这两类畸形锚点不另立错误码，复用上表中的
 MISMATCH / UNKNOWN —— 错误码要稳定，不能为每个畸形形态长一个新码。畸形锚点与
 Ledger 必然对不上，因此一定会被这两条抓到（详见 references/报告Claim绑定规范.md）。
+
+同理，`REPORT_CLAIM_REVISION_MISMATCH` 一个码覆盖**两种**版本失配形态：锚点声明的
+指纹与当前 Claim 不符，以及锚点根本没声明指纹。它们对读者的含义是同一句话——
+「这处结论无法被证明对应当前版本」，拆成两个码只会让规则更难记。
 """
 
 from __future__ import annotations
@@ -25,6 +30,7 @@ from __future__ import annotations
 from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Sequence
 
 from ..models.claim import PRIMARY_REQUIRED_LEVELS, Claim
+from ..models.fingerprint import claim_fingerprint
 from ..report.models import ReportClaimRef
 from .codes import severity_of
 
@@ -96,6 +102,30 @@ def validate_report_claims(
         claim = claims[claim_id]
         if claim_id not in anchored:
             anchored.append(claim_id)
+
+        # ---- fingerprint（v3.0.3 §4）----
+        # 放在最前：这一条回答的是「报告复述的是哪一版 Claim」，
+        # 比等级/状态是否声明正确更根本——版本都不对，谈等级没有意义。
+        expected_fp = claim_fingerprint(claim)
+        declared_fp = (ref.declared_fingerprint or "").strip()
+        if not declared_fp:
+            report(
+                severity_of("REPORT_CLAIM_REVISION_MISMATCH"),
+                "REPORT_CLAIM_REVISION_MISMATCH",
+                f"报告锚点没有声明 Claim 版本指纹: {claim_id}",
+                f"{ref.location}；当前 fingerprint={expected_fp}；"
+                "v3.0.2 及更早生成的锚点不带 data-claim-fingerprint，"
+                "无法证明这处结论对应当前版本；请重新生成报告（不要靠删掉指纹来绕过）",
+            )
+        elif declared_fp != expected_fp:
+            report(
+                severity_of("REPORT_CLAIM_REVISION_MISMATCH"),
+                "REPORT_CLAIM_REVISION_MISMATCH",
+                f"报告复述的不是当前这一版 Claim: {claim_id}",
+                f"{ref.location}；报告 fingerprint={declared_fp}；"
+                f"当前 fingerprint={expected_fp}；"
+                "Claim 正文已被改写而 claim_id/level/status 都未变，报告仍停留在旧结论",
+            )
 
         # ---- level ----
         declared_level = ref.effective_level

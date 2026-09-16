@@ -11,8 +11,11 @@
     footer / 顶部注释块四处；交付前统一跑 scripts/stamp_report.py 盖章（幂等，勿手写）。
   · 文件名：<公司简称><代码>_深度研究_YYYYMMDD_HHMMSS.html（同样精确到秒）
   · Claim 锚点（v3.0.2，强制）：影响预测/估值/风险/最终状态/证伪条件的结论，以及关键财务
-    事实、关键订单客户量产状态，必须用 data-claim-id 锚回 Claim Ledger；等级与状态必须与
-    Ledger 一致。写法与后果见第 1 章前的注释块，规范全文见 references/报告Claim绑定规范.md。
+    事实、关键订单客户量产状态，必须用 data-claim-id 锚回 Claim Ledger；等级、状态与**版本
+    指纹**必须与 Ledger 一致。写法与后果见第 1 章前的注释块，规范全文见 references/报告Claim绑定规范.md。
+  · Claim 指纹（v3.0.3，强制）：锚点还要声明 data-claim-fingerprint —— 它由
+    scripts/stamp_claim_fingerprints.py 从 Ledger 现算后抄入，**不得手写**。
+    漏写或写旧 = P0 REPORT_CLAIM_REVISION_MISMATCH（报告复述的不是当前这一版 Claim）。
 -->
 <head>
 <meta charset="UTF-8">
@@ -218,32 +221,43 @@
 <div class="card"><p>【当前状态 + 核心理由 + 最大争议 + 最关键前提，一段话讲清】</p></div>
 
 <!--
-  ============ Claim 锚点（v3.0.2，必读） ============
+  ============ Claim 锚点（v3.0.2 + v3.0.3，必读） ============
   凡是「影响预测/估值/风险/最终状态/证伪条件」的结论，以及关键财务事实、
   关键订单/客户/量产状态，必须锚回 Claim Ledger 里的 Claim：
 
       <span data-claim-id="E007"
             data-claim-level="management_statement"
-            data-claim-status="supported">224G 产品仍处于在研阶段</span>
+            data-claim-status="supported"
+            data-claim-fingerprint="6e31ab49f0028c17">224G 产品仍处于在研阶段</span>
 
-  · data-claim-id     必填。报告不得引用 claims.jsonl 里不存在的 Claim。
-  · data-claim-level  建议必填。必须与 Ledger 的 level 一致；不写＝按「事实」解读。
-  · data-claim-status 建议必填。必须与 Ledger 的 status 一致；不写＝按「supported」解读。
+  · data-claim-id          必填。报告不得引用 claims.jsonl 里不存在的 Claim。
+  · data-claim-level       建议必填。必须与 Ledger 的 level 一致；不写＝按「事实」解读。
+  · data-claim-status      建议必填。必须与 Ledger 的 status 一致；不写＝按「supported」解读。
+  · data-claim-fingerprint 必填（v3.0.3）。上面那个是示例值，**不要照抄**：
+                           交付前统一跑 scripts/stamp_claim_fingerprints.py 从 Ledger 现算抄入。
+
+  为什么还要指纹：level 与 status 都没变、结论正文却被改写了，前三者根本发现不了
+  （「处于在研阶段」→「已进入量产阶段」）。指纹回答的是「报告复述的是哪一版 Claim」。
 
   后果（由 scripts/validate_report.py 强制）：
       pending 的 Claim 被当成事实说   → P0 REPORT_PENDING_CLAIM_ASSERTED
       未确认等级被写成 fact/confirmed → P0 REPORT_UNCONFIRMED_AS_FACT
       level 与 Ledger 不一致          → P0 REPORT_CLAIM_LEVEL_MISMATCH
       引用了不存在的 Claim            → P0 REPORT_CLAIM_UNKNOWN
+      指纹缺失 / 与当前版本不符        → P0 REPORT_CLAIM_REVISION_MISMATCH
       status 与 Ledger 不一致         → P1 REPORT_CLAIM_STATUS_MISMATCH
       critical Claim 无任何落点       → P1 REPORT_CRITICAL_CLAIM_MISSING
 
   直觉规则：**锚定即声明**。绑了 claim_id，就等于「我复述的是这个 Claim」，
-  复述必须与 Ledger 一致。不确定等级的结论就不要锚，或者如实写它的等级。
+  复述必须与 Ledger 一致——包括**是哪一版**。不确定等级的结论就不要锚，
+  或者如实写它的等级。缺省不等于放行：漏写 fingerprint 也算错，
+  否则「把属性删掉」就成了新的绕过路径。
   完整规范见 references/报告Claim绑定规范.md。
 -->
 
-<!-- 示例：一条已确认的一手事实 -->
+<!-- 示例：一条已确认的一手事实
+     （下面的示例锚点省略了 data-claim-fingerprint —— 交付前统一跑
+       scripts/stamp_claim_fingerprints.py 补齐，不要手写。） -->
 <div class="card"><p>
   <span data-claim-id="E001" data-claim-level="fact" data-claim-status="supported">2026H1 营业收入 28.63 亿元（同比 -5.97%）</span>，
   <span data-claim-id="E004" data-claim-level="fact" data-claim-status="supported">经营活动现金流净额 2.70 亿元（同比 +159.59%）</span>。

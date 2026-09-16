@@ -13,13 +13,15 @@ import sys
 from pathlib import Path
 
 from core.evidence import sha256_file
-from helpers import claim_anchor, minimal_report_html, valid_manifest, write_store
+from helpers import claim_anchor, make_claim, minimal_report_html, valid_manifest, write_store
 
 ROOT = Path(__file__).resolve().parents[2]
 VALIDATOR = ROOT / "scripts" / "validate_report.py"
 
 # 与 write_store() 里的 Claim 对齐：C_FIN_REV_2026H1 / fact / supported
-GOOD_ANCHOR = claim_anchor("C_FIN_REV_2026H1", "fact", "supported")
+# v3.0.3 §4：锚点还必须带上这一版 Claim 的指纹
+GOOD_FINGERPRINT = make_claim().claim_fingerprint
+GOOD_ANCHOR = claim_anchor("C_FIN_REV_2026H1", "fact", "supported", fingerprint=GOOD_FINGERPRINT)
 
 
 def _manifest_v3(evidence_dir_name: str = "evidence"):
@@ -87,8 +89,12 @@ def test_claim_only_mode_isolates_cross_artifact_check(tmp_path):
     assert payload["evidence_summary"] is None      # 只跑跨产物层
     assert payload["claim_summary"]["P0"] == 0
 
-    bad = _run(tmp_path, _manifest_v3(), anchors=(claim_anchor("C_FIN_REV_2026H1", "inference", "supported"),),
-               extra_args=("--claim-only",))
+    bad = _run(
+        tmp_path,
+        _manifest_v3(),
+        anchors=(claim_anchor("C_FIN_REV_2026H1", "inference", "supported", fingerprint=GOOD_FINGERPRINT),),
+        extra_args=("--claim-only",),
+    )
     assert bad.returncode == 1
     assert "REPORT_CLAIM_LEVEL_MISMATCH" in bad.stdout
 

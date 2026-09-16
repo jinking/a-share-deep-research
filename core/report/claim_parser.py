@@ -9,17 +9,18 @@ HTML：
 
     <span data-claim-id="E007"
           data-claim-level="management_statement"
-          data-claim-status="supported">
+          data-claim-status="supported"
+          data-claim-fingerprint="6e31ab49f0028c17">
       224G 产品仍处于在研阶段
     </span>
 
 Markdown：
 
-    <!-- claim:E007 level=management_statement status=supported -->
+    <!-- claim:E007 level=management_statement status=supported fingerprint=6e31ab49f0028c17 -->
     224G 产品仍处于在研阶段。
 
 解析器**只负责把锚点找出来**，不做任何合法性裁决：
-缺 claim_id、level 写成非法值等情况照原样返回，由
+缺 claim_id、level 写成非法值、fingerprint 缺失或对不上等情况照原样返回，由
 `core.validation.report_claim_validator` 统一报错误码
 （这样「解析」与「裁决」的边界清晰，错误码只有一个出口）。
 """
@@ -125,6 +126,7 @@ def parse_html_claims(raw: str) -> List[ReportClaimRef]:
                 text=visible_text(inner),
                 declared_level=(attrs.get("data-claim-level") or "").strip() or None,
                 declared_status=(attrs.get("data-claim-status") or "").strip() or None,
+                declared_fingerprint=(attrs.get("data-claim-fingerprint") or "").strip() or None,
                 location=f"<{m.group(1).lower()}#{index}>",
                 syntax="html",
             )
@@ -199,6 +201,7 @@ def parse_markdown_claims(raw: str) -> List[ReportClaimRef]:
                 text=text,
                 declared_level=(extras.get("level") or "").strip() or None,
                 declared_status=(extras.get("status") or "").strip() or None,
+                declared_fingerprint=(extras.get("fingerprint") or "").strip() or None,
                 location=f"line {idx + 1}",
                 syntax="markdown",
             )
