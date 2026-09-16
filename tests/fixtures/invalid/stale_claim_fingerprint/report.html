@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<!--
+  负向夹具：报告复述旧版 Claim（v3.0.3 §4 REPORT_CLAIM_REVISION_MISMATCH）
+
+  这个文件的锚点声明：
+    data-claim-id       = C_ORDER_224G_STATUS   （正确）
+    data-claim-level    = management_statement  （正确）
+    data-claim-status   = supported             （正确）
+    data-claim-fingerprint = 4cf51f0241398c5f   （**旧版**）
+
+  claims.jsonl 里的正文是「液冷 / 224G 目前处于在研阶段」，
+  而 4cf51f0241398c5f 对应的是改写前的「液冷 / 224G 已进入量产阶段」。
+
+  只看 id/level/status 是查不出这个差异的 —— 这正是它存在的意义。
+-->
+<html lang="zh-CN">
+  <head><meta charset="utf-8" /><title>负向夹具：旧结论漂移（锚点版本）</title></head>
+  <body>
+    <h1>结论摘要（节选）</h1>
+    <p>
+      <span
+        data-claim-id="C_ORDER_224G_STATUS"
+        data-claim-level="management_statement"
+        data-claim-status="supported"
+        data-claim-fingerprint="4cf51f0241398c5f"
+        >液冷 / 224G 已进入量产阶段</span
+      >
+    </p>
+  </body>
+</html>

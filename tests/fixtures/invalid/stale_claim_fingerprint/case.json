@@ -1,0 +1,10 @@
+{
+  "name": "stale_claim_fingerprint",
+  "title": "报告复述的是上一版 Claim（claim_id / level / status 全对，正文已被改写）",
+  "bypass": "只改 Ledger 里的 Claim 正文，不动 claim_id / level / status，也不动报告锚点的这三个属性",
+  "validator": "report_claims",
+  "expect_codes": { "REPORT_CLAIM_REVISION_MISMATCH": "P0" },
+  "expect_exclusive": true,
+  "why": "v3.0.2 的锚点只校验 claim_id / level / status。这三样全对时，报告里「在研」被悄悄留成「已量产」也照样 PASS —— 版本漂移是最隐蔽的一条缝。v3.0.3 用 claim_fingerprint 把它焊死。",
+  "note": "claims.jsonl 是现状（在研）；report.html 的锚点声明的是**改写前**那一版的指纹（已量产）。两个指纹都由 core.models.fingerprint.claim_fingerprint 现算，不是手填的。"
+}

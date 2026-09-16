@@ -1,0 +1,10 @@
+{
+  "name": "vendor_fake_primary",
+  "title": "取数服务商把自己登记成一手来源",
+  "bypass": "手改 documents.jsonl，把 provider=westock-data 的 source_type 写成 official_database",
+  "validator": "evidence",
+  "expect_codes": { "EVIDENCE_MODEL_INVALID": "P1" },
+  "expect_exclusive": true,
+  "why": "Provider 的搬运不产生一手性。v3.0.2 里「声明一个 upstream_*」就能换到 Primary 资格；v3.0.3 之后 provider 是服务商的 Document 只允许 data_vendor / third_party_database，且 is_primary 恒为 False —— 连写都不许写，手改 JSONL 会在装载期被报出来。",
+  "note": "这份 documents.jsonl 是**绕过模型校验**直接写盘的历史脏数据（模拟真实事故），因此它必须在校验阶段被认出来，而不是在写入阶段。"
+}

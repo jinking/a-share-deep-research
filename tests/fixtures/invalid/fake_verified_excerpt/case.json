@@ -1,0 +1,10 @@
+{
+  "name": "fake_verified_excerpt",
+  "title": "摘录被手工声明为 verified，但根本不是原文",
+  "bypass": "直接在 evidence_links.jsonl 里写 excerpt_verification_status=verified",
+  "validator": "evidence",
+  "expect_codes": { "EVIDENCE_EXCERPT_VERIFICATION_MISMATCH": "P0" },
+  "expect_exclusive": true,
+  "why": "v3.0.2 的 verified 只是一个可写字段：写上去就等于「已验证」。v3.0.3 要求机器重新比对（原文在、可比对、不命中 → P0），让「已声明」与「算得出来」必须对得上。",
+  "note": "raw/2026H1_excerpt.txt 的 sha256 已按真实字节登记；原文说的是「处于研发阶段」，摘录却写成「已进入量产阶段」——文件在、可比对、不命中，因此是 P0 而不是 P2。"
+}

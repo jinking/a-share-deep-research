@@ -1,0 +1,1 @@
+{"claim_id": "C_ORDER_224G_STATUS", "claim": "液冷 / 224G 目前处于在研阶段", "category": "order", "level": "management_statement", "materiality": "critical", "status": "supported", "scope": "report", "requires_two_sources": false, "basis_claim_ids": [], "migration_status": null, "note": "Ledger 现状：在研"}

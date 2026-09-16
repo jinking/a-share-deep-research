@@ -1,0 +1,10 @@
+{
+  "name": "manifest_missing_strict_claim",
+  "title": "把 major Claim 从 manifest.evidence_refs 里删掉",
+  "bypass": "报告里出现了一条 strict Claim，但 manifest 只登记了另一条 normal Claim",
+  "validator": "evidence",
+  "expect_codes": { "MANIFEST_STRICT_CLAIM_MISSING": "P1" },
+  "expect_exclusive": true,
+  "why": "v3.0.2 只检查「manifest 引用的 Claim 是否都存在」，不检查「该引用的都引了」。于是删除引用成了绕过「关键结论必须被覆盖」的路径。v3.0.3 补上反向覆盖：scope=report 的 critical/major 一旦缺席即 P1。",
+  "note": "C_REV_2025_PAYOUT 是 normal（可以不进严格覆盖），C_MARGIN_DROP_2026H1 是 major + scope=report（必须进）。整个证据库其余部分都是干净的，所以这一条 fault 是唯一的 failure。"
+}
