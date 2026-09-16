@@ -79,6 +79,18 @@ def test_model_and_schema_agree_on_claim_levels():
     assert set(CLAIM_LEVELS) == schema_enum
 
 
+def test_model_and_schema_agree_on_claim_scopes():
+    from core.models import CLAIM_SCOPES
+
+    schema = _load(SCHEMAS["claim"])["properties"]["scope"]
+    assert set(CLAIM_SCOPES) == set(schema["enum"])
+    # 两个 scope 都必须在两边都合法，且默认值一致
+    assert schema.get("default") == "report"
+    from core.models import Claim
+
+    assert Claim.from_dict({"claim_id": "C_X", "claim": "x"}).scope == "report"
+
+
 def test_model_and_schema_agree_on_support_types():
     from core.models import SUPPORT_TYPES
 
@@ -133,7 +145,9 @@ def test_schema_accepts_provenance_and_excerpt_verification():
         "retrieved_at": "2026-09-15T22:51:00+08:00",
         "provider": "westock-data",
         "upstream_source_type": "exchange_filing",
-        "upstream_document_id": "CNINFO_002897_2026H1",
+        # v3.0.3 §7：外部上游编号写 upstream_external_id；
+        # upstream_document_id 专用于本库 Document（必须真实存在）。
+        "upstream_external_id": "CNINFO_002897_2026H1",
         "local_path": "raw/kline.txt",
     }
     _validator("document").validate(doc)
@@ -177,3 +191,34 @@ def test_schema_rejects_bad_upstream_source_type():
     }
     with pytest.raises(jsonschema.ValidationError):
         _validator("document").validate(bad)
+
+
+def test_schema_rejects_unknown_source_document_field():
+    """additionalProperties=False：模型字段与 schema 必须同步增删（v3.0.3 §7）。"""
+    bad = {
+        "document_id": "DOC_x",
+        "source_type": "data_vendor",
+        "title": "t",
+        "retrieved_at": "2026-09-15T00:00:00+08:00",
+        "upstream_document_ID": "DOC_typo",
+    }
+    with pytest.raises(jsonschema.ValidationError):
+        _validator("document").validate(bad)
+
+
+def test_schema_and_model_both_accept_upstream_external_id():
+    """v3.0.3 §7 新增字段必须两边同时认，否则落盘产物会在 schema 层被拒。"""
+    doc = {
+        "document_id": "DOC_vendor01",
+        "source_type": "data_vendor",
+        "title": "westock-data 日行情（sz002897）",
+        "retrieved_at": "2026-09-15T22:51:00+08:00",
+        "provider": "westock-data",
+        "upstream_external_id": "CNINFO_002897_2026H1",
+        "url": "https://example.com/kline",
+    }
+    _validator("document").validate(doc)
+    model = SourceDocument.from_dict(doc)
+    model.validate()
+    assert model.upstream_external_id == "CNINFO_002897_2026H1"
+    assert model.is_primary is False

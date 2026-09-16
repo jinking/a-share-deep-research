@@ -58,20 +58,35 @@ def test_data_vendor_is_not_primary_source():
 
 
 # --------------------------------------------------------------------------- #
-# 3. 声明了官方上游 → 允许写成一手来源
+# 3. 声明了官方上游：上游关系照写，但一手性不会转移给服务商（v3.0.3 §7 收严）
 # --------------------------------------------------------------------------- #
 
 
-def test_data_vendor_with_declared_upstream_may_claim_primary():
+def test_data_vendor_with_declared_upstream_stays_non_primary():
+    """v3.0.2 曾允许「声明 upstream 后服务商自称一手」——v3.0.3 已废弃该通行证。
+
+    服务商只能写 data_vendor / third_party_database，且永远不是一手来源；
+    一手性属于上游那份官方原件本身。详见 tests/validator/test_provider_primary.py。
+    """
     doc = make_document(
+        provider="westock-data",
+        source_type="data_vendor",
+        upstream_source_type="exchange_filing",
+        upstream_document_id="DOC_exch01",
+    )
+    doc.validate()  # 不抛异常：上游关系本身是允许写的
+    assert doc.has_declared_upstream is True
+    assert doc.is_primary is False
+
+    upgraded = make_document(
         provider="westock-data",
         source_type="exchange_filing",
         upstream_source_type="exchange_filing",
-        upstream_document_id="CNINFO_002897_2026H1",
+        upstream_document_id="DOC_exch01",
     )
-    doc.validate()  # 不抛异常
-    assert doc.is_primary is True
-    assert doc.has_declared_upstream is True
+    with pytest.raises(EvidenceModelError) as exc:
+        upgraded.validate()
+    assert "Provider" in str(exc.value)
 
 
 # --------------------------------------------------------------------------- #
@@ -80,7 +95,11 @@ def test_data_vendor_with_declared_upstream_may_claim_primary():
 
 
 def test_same_upstream_collapses_to_one_independent_source():
-    """westock-data + 公司公告：来自同一官方原件 → 只能算一个独立来源。"""
+    """westock-data + 公司公告：来自同一官方原件 → 只能算一个独立来源。
+
+    v3.0.3 §7 起，**外部**上游编号写在 `upstream_external_id`；
+    `upstream_document_id` 专用于本库 Document（写悬空 ID 会被报 P1）。
+    """
     announcement = make_document(
         "DOC_ann001",
         source_type="company_announcement",
@@ -91,7 +110,7 @@ def test_same_upstream_collapses_to_one_independent_source():
         source_type="data_vendor",
         provider="westock-data",
         source_group="WESTOCK_KLINE_002897",
-        upstream_document_id="CNINFO_002897_2026H1",
+        upstream_external_id="CNINFO_002897_2026H1",
     )
     docs = [announcement, vendor]
     groups = group_documents(docs)
@@ -100,9 +119,9 @@ def test_same_upstream_collapses_to_one_independent_source():
 
 
 def test_upstream_chain_resolves_transitively():
-    """上游不在库中时，直接用该上游 ID 作键 —— 「同一份被引用的原件」仍然合并。"""
-    a = make_document("DOC_a", source_group="SRC_A", upstream_document_id="CNINFO_X")
-    b = make_document("DOC_b", source_group="SRC_B", upstream_document_id="CNINFO_X")
+    """上游不在库中时，外部上游 ID 就是合并键 —— 「同一份被引用的原件」仍然合并。"""
+    a = make_document("DOC_a", source_group="SRC_A", upstream_external_id="CNINFO_X")
+    b = make_document("DOC_b", source_group="SRC_B", upstream_external_id="CNINFO_X")
     c = make_document("DOC_c", source_group="CNINFO_X")  # 原件本身在库中
     assert independent_source_count([a, b]) == 1
     assert independent_source_count([a, b, c]) == 1

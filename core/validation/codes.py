@@ -50,7 +50,10 @@ EVIDENCE_CODES: Dict[str, str] = {
     "CLAIM_BASIS_LEVEL_INVALID": "P1",     # fact Claim 建立在不确认的推导之上（v3.0.1 §8）
     "CLAIM_UNCONFIRMED_SUPPORTED": "P1",   # 未确认等级却被标成 critical-supported（v3.0.1 §8）
     "CANDIDATE_USED_AS_EVIDENCE": "P0",    # 把 EvidenceCandidate 当成正式证据使用（v3.0.1 §9）
+    "EVIDENCE_EXCERPT_VERIFICATION_MISMATCH": "P0",  # 摘录验证状态与重算结果不符（v3.0.3 §5）
     "CANDIDATE_PROMOTED_WITHOUT_DOCUMENT": "P1",  # Candidate 标为 promoted 但没有正式 Document
+    "EVIDENCE_UPSTREAM_UNKNOWN": "P1",     # 上游引用无法解析到真实原件（不存在 / 成环）（v3.0.3 §7）
+    "MANIFEST_STRICT_CLAIM_MISSING": "P1", # scope=report 的 critical/major Claim 未进 manifest（v3.0.3 §8）
     "EVIDENCE_EXCERPT_UNVERIFIED": "P1",   # critical Claim 的摘录未经验证（v3.0.2 §9）
     "TIME_MODEL_INCOMPLETE": "P1",         # 正式 v3 时间模型缺字段（v3.0.2 §11）
     # ---- P2：改进项，不单独阻断交付 ----
@@ -67,6 +70,9 @@ REPORT_CLAIM_CODES: Dict[str, str] = {
     "REPORT_PENDING_CLAIM_ASSERTED": "P0",  # status=pending 的 Claim 被当成确定性事实
     "REPORT_CLAIM_LEVEL_MISMATCH": "P0",    # 报告声明的 level 与 Ledger 不一致
     "REPORT_UNCONFIRMED_AS_FACT": "P0",     # 未确认等级被写成 fact / confirmed_*
+    # v3.0.3 §4：level/status 全对、但报告复述的是**上一版** Claim。
+    # 「锚点没声明 fingerprint」也归此类——没有版本可比，同样不能放行。
+    "REPORT_CLAIM_REVISION_MISMATCH": "P0",
     # ---- P1：重要缺陷，严格模式下禁止交付 ----
     "REPORT_CLAIM_STATUS_MISMATCH": "P1",   # 报告声明的 status 与 Ledger 不一致
     "REPORT_CRITICAL_CLAIM_MISSING": "P1",  # critical Claim 在报告中没有任何落点
@@ -84,7 +90,10 @@ MANIFEST_V3_CODES: Dict[str, str] = {
     "CLAIM_BASIS_LEVEL_INVALID": "P1",
     "CLAIM_UNCONFIRMED_SUPPORTED": "P1",
     "CANDIDATE_USED_AS_EVIDENCE": "P0",
+    "EVIDENCE_EXCERPT_VERIFICATION_MISMATCH": "P0",
     "CANDIDATE_PROMOTED_WITHOUT_DOCUMENT": "P1",
+    "EVIDENCE_UPSTREAM_UNKNOWN": "P1",
+    "MANIFEST_STRICT_CLAIM_MISSING": "P1",
     "EVIDENCE_EXCERPT_UNVERIFIED": "P1",
     "TIME_MODEL_INCOMPLETE": "P1",
     "TIME_MODEL_LEGACY": "P2",

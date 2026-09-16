@@ -52,6 +52,12 @@
       "type": "string",
       "enum": ["supported", "partially_supported", "unsupported", "pending", "contradicted"]
     },
+    "scope": {
+      "type": "string",
+      "enum": ["report", "internal"],
+      "default": "report",
+      "description": "report（默认，面向交付报告，critical/major 必须进入 manifest.evidence_refs）/ internal（内部中间结论，可不进）。确有内部 Claim 时显式标 internal，不要靠删 manifest 隐藏（v3.0.3 §8）"
+    },
     "requires_two_sources": {
       "type": "boolean",
       "description": "置 true 时校验独立来源数 >= 2（同 source_group 的转载只算一个）"

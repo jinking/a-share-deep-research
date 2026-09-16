@@ -10,9 +10,18 @@
     "meta": {
       "type": "object",
       "required": ["company", "code", "current_price", "shares_billion", "market_cap_billion"],
-      "anyOf": [
-        { "required": ["as_of"], "title": "新时间模型（v3.0.1）" },
-        { "required": ["research_date"], "title": "旧时间模型（兼容读取，Validator 报 P2 TIME_MODEL_LEGACY）" }
+      "allOf": [
+        {
+          "if": { "required": ["as_of"] },
+          "then": {
+            "title": "正式 v3 时间模型（v3.0.2 §11 / v3.0.3 §9）：声明 as_of 即三个时点缺一不可",
+            "required": ["as_of", "market_data_as_of", "generated_at"]
+          },
+          "else": {
+            "title": "旧时间模型（兼容读取，Validator 报 P2 TIME_MODEL_LEGACY）：不声明 as_of 时必须给 research_date",
+            "required": ["research_date"]
+          }
+        }
       ],
       "properties": {
         "company": { "type": "string" },

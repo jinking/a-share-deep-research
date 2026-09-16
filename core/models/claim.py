@@ -9,12 +9,14 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 from .base import EvidenceModelError, as_jsonable, clean_str
+from .fingerprint import claim_fingerprint as _fingerprint_of
 
 __all__ = [
     "CLAIM_CATEGORIES",
     "CLAIM_LEVELS",
     "MATERIALITIES",
     "CLAIM_STATUSES",
+    "CLAIM_SCOPES",
     "PRIMARY_REQUIRED_LEVELS",
     "DIRECT_REQUIRED_LEVELS",
     "STRICT_MATERIALITIES",
@@ -75,6 +77,12 @@ MATERIALITIES = ("critical", "major", "normal")
 # 只有 critical / major 进入严格 Evidence Validation
 STRICT_MATERIALITIES = frozenset({"critical", "major"})
 
+# v3.0.3 §8：Claim 的作用域。
+#   report   —— 面向交付报告的结论，进入 manifest.evidence_refs 是**义务**
+#   internal —— 研究过程中的中间结论，不对外交付，可以不进 manifest
+# 确有内部中间 Claim 时应显式标 internal，而不是靠删 manifest 把它藏起来。
+CLAIM_SCOPES = ("report", "internal")
+
 CLAIM_STATUSES = (
     "supported",
     "partially_supported",
@@ -122,6 +130,8 @@ class Claim:
     level: str = "fact"
     materiality: str = "normal"
     status: str = "pending"
+    # v3.0.3 §8：report（默认，对外交付）/ internal（内部中间结论）
+    scope: str = "report"
     # 需要双源确认时置 True；validator 会检查来源独立性
     requires_two_sources: bool = False
     # v3.1 Forecast Lineage 预留：假设型 Claim 可声明其依据的事实 Claim
@@ -140,8 +150,27 @@ class Claim:
         return self.materiality in STRICT_MATERIALITIES
 
     @property
+    def needs_manifest_entry(self) -> bool:
+        """是否**必须**出现在 manifest.evidence_refs 中（v3.0.3 §8）。
+
+        反向覆盖：`scope=report` 的 critical/major Claim 一旦缺席 manifest，
+        「关键结论有没有被覆盖」就没人问了 —— 删引用会成为绕过路径。
+        """
+        return self.scope == "report" and self.materiality in STRICT_MATERIALITIES
+
+    @property
     def requires_direct(self) -> bool:
         return self.level in DIRECT_REQUIRED_LEVELS
+
+    @property
+    def claim_fingerprint(self) -> str:
+        """v3.0.3 §4：这一版 Claim 的确定性指纹，供报告锚点绑定。
+
+        **刻意不做成持久化字段**：它由 claim_id / claim / level / status 派生，
+        存进 claims.jsonl 只会多一份可能与本体不一致的副本。可信状态必须由机器
+        重新计算，而不是相信落盘字段（§0 执行原则 5）。
+        """
+        return _fingerprint_of(self)
 
     # ---- 序列化 ----
 
@@ -188,6 +217,12 @@ class Claim:
             raise EvidenceModelError(
                 f"{self.claim_id}: status 非法 {self.status!r}；允许值: {list(CLAIM_STATUSES)}"
             )
+        if self.scope not in CLAIM_SCOPES:
+            raise EvidenceModelError(
+                f"{self.claim_id}: scope 非法 {self.scope!r}；允许值: {list(CLAIM_SCOPES)}"
+                "（内部中间结论请显式标 internal，不要靠删 manifest 隐藏）"
+            )
 
     def describe(self) -> str:
-        return f"{self.claim_id} [{self.category}/{self.level}/{self.materiality}] {self.claim}"
+        scope = "" if self.scope == "report" else f"/{self.scope}"
+        return f"{self.claim_id} [{self.category}/{self.level}/{self.materiality}{scope}] {self.claim}"

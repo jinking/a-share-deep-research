@@ -15,6 +15,7 @@ from .candidate import (
 from .claim import (
     CLAIM_CATEGORIES,
     CLAIM_LEVELS,
+    CLAIM_SCOPES,
     CLAIM_STATUSES,
     DIRECT_REQUIRED_LEVELS,
     MATERIALITIES,
@@ -33,8 +34,10 @@ from .evidence import (
 )
 from .provenance import (
     DATA_VENDOR_PROVIDERS,
+    VENDOR_SOURCE_TYPES,
     default_source_type_for,
     is_data_vendor_provider,
+    is_vendor_source_type_allowed,
     normalize_provider,
 )
 from .research_state import ResearchState
@@ -50,6 +53,7 @@ __all__ = [
     "CLAIM_CATEGORIES",
     "CLAIM_LEVELS",
     "CLAIM_STATUSES",
+    "CLAIM_SCOPES",
     "MATERIALITIES",
     "PRIMARY_REQUIRED_LEVELS",
     "DIRECT_REQUIRED_LEVELS",
@@ -64,8 +68,10 @@ __all__ = [
     "EXCERPT_VERIFICATION_STATUSES",
     "EXCERPT_VERIFICATION_METHODS",
     "DATA_VENDOR_PROVIDERS",
+    "VENDOR_SOURCE_TYPES",
     "normalize_provider",
     "is_data_vendor_provider",
+    "is_vendor_source_type_allowed",
     "default_source_type_for",
     "ResearchState",
     "EvidenceCandidate",

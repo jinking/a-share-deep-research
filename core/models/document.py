@@ -15,7 +15,7 @@ from .base import (
     is_sha256_hex,
     parse_datetime,
 )
-from .provenance import is_data_vendor_provider
+from .provenance import is_data_vendor_provider, is_vendor_source_type_allowed
 
 __all__ = ["SOURCE_TYPES", "PRIMARY_SOURCE_TYPES", "SourceDocument"]
 
@@ -77,11 +77,24 @@ class SourceDocument:
     provider: Optional[str] = None
     upstream_source_type: Optional[str] = None
     upstream_document_id: Optional[str] = None
+    # v3.0.3 §7：外部系统的上游引用 ID（不在本库）。
+    # 与 upstream_document_id 分开，避免一个字段同时表达「本库对象 ID」与「外部引用 ID」。
+    upstream_external_id: Optional[str] = None
 
     # ---- 派生属性 ----
 
     @property
     def is_primary(self) -> bool:
+        """是否一手来源（v3.0.3 §7）。
+
+        数据服务商**永远**不是一手来源：搬运不产生一手性。这条没有例外，
+        也不因为声明了 `upstream_*` 而改变 —— 一手性属于上游那份原件本身。
+
+        判定只看 `provider`（不猜 `source_type`），因此下面这段不能反过来写成
+        「source_type 像一手就算一手」。
+        """
+        if self.is_data_vendor:
+            return False
         return self.source_type in PRIMARY_SOURCE_TYPES
 
     @property
@@ -91,8 +104,16 @@ class SourceDocument:
 
     @property
     def has_declared_upstream(self) -> bool:
-        """是否显式声明了上游官方原件。"""
-        return bool(clean_str(self.upstream_source_type) or clean_str(self.upstream_document_id))
+        """是否显式声明了上游关系。
+
+        **注意：这只说明「写了上游」，不说明上游是什么、更不代表一手性。**
+        v3.0.2 曾用它作为「服务商可以自称一手」的通行证，v3.0.3 已废弃该用法。
+        """
+        return bool(
+            clean_str(self.upstream_source_type)
+            or clean_str(self.upstream_document_id)
+            or clean_str(self.upstream_external_id)
+        )
 
     @property
     def independence_key(self) -> str:
@@ -175,13 +196,32 @@ class SourceDocument:
                 f"upstream_source_type 非法: {upstream_type!r}；允许值: {sorted(SOURCE_TYPES)}"
             )
 
-        # Provider ≠ Source（v3.0.2 §8）：取数服务商不得自称一手来源。
-        # 只有显式声明了上游官方原件，才允许把 source_type 写成一手来源类型。
-        if self.is_data_vendor and self.is_primary and not self.has_declared_upstream:
+        # Provider ≠ Source（v3.0.2 §8 → v3.0.3 §7 收严）：
+        # 取数服务商的 source_type 只允许 data_vendor / third_party_database。
+        # 即便声明了 upstream_* 也不许写成一手类型 —— 一手性属于上游那份原件本身，
+        # 不随搬运转移。旧写法允许「声明 upstream 后自称一手」，那等于把
+        # 「上游是什么」变成一句可随口声明的话。
+        if self.is_data_vendor and not is_vendor_source_type_allowed(self.source_type):
             raise EvidenceModelError(
-                f"Provider 不是 Source：provider={self.provider!r} 是数据服务商，"
-                f"不能自称一手来源 source_type={self.source_type!r}；"
-                "请改为 data_vendor，或声明 upstream_source_type / upstream_document_id 指向官方原件"
+                f"Provider 永远不是 Primary Source：provider={self.provider!r} 是数据服务商，"
+                f"source_type 只能写 data_vendor / third_party_database，"
+                f"不能写 {self.source_type!r}（声明 upstream 也不行）。"
+                "请把本 Document 记为服务商镜像，"
+                "上游关系写 upstream_document_id（本库 Document）"
+                "或 upstream_external_id（外部引用）"
+            )
+
+        if self.upstream_source_type is not None and not clean_str(self.upstream_source_type):
+            raise EvidenceModelError(
+                "upstream_source_type 不能是空白字符串（要么给出真实类型，要么省略该字段）"
+            )
+        if self.upstream_document_id is not None and not clean_str(self.upstream_document_id):
+            raise EvidenceModelError(
+                "upstream_document_id 不能是空白字符串（要么给出本库 Document ID，要么省略该字段）"
+            )
+        if self.upstream_external_id is not None and not clean_str(self.upstream_external_id):
+            raise EvidenceModelError(
+                "upstream_external_id 不能是空白字符串（要么给出外部引用 ID，要么省略该字段）"
             )
 
     def describe(self) -> str:

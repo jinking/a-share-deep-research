@@ -418,6 +418,7 @@ class EvidenceStore:
         provider: Optional[str] = None,
         upstream_source_type: Optional[str] = None,
         upstream_document_id: Optional[str] = None,
+        upstream_external_id: Optional[str] = None,
     ) -> SourceDocument:
         """登记一个 Document。
 
@@ -469,6 +470,7 @@ class EvidenceStore:
             provider=provider,
             upstream_source_type=upstream_source_type,
             upstream_document_id=upstream_document_id,
+            upstream_external_id=upstream_external_id,
         )
         doc.validate()
         self.documents[doc.document_id] = doc

@@ -62,7 +62,7 @@
     "note": { "type": ["string", "null"] },
     "provider": {
       "type": ["string", "null"],
-      "description": "取数服务商（Provider ≠ Source）。westock-data / neodata 这类 provider 只能是 data_vendor，不能自称一手来源"
+      "description": "取数服务商（Provider ≠ Source）。westock-data / neodata 这类 provider 的 source_type 只能是 data_vendor / third_party_database，且永远不是一手来源（v3.0.3 §7）"
     },
     "upstream_source_type": {
       "type": ["string", "null"],
@@ -83,11 +83,15 @@
         "third_party_database",
         null
       ],
-      "description": "上游官方原件的来源类型；数据服务商声明了它才允许 source_type 写成一手来源"
+      "description": "上游原件的来源类型。仅作描述：声明它不再授予一手资格（v3.0.3 §7），一手性只属于上游那份 Document 本身"
     },
     "upstream_document_id": {
       "type": ["string", "null"],
-      "description": "上游原件标识；同一个上游只能算一个独立来源（参与 source_group 合并）"
+      "description": "上游原件在**本库**中的 document_id（DOC_ 前缀），必须真实存在，否则 P1 EVIDENCE_UPSTREAM_UNKNOWN；同一个上游只算一个独立来源"
+    },
+    "upstream_external_id": {
+      "type": ["string", "null"],
+      "description": "上游在**外部系统**中的编号（如巨潮编号 CNINFO_...）。不在本库，不做存在性校验；用于表达「本库没有那份原件，但两边指向同一份」"
     }
   },
   "anyOf": [
