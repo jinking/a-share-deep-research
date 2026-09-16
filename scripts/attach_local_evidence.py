@@ -76,11 +76,13 @@ from typing import Any, Dict, List, Optional, Tuple
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from core.evidence import EvidenceStore  # noqa: E402
+from core.evidence.excerpt import stamp_excerpt_verification  # noqa: E402
 from core.evidence.hasher import make_document_id, sha256_file  # noqa: E402
 from core.evidence.verbatim import TEXT_SUFFIXES, text_supports_excerpt  # noqa: E402
 from core.models.base import iso_now  # noqa: E402
 from core.models.document import SourceDocument  # noqa: E402
 from core.models.evidence import EvidenceLink  # noqa: E402
+from core.models.provenance import default_source_type_for  # noqa: E402
 
 __all__ = ["apply_plan", "text_supports_excerpt", "AttachError", "TEXT_SUFFIXES"]
 
@@ -158,6 +160,10 @@ def apply_plan(
                 probe.source_group = item["source_group"]
             if item.get("note"):
                 probe.note = item["note"]
+            # 溯源字段：Provider ≠ Source（v3.0.2 §8）
+            for field in ("provider", "upstream_source_type", "upstream_document_id"):
+                if item.get(field) is not None:
+                    setattr(probe, field, item[field])
             virtual_docs[doc_id] = probe
             source_of[doc_id] = src
             bind_actions.append((existing, probe, src))
@@ -170,7 +176,10 @@ def apply_plan(
                     published_at=item.get("published_at"),
                     issuer=item.get("issuer"),
                 ),
-                source_type=str(item.get("source_type") or "official_database"),
+                source_type=str(
+                    item.get("source_type")
+                    or default_source_type_for(item.get("provider"), "official_database")
+                ),
                 title=str(item.get("title") or (src.name if src else "未命名文档")),
                 retrieved_at=item.get("retrieved_at") or iso_now(),
                 issuer=item.get("issuer"),
@@ -180,6 +189,9 @@ def apply_plan(
                 sha256=sha256_file(src) if src else None,
                 source_group=item.get("source_group"),
                 note=item.get("note"),
+                provider=item.get("provider"),
+                upstream_source_type=item.get("upstream_source_type"),
+                upstream_document_id=item.get("upstream_document_id"),
             )
             try:
                 doc.validate()
@@ -247,6 +259,9 @@ def apply_plan(
             support_type=str(item.get("support_type") or "direct"),
             confidence=float(item.get("confidence", 1.0)),
             note=item.get("note"),
+            excerpt_verification_status=item.get("excerpt_verification_status"),
+            excerpt_verification_method=item.get("excerpt_verification_method"),
+            excerpt_verification_source=item.get("excerpt_verification_source"),
         )
         target = next((l for l in store.links if l.evidence_id == evidence_id), None)
         if target is None:
@@ -290,7 +305,16 @@ def apply_plan(
         target = store.raw_dir / src.name
         if src.resolve() != target.resolve():
             shutil.copy2(src, target)
-        for field in ("local_path", "sha256", "url", "source_group", "note"):
+        for field in (
+            "local_path",
+            "sha256",
+            "url",
+            "source_group",
+            "note",
+            "provider",
+            "upstream_source_type",
+            "upstream_document_id",
+        ):
             setattr(existing, field, getattr(probe, field))
         emit(f"  ✅ 绑定 {existing.document_id} ← {src.name}  sha256={existing.sha256[:12]}…")
 
@@ -311,6 +335,21 @@ def apply_plan(
         else:
             store.links.append(EvidenceLink(**payload))
             emit(f"  ✅ 新增 {payload['evidence_id']} → {payload['document_id']}")
+
+    # ---------------- Pass 4：摘录验证状态（v3.0.2 §9） ----------------
+    # 状态来自机器比对，而不是人手填写；plan 显式声明的验证结果予以保留。
+    declared = {
+        str(item.get("evidence_id"))
+        for item in (plan.get("links") or [])
+        if isinstance(item, dict) and item.get("excerpt_verification_status")
+    }
+    pending = [l for l in store.links if l.evidence_id not in declared]
+    counts = stamp_excerpt_verification(store, base_dir=store.root, links=pending)
+    emit(
+        "  ℹ️ 摘录验证："
+        f"verified={counts['verified']}  unverified={counts['unverified']}  "
+        f"无需验证={counts['skipped']}（已显式声明 {len(declared)} 条）"
+    )
 
     return True, stats
 

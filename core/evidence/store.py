@@ -17,9 +17,10 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from ..issue import Issue
 from ..models.base import EvidenceModelError, iso_now
@@ -38,6 +39,7 @@ __all__ = [
     "CLAIMS_FILE",
     "LINKS_FILE",
     "RAW_DIR",
+    "STAGING_DIR",
 ]
 
 CANDIDATES_FILE = "candidates.jsonl"
@@ -45,10 +47,34 @@ DOCUMENTS_FILE = "documents.jsonl"
 CLAIMS_FILE = "claims.jsonl"
 LINKS_FILE = "evidence_links.jsonl"
 RAW_DIR = "raw"
+# raw 文件的暂存目录：校验通过后才 os.replace 进 raw/（v3.0.2 §10）
+STAGING_DIR = ".staging"
 
 
 class EvidenceStoreError(Exception):
     """Evidence Store 使用错误（目录不存在、JSON 无法解析等）。"""
+
+
+def _stage_text(target: Path, text: str) -> Path:
+    """把内容写进同目录的 `<name>.tmp` 并 fsync，返回暂存路径。
+
+    同目录很关键：`os.replace` 只在同一文件系统内保证原子性。
+    """
+    target.parent.mkdir(parents=True, exist_ok=True)
+    tmp = target.with_name(target.name + ".tmp")
+    with open(tmp, "w", encoding="utf-8") as fh:
+        fh.write(text)
+        fh.flush()
+        os.fsync(fh.fileno())
+    return tmp
+
+
+def _discard(path: Path) -> None:
+    """删除临时/备份文件；不存在就什么都不做。"""
+    try:
+        Path(path).unlink()
+    except FileNotFoundError:
+        pass
 
 
 def _read_jsonl(path: Path, issues: List[Issue], label: str) -> List[Dict[str, Any]]:
@@ -118,6 +144,11 @@ class EvidenceStore:
     def raw_dir(self) -> Path:
         return self.root / RAW_DIR
 
+    @property
+    def staging_dir(self) -> Path:
+        """raw 文件的暂存目录（校验通过前不进入 raw/）。"""
+        return self.raw_dir / STAGING_DIR
+
     def resolve_local_path(self, doc: SourceDocument) -> Optional[Path]:
         """把 document.local_path 解析为绝对路径（相对路径以 evidence/ 为基准）。"""
         if not doc.local_path:
@@ -151,6 +182,12 @@ class EvidenceStore:
     def load(self) -> "EvidenceStore":
         if not self.root.exists():
             raise EvidenceStoreError(f"Evidence 目录不存在: {self.root}")
+        # v3.0.2 §13：load 必须幂等。之前只清 issues，links 是 list，
+        # 第二次 load 会把同一批链接再 append 一遍 —— 重复调用会污染状态。
+        self.candidates.clear()
+        self.documents.clear()
+        self.claims.clear()
+        self.links.clear()
         self.issues = []
 
         for row in _read_jsonl(self.candidates_path, self.issues, CANDIDATES_FILE):
@@ -242,6 +279,123 @@ class EvidenceStore:
         ordered = sorted(self.links, key=lambda l: (l.claim_id, l.evidence_id))
         _write_jsonl(self.links_path, [l.to_dict() for l in ordered])
 
+    # ---------- 原子落盘（v3.0.2 §10） ----------
+
+    def _payloads(self) -> List["tuple[Path, str]"]:
+        """把所有 JSONL 的**目标内容先在内存里算完**，再进入落盘阶段。"""
+
+        def render(rows: Iterable[Dict[str, Any]]) -> str:
+            lines = [json.dumps(r, ensure_ascii=False, sort_keys=False) for r in rows]
+            return "\n".join(lines) + ("\n" if lines else "")
+
+        return [
+            (
+                self.candidates_path,
+                render(
+                    [
+                        c.to_dict()
+                        for c in sorted(self.candidates.values(), key=lambda c: c.candidate_id)
+                    ]
+                ),
+            ),
+            (self.documents_path, render([d.to_dict() for d in self.documents.values()])),
+            (self.claims_path, render([c.to_dict() for c in self.claims.values()])),
+            (
+                self.links_path,
+                render(
+                    [
+                        l.to_dict()
+                        for l in sorted(self.links, key=lambda l: (l.claim_id, l.evidence_id))
+                    ]
+                ),
+            ),
+        ]
+
+    def save_atomic(self) -> None:
+        """真正原子地落盘：全部暂存成功后才替换，任何失败都保持原状。
+
+        步骤（§10）：
+
+            1. 每个目标文件写一份 `<name>.tmp` 并 fsync；
+            2. 全部写成功后，把原文件 rename 为 `<name>.bak`；
+            3. `<name>.tmp` → `<name>`（os.replace，同目录内原子）；
+            4. 任一步失败 → 用 `.bak` 回滚已完成的部分，再抛异常。
+
+        与 `save()` 的区别：`save()` 是「逐个文件直接覆盖」，中途失败会留下
+        半新半旧的证据库 —— 那正好是最危险的状态（hash 与内容对不上）。
+        """
+        staged: List["tuple[Path, Path]"] = []
+        try:
+            for target, text in self._payloads():
+                staged.append((_stage_text(target, text), target))
+        except BaseException:
+            for tmp, _ in staged:
+                _discard(tmp)
+            raise
+
+        backups: List["tuple[Path, Path]"] = []  # (bak, target)
+        replaced: List[Path] = []
+        try:
+            for tmp, target in staged:
+                if target.exists():
+                    bak = target.with_name(target.name + ".bak")
+                    os.replace(target, bak)
+                    backups.append((bak, target))
+                os.replace(tmp, target)
+                replaced.append(target)
+        except BaseException:
+            for target in replaced:
+                _discard(target)
+            for bak, target in backups:
+                os.replace(bak, target)
+            for tmp, _ in staged:
+                _discard(tmp)
+            raise
+        else:
+            for bak, _ in backups:
+                _discard(bak)
+
+    def add_raw_file(
+        self,
+        source,
+        *,
+        expected_sha256: Optional[str] = None,
+        name: Optional[str] = None,
+    ) -> Path:
+        """把原始文件经 `raw/.staging/` 落进 `raw/`，失败不留残片（v3.0.2 §10）。
+
+        - 先复制到 staging 并**复核落地副本的 sha256**；
+        - 校验通过才 `os.replace` 进 raw/；
+        - 任何一步失败都把 staging 里的临时文件删掉，raw/ 保持原样。
+        """
+        src = Path(source)
+        if not src.is_file():
+            raise EvidenceStoreError(f"原始文件不存在: {src}")
+        digest = sha256_file(src)
+        if expected_sha256 and digest.lower() != str(expected_sha256).strip().lower():
+            raise EvidenceStoreError(
+                f"原始文件 sha256 与登记值不符: {src.name}（实际={digest}）"
+            )
+
+        self.staging_dir.mkdir(parents=True, exist_ok=True)
+        staged = self.staging_dir / (name or src.name)
+        try:
+            shutil.copy2(src, staged)
+            landed = sha256_file(staged)
+            if landed.lower() != digest.lower():
+                raise EvidenceStoreError(
+                    f"落盘副本 sha256 与源文件不一致: {staged.name}（{landed} != {digest}）"
+                )
+            target = self.raw_dir / (name or src.name)
+            os.replace(staged, target)
+        except BaseException:
+            _discard(staged)
+            raise
+        finally:
+            if self.staging_dir.is_dir() and not any(self.staging_dir.iterdir()):
+                self.staging_dir.rmdir()
+        return target
+
     # ---------- 写入 ----------
 
     def register_document(
@@ -261,6 +415,9 @@ class EvidenceStore:
         retrieved_at: Optional[str] = None,
         copy_into_raw: bool = False,
         note: Optional[str] = None,
+        provider: Optional[str] = None,
+        upstream_source_type: Optional[str] = None,
+        upstream_document_id: Optional[str] = None,
     ) -> SourceDocument:
         """登记一个 Document。
 
@@ -309,6 +466,9 @@ class EvidenceStore:
             page_count=page_count,
             sections=list(sections or []),
             note=note,
+            provider=provider,
+            upstream_source_type=upstream_source_type,
+            upstream_document_id=upstream_document_id,
         )
         doc.validate()
         self.documents[doc.document_id] = doc

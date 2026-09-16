@@ -84,8 +84,8 @@
       "claim_id": "E006",
       "claim": "2026-09-14 收盘 71.39 元（涨停 +10.00%），总市值 138.40 亿元，PE(TTM) 53.83×",
       "level": "事实",
-      "source_type": "official_database",
-      "source_title": "交易所行情数据（westock-data 日行情）",
+      "source_type": "data_vendor",
+      "source_title": "交易所行情数据（westock-data 日行情；取数服务商，非一手来源，v3.0.2 §8）",
       "source_date": "2026-09-14",
       "source_ref": "westock-data kline/technical sz002897 2026-09-14 收盘口径"
     },

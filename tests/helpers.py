@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from core.evidence import EvidenceStore, sha256_file
+from core.evidence.excerpt import stamp_excerpt_verification
 from core.issue import Issue
 from core.models import (
     Claim,
@@ -73,6 +74,12 @@ def make_link(claim_id: str = "C_FIN_REV_2026H1", document_id: str = "DOC_h1repo
         "evidence_text": "营业收入 2,863,000,000 元，同比下降 5.97%",
         "support_type": "direct",
         "confidence": 1.0,
+        # v3.0.2 §9：critical Claim 的摘录必须显式声明验证状态。
+        # 合成夹具无从比对真实原件，故声明为人工核验（manual），
+        # source 也如实写明它是夹具而不是原件；write_store 会用真实比对覆盖它。
+        "excerpt_verification_status": "verified",
+        "excerpt_verification_method": "manual",
+        "excerpt_verification_source": "tests/helpers.py（合成夹具，非真实原件）",
     }
     data.update(overrides)
     return EvidenceLink(**data)
@@ -342,12 +349,20 @@ def legacy_module():
 
 
 def write_store(tmp_path, *, with_files: bool = True, **document_overrides) -> EvidenceStore:
-    """在磁盘上建一个真实可读的 Evidence Store（含原始文件与正确 hash）。"""
+    """在磁盘上建一个真实可读的 Evidence Store（含原始文件与正确 hash）。
+
+    原始文件内容**必须真的包含** Claim 的摘录 —— 否则它就不是一份合格证据，
+    摘录验证状态会诚实地落成 unverified（v3.0.2 §9）。
+    """
     store = EvidenceStore.init(tmp_path / "evidence")
     raw = store.raw_dir
     raw.mkdir(parents=True, exist_ok=True)
     if with_files:
-        (raw / "2026H1.txt").write_text("营业收入 2,863,000,000 元", encoding="utf-8")
+        (raw / "2026H1.txt").write_text(
+            "测试公司 2026 年半年度报告（节选）\n"
+            "营业收入 2,863,000,000 元，同比下降 5.97%\n",
+            encoding="utf-8",
+        )
     doc = store.register_document(
         source_type="interim_report",
         title="测试公司 2026 年半年度报告",
@@ -363,6 +378,8 @@ def write_store(tmp_path, *, with_files: bool = True, **document_overrides) -> E
     store.add_link(
         make_link(document_id=doc.document_id),
     )
+    # 摘录验证状态由真实比对得出，而不是沿用夹具里写死的那一份
+    stamp_excerpt_verification(store)
     store.save()
     return store
 
@@ -376,6 +393,14 @@ def json_roundtrip(obj):
 # --------------------------------------------------------------------------- #
 
 
+def claim_anchor(claim_id: str, level: str, status: str, text: str = "锚点文本") -> str:
+    """生成一段合法的 HTML Claim 锚点（v3.0.2 §5）。"""
+    return (
+        f'<span data-claim-id="{claim_id}" data-claim-level="{level}" '
+        f'data-claim-status="{status}">{text}</span>'
+    )
+
+
 def minimal_report_html(
     *,
     chapters=None,
@@ -384,11 +409,21 @@ def minimal_report_html(
     tracker_rows: int = 12,
     phrases=("当前价格隐含", "证伪", "条件树"),
     labels=("事实", "管理层", "推断", "假设", "无法确认"),
+    anchors=(),
+    generated_at: Optional[str] = None,
 ) -> str:
+    """一份结构完整的最小报告（0–16 章 / 三情景 / 三年 / 跟踪表 / 标签）。
+
+    generated_at 传入 "2026-09-15 09:05:32" 时，会写入机器可读的
+    「生成于 …」时间戳；配合 *_YYYYMMDD_HHMMSS 文件名即可满足
+    `validate_generated_at` 的对齐要求。
+    """
     chapters = list(range(17)) if chapters is None else list(chapters)
     parts = ["<html><body>"]
     for n in chapters:
         parts.append(f"<h2>{n} 第{n}章</h2><p>正文</p>")
+    if anchors:
+        parts.append("<p>" + "".join(str(a) for a in anchors) + "</p>")
     parts.append("<p>" + " ".join(scenarios) + "情景</p>")
     parts.append("<p>" + " ".join(f"{y}E" for y in years) + "</p>")
     parts.append("<h3>季度跟踪表</h3><table>")
@@ -397,6 +432,8 @@ def minimal_report_html(
     parts.append("</table>")
     parts.append("<p>" + " ".join(phrases) + "</p>")
     parts.append("<p>" + " ".join(labels) + "</p>")
+    if generated_at:
+        parts.append(f"<p>生成于 {generated_at}</p>")
     parts.append("</body></html>")
     return "".join(parts)
 

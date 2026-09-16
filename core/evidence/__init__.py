@@ -3,6 +3,13 @@
 
 from __future__ import annotations
 
+from .excerpt import (
+    TEXTLAYER_SUFFIX,
+    compute_excerpt_verification,
+    resolve_verification_source,
+    stamp_excerpt_verification,
+    verify_excerpt_against_text,
+)
 from .hasher import (
     document_fingerprint,
     make_document_id,
@@ -31,7 +38,9 @@ from .store import (
 from .verbatim import (
     TEXT_SUFFIXES,
     VerbatimError,
+    excerpt_in_file,
     extract_verbatim,
+    normalize_for_match,
     text_supports_excerpt,
 )
 
@@ -46,7 +55,14 @@ __all__ = [
     "TEXT_SUFFIXES",
     "VerbatimError",
     "text_supports_excerpt",
+    "excerpt_in_file",
+    "normalize_for_match",
     "extract_verbatim",
+    "TEXTLAYER_SUFFIX",
+    "resolve_verification_source",
+    "verify_excerpt_against_text",
+    "compute_excerpt_verification",
+    "stamp_excerpt_verification",
     "sha256_bytes",
     "sha256_text",
     "sha256_file",

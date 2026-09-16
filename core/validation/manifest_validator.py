@@ -13,7 +13,13 @@ from typing import Any, Callable, Dict, Optional
 from ..models.base import clean_str
 from ..models.claim import MATERIALITIES
 from .codes import severity_of
-from .time_model import build_time_model, has_malformed_time_field, validate_time_model
+from .time_model import (
+    TIME_FIELD_LABELS,
+    TIME_FIELDS,
+    build_time_model,
+    has_malformed_time_field,
+    validate_time_model,
+)
 
 __all__ = ["SUPPORTED_VERSIONS", "detect_manifest_version", "validate_manifest_v3"]
 
@@ -87,6 +93,22 @@ def validate_manifest_v3(
             "缺该字段将无法执行「证据发布时间不得晚于研究时点」校验；"
             "新模型用 as_of / market_data_as_of / generated_at，旧模型用 research_date",
         )
+    elif not time_model.is_legacy:
+        # 正式 v3（v3.0.2 §11）：声明了 as_of 就意味着走新时间模型，
+        # 此时三个时点缺一不可 —— 「只写一部分」会让时效校验悄悄退化。
+        missing_time = [
+            f for f in TIME_FIELDS if getattr(time_model, f) is None
+        ]
+        if missing_time:
+            labels = "、".join(f"{f}（{TIME_FIELD_LABELS[f]}）" for f in missing_time)
+            emit(
+                severity_of("TIME_MODEL_INCOMPLETE"),
+                "TIME_MODEL_INCOMPLETE",
+                "正式 v3 manifest 时间模型不完整",
+                f"缺少: {labels}；正式 v3 必须同时声明 "
+                "as_of / market_data_as_of / generated_at；"
+                "只保留 research_date 的旧 v3 请走兼容路径（不声明 as_of）",
+            )
 
     # 时间语义：旧模型提示（P2）与行情/生成时点倒挂（P1）
     validate_time_model(time_model, emit=emit)

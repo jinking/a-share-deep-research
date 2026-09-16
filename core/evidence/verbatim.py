@@ -17,12 +17,15 @@
 from __future__ import annotations
 
 import re
+import unicodedata
 from pathlib import Path
 from typing import List, Optional, Tuple
 
 __all__ = [
     "TEXT_SUFFIXES",
     "VerbatimError",
+    "normalize_for_match",
+    "excerpt_in_file",
     "text_supports_excerpt",
     "extract_verbatim",
 ]
@@ -35,10 +38,50 @@ class VerbatimError(Exception):
     """无法从原文中确定性地取出摘录。"""
 
 
+_WS_RE = re.compile(r"\s+")
+
+
+def normalize_for_match(text: Optional[str]) -> str:
+    """比对用归一化：NFKC 折叠全角/半角，再去掉所有空白。
+
+    摘录与原文的换行位置几乎不可能一致（文本层按排版断行，人工摘录按语义断行），
+    所以比对必须忽略空白；而 NFKC 让「１．」与「1.」这类差异不至于造成假阴性。
+    """
+    if not text:
+        return ""
+    return _WS_RE.sub("", unicodedata.normalize("NFKC", str(text)))
+
+
+def excerpt_in_file(excerpt: str, path) -> Tuple[bool, str]:
+    """**严格**校验摘录是否为文本原件的真实子串（不做任何「跳过」）。
+
+    与 `text_supports_excerpt` 的唯一区别就在这里：非文本后缀**不**被视为通过，
+    而是明确的失败 —— 「无法校验」不能等价于「校验通过」（v3.0.2 §9）。
+    """
+    p = Path(path)
+    if not p.is_file():
+        return False, f"原件不存在: {p}"
+    if p.suffix.lower() not in TEXT_SUFFIXES:
+        return False, f"非文本原件（{p.suffix.lower() or '无后缀'}），无法做子串校验"
+    if not (excerpt or "").strip():
+        return False, "evidence_text 为空"
+    try:
+        content = p.read_text(encoding="utf-8")
+    except UnicodeDecodeError:
+        return False, "文件非 UTF-8，无法做子串校验"
+
+    if normalize_for_match(excerpt) in normalize_for_match(content):
+        return True, "摘录命中原文"
+    return False, "evidence_text 不是原文子串 —— 疑似臆造摘录，已拒绝"
+
+
 def text_supports_excerpt(excerpt: str, path) -> Tuple[bool, str]:
     """校验 excerpt 是否为文本文件真实子串。
 
     返回 (是否通过, 说明)。无法判定时（二进制文件）返回 (True, 说明)。
+
+    注意这里的「跳过」语义是为 attach 流程保留的：PDF 原件交给
+    `excerpt_in_file` + 文本层去严格比对，本函数不改变既有行为。
     """
     p = Path(path)
     suffix = p.suffix.lower()
@@ -55,13 +98,9 @@ def text_supports_excerpt(excerpt: str, path) -> Tuple[bool, str]:
         return True, "摘录命中原文"
 
     # 宽容处理：换行/连续空白差异（表格逐行摘录时常见）
-    if _squash(excerpt) in _squash(content):
+    if normalize_for_match(excerpt) in normalize_for_match(content):
         return True, "摘录命中原文（忽略空白差异）"
     return False, "evidence_text 不是原文子串 —— 疑似臆造摘录，已拒绝"
-
-
-def _squash(text: str) -> str:
-    return re.sub(r"\s+", " ", text).strip()
 
 
 def extract_verbatim(

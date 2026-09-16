@@ -223,7 +223,6 @@
       "candidate_id": "CAN_ba643a9c",
       "document": {
         "document_id": "DOC_bc0a305c",
-        "source_type": "official_database",
         "title": "westock-data 日行情（sz002897，近 60 交易日）",
         "issuer": "意华股份",
         "published_at": "2026-09-14",
@@ -235,7 +234,8 @@
         "sections": [
           "日线行情表"
         ],
-        "note": "行情原始取数（westock-data kline），文本逐行可复核"
+        "note": "行情原始取数（westock-data kline），文本逐行可复核",
+        "provider": "westock-data"
       },
       "links": [
         {
@@ -260,7 +260,6 @@
       "candidate_id": "CAN_0f786663",
       "document": {
         "document_id": "DOC_b34d9535",
-        "source_type": "official_database",
         "title": "westock-data 分红历史（sz002897）",
         "issuer": "意华股份",
         "published_at": null,
@@ -272,7 +271,8 @@
         "sections": [
           "分红历史"
         ],
-        "note": "分红原始取数（westock-data dividend），用于与公司公告交叉核对"
+        "note": "分红原始取数（westock-data dividend），用于与公司公告交叉核对",
+        "provider": "westock-data"
       },
       "links": [
         {
@@ -297,7 +297,6 @@
       "candidate_id": "CAN_8b291d84",
       "document": {
         "document_id": "DOC_6094090e",
-        "source_type": "official_database",
         "title": "westock-data 十大股东（sz002897，报告期 2026-06-30）",
         "issuer": "意华股份",
         "published_at": "2026-06-30",
@@ -309,7 +308,8 @@
         "sections": [
           "十大股东"
         ],
-        "note": "股东原始取数（westock-data shareholder），用于与半年报股东表交叉核对"
+        "note": "股东原始取数（westock-data shareholder），用于与半年报股东表交叉核对",
+        "provider": "westock-data"
       },
       "links": [
         {
@@ -326,7 +326,6 @@
       "candidate_id": "CAN_333b017c",
       "document": {
         "document_id": "DOC_100ff7eb",
-        "source_type": "official_database",
         "title": "westock-data 公司简况（sz002897）",
         "issuer": "意华股份",
         "published_at": null,
@@ -338,7 +337,8 @@
         "sections": [
           "公司简况表"
         ],
-        "note": "公司简况（westock-data profile）；提供 regCapital=19385.8976 万股作为市值复算的口径旁证"
+        "note": "公司简况（westock-data profile）；提供 regCapital=19385.8976 万股作为市值复算的口径旁证",
+        "provider": "westock-data"
       },
       "links": [
         {

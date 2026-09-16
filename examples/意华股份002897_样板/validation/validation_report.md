@@ -1,10 +1,13 @@
 # A股个股深度研究 · 产物验收报告
 
-- Validator: v1.0.0
+- Validator: v2.2.0
 - 研究报告: `examples/意华股份002897_深度研究_20260915_090532.html`
 - Manifest: `examples/意华股份002897_样板/research_manifest.json`
+- Evidence Store: `无`
 - **最终状态: PASS**
-- P0: 0 ｜ P1: 0 ｜ P2: 0 ｜ INFO: 5
+- P0: 0 ｜ P1: 0 ｜ P2: 0 ｜ INFO: 6
+- Evidence 层: 未执行（未提供 --evidence-dir）
+- 跨产物一致性（报告 ↔ Claim Ledger）: 未执行（需要 v3 manifest + Evidence Store）
 
 ## 验收结果
 
@@ -15,6 +18,7 @@
 | INFO | `FORECAST_YEARS` | 识别到至少3个预测年度: [2026, 2027, 2028] |  |
 | INFO | `TRACKER_ROWS` | 季度跟踪指标数量合格: 12 |  |
 | INFO | `STRICT_MODE` | 严格模式：将继续校验结构化 manifest |  |
+| INFO | `MANIFEST_V2_COMPAT` | v2 manifest：Evidence Verification 降级为兼容检查 | 建议迁移：python scripts/migrate_manifest_v2_to_v3.py old_manifest.json --out research_manifest.v3.json |
 
 ## 判定规则
 

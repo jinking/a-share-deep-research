@@ -1,5 +1,5 @@
 {
-  "validator_version": "2.1.0",
+  "validator_version": "2.2.0",
   "report": "examples/意华股份002897_深度研究_20260915_090532.html",
   "manifest": "examples/意华股份002897_样板/research_manifest.v3.json",
   "evidence_dir": "examples/意华股份002897_样板/evidence",
@@ -9,12 +9,17 @@
     "P2": 0,
     "INFO": 1
   },
+  "claim_summary": {
+    "P0": 0,
+    "P1": 0,
+    "P2": 0
+  },
   "status": "PASS",
   "summary": {
     "P0": 0,
     "P1": 0,
     "P2": 0,
-    "INFO": 6
+    "INFO": 7
   },
   "findings": [
     {
@@ -52,6 +57,12 @@
       "code": "EVIDENCE_SUMMARY",
       "message": "Evidence 校验完成",
       "detail": "candidates=10；documents=7；claims=19；links=23"
+    },
+    {
+      "severity": "INFO",
+      "code": "REPORT_CLAIM_SUMMARY",
+      "message": "报告 Claim 锚点 19 处，已与 Claim Ledger 对照",
+      "detail": "P0=0 P1=0；落点 Claim=['C_FIN_FX_LOSS_2026H1', 'C_MKT_CAP_20260914', 'C_MKT_CLOSE_20260914', 'C_PE_TTM_20260914', 'C_SHARE_CAPITAL_20260910', 'E001', 'E002', 'E004', 'E005', 'E007', 'E008']"
     }
   ]
 }

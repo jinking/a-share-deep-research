@@ -108,29 +108,39 @@ def _check_documents(
             )
 
         # 3) 时间一致性：证据发布时间不得晚于研究信息截止时点
+        #    v3.0.2 §12：双方都有时刻 → datetime 比较；证据只写到日 → 退化为 day-level。
+        #    禁止拿 00:00 冒充未知的发布时间，那会凭空制造时点结论。
         cutoff = time_model.info_cutoff
-        if cutoff is not None and doc.published_date is not None:
-            if doc.published_date > cutoff:
-                # 新时间模型报 SOURCE_DATE_AFTER_AS_OF；旧模型保留原错误码，行为不变
-                if time_model.is_new_model:
-                    code = "SOURCE_DATE_AFTER_AS_OF"
-                    detail = (
-                        f"published_at={doc.published_at}；"
-                        f"as_of={time_model.raw.get('as_of')}"
-                    )
-                else:
-                    code = "SOURCE_DATE_AFTER_RESEARCH_DATE"
-                    detail = (
-                        f"published_at={doc.published_at}；"
-                        f"research_date={time_model.raw.get('research_date')}"
-                    )
-                _emit(
-                    emit,
-                    severity_of(code),
-                    code,
-                    f"证据发布时间晚于研究截止时点: {doc.document_id}",
-                    detail,
+        cutoff_dt = time_model.as_of
+        pub_dt = doc.published_datetime
+        late = False
+        if cutoff is not None:
+            if pub_dt is not None and cutoff_dt is not None:
+                late = pub_dt > cutoff_dt
+            else:
+                pub_day = doc.published_date
+                late = pub_day is not None and pub_day > cutoff
+        if late:
+            # 新时间模型报 SOURCE_DATE_AFTER_AS_OF；旧模型保留原错误码，行为不变
+            if time_model.is_new_model:
+                code = "SOURCE_DATE_AFTER_AS_OF"
+                detail = (
+                    f"published_at={doc.published_at}；"
+                    f"as_of={time_model.raw.get('as_of')}"
                 )
+            else:
+                code = "SOURCE_DATE_AFTER_RESEARCH_DATE"
+                detail = (
+                    f"published_at={doc.published_at}；"
+                    f"research_date={time_model.raw.get('research_date')}"
+                )
+            _emit(
+                emit,
+                severity_of(code),
+                code,
+                f"证据发布时间晚于研究截止时点: {doc.document_id}",
+                detail,
+            )
 
 
 def _claim_level_policy(
@@ -204,6 +214,22 @@ def _claim_level_policy(
                 "evidence_text 为必填（原文摘录，便于人工复核）",
             )
 
+        # 摘录「跳过了校验」不等于「已经验证过」（v3.0.2 §9）。
+        # 未声明状态同样按未验证处理 —— 否则「什么都不写」就成了最省事的通过方式。
+        with_text = [l for l in links if clean_str(l.evidence_text)]
+        unverified = [l for l in with_text if not l.excerpt_is_verified]
+        if unverified:
+            _emit(
+                emit,
+                severity_of("EVIDENCE_EXCERPT_UNVERIFIED"),
+                "EVIDENCE_EXCERPT_UNVERIFIED",
+                f"critical Claim 的摘录未经验证，不能作为可复核证据: {claim.claim_id}",
+                "未验证="
+                + str([f"{l.evidence_id}({l.excerpt_verification_status or '未声明'})" for l in unverified])
+                + "；请用 excerpt_verification_status=verified 声明（并给出 method/source），"
+                "或补齐可比对的文本层后重新执行摘录校验",
+            )
+
     # 定位越界 / 章节不存在
     for link in links:
         doc = state.documents.get(link.document_id)
@@ -225,7 +251,9 @@ def _check_independence(
     if not claim.requires_two_sources:
         return
     docs = [d for d in (state.documents.get(l.document_id) for l in links) if d is not None]
-    groups = group_documents(docs)
+    # 传全量文档表：声明了 upstream_document_id 的 Document 要沿上游合并，
+    # 否则「westock-data + 公司公告」会被错当成两个独立来源（v3.0.2 §8）。
+    groups = group_documents(docs, state.documents)
     if len(groups) >= 2:
         return
     detail = describe_groups(groups)

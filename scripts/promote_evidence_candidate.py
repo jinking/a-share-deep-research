@@ -83,12 +83,14 @@ from typing import Any, Dict, List, Optional, Tuple
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from core.evidence import EvidenceStore, sha256_file, validate_locator  # noqa: E402
+from core.evidence.excerpt import stamp_excerpt_verification  # noqa: E402
 from core.evidence.hasher import make_document_id  # noqa: E402
 from core.evidence.verbatim import VerbatimError, extract_verbatim, text_supports_excerpt  # noqa: E402
 from core.models.base import clean_str, iso_now  # noqa: E402
 from core.models.candidate import is_candidate_id  # noqa: E402
 from core.models.document import SourceDocument  # noqa: E402
 from core.models.evidence import EvidenceLink  # noqa: E402
+from core.models.provenance import default_source_type_for  # noqa: E402
 
 __all__ = ["PromotionError", "load_plan", "apply_promotion"]
 
@@ -101,7 +103,16 @@ EMPTY_STATS = {
 }
 
 # 复用既有 Document 时，允许被本次计划补齐/覆盖的字段
-_BINDABLE_FIELDS = ("local_path", "sha256", "url", "source_group", "note")
+_BINDABLE_FIELDS = (
+    "local_path",
+    "sha256",
+    "url",
+    "source_group",
+    "note",
+    "provider",
+    "upstream_source_type",
+    "upstream_document_id",
+)
 
 
 class PromotionError(Exception):
@@ -290,12 +301,19 @@ def apply_promotion(
                 probe.url = url
             if source_group and not probe.source_group:
                 probe.source_group = source_group
+            for field in ("provider", "upstream_source_type", "upstream_document_id"):
+                value = _clean(doc_spec.get(field))
+                if value and not getattr(probe, field):
+                    setattr(probe, field, value)
             doc_actions.append((existing_doc, probe, src))
         else:
+            provider = _clean(doc_spec.get("provider")) or None
             try:
                 probe = SourceDocument(
                     document_id=doc_id,
-                    source_type=_clean(doc_spec.get("source_type")) or "official_database",
+                    # Provider ≠ Source（v3.0.2 §8）：取数服务商默认落 data_vendor
+                    source_type=_clean(doc_spec.get("source_type"))
+                    or default_source_type_for(provider, "official_database"),
                     title=title,
                     retrieved_at=_clean(doc_spec.get("retrieved_at")) or iso_now(),
                     issuer=_clean(doc_spec.get("issuer")) or None,
@@ -307,6 +325,9 @@ def apply_promotion(
                     page_count=_coerce_int(doc_spec.get("page_count")),
                     sections=[str(s) for s in (doc_spec.get("sections") or [])],
                     note=_clean(doc_spec.get("note")) or None,
+                    provider=provider,
+                    upstream_source_type=_clean(doc_spec.get("upstream_source_type")) or None,
+                    upstream_document_id=_clean(doc_spec.get("upstream_document_id")) or None,
                 )
                 probe.validate()
             except Exception as exc:
@@ -395,6 +416,9 @@ def apply_promotion(
                     support_type=_clean(lk.get("support_type")) or "direct",
                     confidence=float(lk.get("confidence", 1.0)),
                     note=_clean(lk.get("note")) or None,
+                    excerpt_verification_status=_clean(lk.get("excerpt_verification_status")) or None,
+                    excerpt_verification_method=_clean(lk.get("excerpt_verification_method")) or None,
+                    excerpt_verification_source=_clean(lk.get("excerpt_verification_source")) or None,
                 )
                 link.validate()
             except Exception as exc:
@@ -473,6 +497,16 @@ def apply_promotion(
             cand.status = "promoted"
             cand.promoted_document_id = doc_id
             emit(f"  ✅ {cand.candidate_id} → promoted（{doc_id}）")
+
+        # ---------------- Pass 4：摘录验证状态（v3.0.2 §9） ----------------
+        declared = {l.evidence_id for l in link_actions if l.excerpt_verification_status}
+        pending = [l for l in store.links if l.evidence_id not in declared]
+        counts = stamp_excerpt_verification(store, base_dir=store.root, links=pending)
+        emit(
+            "  ℹ️ 摘录验证："
+            f"verified={counts['verified']}  unverified={counts['unverified']}  "
+            f"无需验证={counts['skipped']}（已显式声明 {len(declared)} 条）"
+        )
     except Exception as exc:  # 落盘阶段异常 → 回滚，不留半成品
         store.documents = snapshot.documents
         store.claims = snapshot.claims

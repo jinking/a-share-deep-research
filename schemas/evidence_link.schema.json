@@ -27,6 +27,20 @@
       "enum": ["direct", "partial", "contradict", "context"]
     },
     "confidence": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+    "excerpt_verification_status": {
+      "type": ["string", "null"],
+      "enum": ["verified", "unverified", "not_applicable", null],
+      "description": "摘录验证状态；critical Claim 的摘录必须为 verified（v3.0.2 §9）。缺省/null 一律按未验证处理"
+    },
+    "excerpt_verification_method": {
+      "type": ["string", "null"],
+      "enum": ["direct_text", "text_layer", "manual", "ocr", null],
+      "description": "验证手段；status=verified 时必须说明是怎么验的"
+    },
+    "excerpt_verification_source": {
+      "type": ["string", "null"],
+      "description": "用来比对的文本来源（如 raw/1225497942.textlayer.txt）"
+    },
     "migration_status": { "type": ["string", "null"] },
     "note": { "type": ["string", "null"] }
   }

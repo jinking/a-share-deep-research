@@ -24,7 +24,19 @@ from .claim import (
     is_semantic_claim_id,
 )
 from .document import PRIMARY_SOURCE_TYPES, SOURCE_TYPES, SourceDocument
-from .evidence import LOCATOR_FIELDS, SUPPORT_TYPES, EvidenceLink
+from .evidence import (
+    EXCERPT_VERIFICATION_METHODS,
+    EXCERPT_VERIFICATION_STATUSES,
+    LOCATOR_FIELDS,
+    SUPPORT_TYPES,
+    EvidenceLink,
+)
+from .provenance import (
+    DATA_VENDOR_PROVIDERS,
+    default_source_type_for,
+    is_data_vendor_provider,
+    normalize_provider,
+)
 from .research_state import ResearchState
 
 __all__ = [
@@ -49,6 +61,12 @@ __all__ = [
     "EvidenceLink",
     "SUPPORT_TYPES",
     "LOCATOR_FIELDS",
+    "EXCERPT_VERIFICATION_STATUSES",
+    "EXCERPT_VERIFICATION_METHODS",
+    "DATA_VENDOR_PROVIDERS",
+    "normalize_provider",
+    "is_data_vendor_provider",
+    "default_source_type_for",
     "ResearchState",
     "EvidenceCandidate",
     "CANDIDATE_ID_PREFIX",

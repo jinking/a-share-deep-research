@@ -1,13 +1,16 @@
 {
-  "validator_version": "1.0.0",
+  "validator_version": "2.2.0",
   "report": "examples/意华股份002897_深度研究_20260915_090532.html",
   "manifest": "examples/意华股份002897_样板/research_manifest.json",
+  "evidence_dir": null,
+  "evidence_summary": null,
+  "claim_summary": null,
   "status": "PASS",
   "summary": {
     "P0": 0,
     "P1": 0,
     "P2": 0,
-    "INFO": 5
+    "INFO": 6
   },
   "findings": [
     {
@@ -39,6 +42,12 @@
       "code": "STRICT_MODE",
       "message": "严格模式：将继续校验结构化 manifest",
       "detail": ""
+    },
+    {
+      "severity": "INFO",
+      "code": "MANIFEST_V2_COMPAT",
+      "message": "v2 manifest：Evidence Verification 降级为兼容检查",
+      "detail": "建议迁移：python scripts/migrate_manifest_v2_to_v3.py old_manifest.json --out research_manifest.v3.json"
     }
   ]
 }

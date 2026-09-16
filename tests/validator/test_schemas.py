@@ -110,3 +110,70 @@ def test_model_from_dict_accepts_schema_valid_fixtures():
     link.validate()
     candidate = EvidenceCandidate.from_dict(_load(FIXTURES / "valid/candidate.json"))
     candidate.validate()
+
+
+# --------------------------------------------------------------------------- #
+# v3.0.2 新增字段：溯源（§8）与摘录验证状态（§9）
+# --------------------------------------------------------------------------- #
+
+
+def test_model_and_schema_agree_on_excerpt_verification_enums():
+    from core.models import EXCERPT_VERIFICATION_METHODS, EXCERPT_VERIFICATION_STATUSES
+
+    link = _load(SCHEMAS["evidence_link"])["properties"]
+    assert set(EXCERPT_VERIFICATION_STATUSES) == set(link["excerpt_verification_status"]["enum"]) - {None}
+    assert set(EXCERPT_VERIFICATION_METHODS) == set(link["excerpt_verification_method"]["enum"]) - {None}
+
+
+def test_schema_accepts_provenance_and_excerpt_verification():
+    doc = {
+        "document_id": "DOC_vendor01",
+        "source_type": "data_vendor",
+        "title": "westock-data 日行情（sz002897）",
+        "retrieved_at": "2026-09-15T22:51:00+08:00",
+        "provider": "westock-data",
+        "upstream_source_type": "exchange_filing",
+        "upstream_document_id": "CNINFO_002897_2026H1",
+        "local_path": "raw/kline.txt",
+    }
+    _validator("document").validate(doc)
+    SourceDocument.from_dict(doc).validate()
+
+    link = {
+        "evidence_id": "EV_C_MKT_CLOSE_01",
+        "claim_id": "C_MKT_CLOSE_20260914",
+        "document_id": "DOC_vendor01",
+        "support_type": "direct",
+        "evidence_text": "| 2026-09-14 | 63.99 | 71.39 |",
+        "excerpt_verification_status": "verified",
+        "excerpt_verification_method": "direct_text",
+        "excerpt_verification_source": "raw/kline.txt",
+    }
+    _validator("evidence_link").validate(link)
+    EvidenceLink.from_dict(link).validate()
+
+
+def test_schema_rejects_unknown_excerpt_status():
+    bad = {
+        "evidence_id": "EV_X_01",
+        "claim_id": "C_X",
+        "document_id": "DOC_a",
+        "support_type": "direct",
+        "excerpt_verification_status": "probably_fine",
+    }
+    with pytest.raises(jsonschema.ValidationError):
+        _validator("evidence_link").validate(bad)
+    with pytest.raises(Exception):
+        EvidenceLink.from_dict(bad).validate()
+
+
+def test_schema_rejects_bad_upstream_source_type():
+    bad = {
+        "document_id": "DOC_x",
+        "source_type": "data_vendor",
+        "title": "t",
+        "retrieved_at": "2026-09-15T00:00:00+08:00",
+        "upstream_source_type": "friend_told_me",
+    }
+    with pytest.raises(jsonschema.ValidationError):
+        _validator("document").validate(bad)

@@ -35,8 +35,8 @@
     "issuer": { "type": ["string", "null"] },
     "published_at": {
       "type": ["string", "null"],
-      "pattern": "^\\d{4}-?\\d{2}-?\\d{2}$",
-      "description": "证据发布时间；晚于研究日期将触发 SOURCE_DATE_AFTER_RESEARCH_DATE"
+      "pattern": "^\\d{4}-?\\d{2}-?\\d{2}([T ]\\d{2}:\\d{2}(:\\d{2})?([+-]\\d{2}:?\\d{2}|Z)?)?$",
+      "description": "证据发布时间；允许 YYYY-MM-DD 或 YYYY-MM-DDTHH:MM:SS+08:00（v3.0.2 §12）；晚于 as_of 将触发 SOURCE_DATE_AFTER_AS_OF"
     },
     "retrieved_at": {
       "type": "string",
@@ -59,7 +59,36 @@
     "page_count": { "type": ["integer", "null"], "minimum": 1 },
     "sections": { "type": "array", "items": { "type": "string" } },
     "migration_status": { "type": ["string", "null"] },
-    "note": { "type": ["string", "null"] }
+    "note": { "type": ["string", "null"] },
+    "provider": {
+      "type": ["string", "null"],
+      "description": "取数服务商（Provider ≠ Source）。westock-data / neodata 这类 provider 只能是 data_vendor，不能自称一手来源"
+    },
+    "upstream_source_type": {
+      "type": ["string", "null"],
+      "enum": [
+        "annual_report",
+        "interim_report",
+        "quarterly_report",
+        "company_announcement",
+        "exchange_filing",
+        "company_ir",
+        "customer_announcement",
+        "government",
+        "official_database",
+        "broker_report",
+        "media",
+        "social_media",
+        "data_vendor",
+        "third_party_database",
+        null
+      ],
+      "description": "上游官方原件的来源类型；数据服务商声明了它才允许 source_type 写成一手来源"
+    },
+    "upstream_document_id": {
+      "type": ["string", "null"],
+      "description": "上游原件标识；同一个上游只能算一个独立来源（参与 source_group 合并）"
+    }
   },
   "anyOf": [
     { "required": ["url"], "properties": { "url": { "type": "string", "minLength": 1 } } },

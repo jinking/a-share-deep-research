@@ -10,7 +10,14 @@ from __future__ import annotations
 
 from typing import Dict
 
-__all__ = ["EVIDENCE_CODES", "MANIFEST_V3_CODES", "CODES", "severity_of", "is_known_code"]
+__all__ = [
+    "EVIDENCE_CODES",
+    "MANIFEST_V3_CODES",
+    "REPORT_CLAIM_CODES",
+    "CODES",
+    "severity_of",
+    "is_known_code",
+]
 
 EVIDENCE_CODES: Dict[str, str] = {
     # ---- P0：硬错误，禁止交付 ----
@@ -44,11 +51,25 @@ EVIDENCE_CODES: Dict[str, str] = {
     "CLAIM_UNCONFIRMED_SUPPORTED": "P1",   # 未确认等级却被标成 critical-supported（v3.0.1 §8）
     "CANDIDATE_USED_AS_EVIDENCE": "P0",    # 把 EvidenceCandidate 当成正式证据使用（v3.0.1 §9）
     "CANDIDATE_PROMOTED_WITHOUT_DOCUMENT": "P1",  # Candidate 标为 promoted 但没有正式 Document
+    "EVIDENCE_EXCERPT_UNVERIFIED": "P1",   # critical Claim 的摘录未经验证（v3.0.2 §9）
+    "TIME_MODEL_INCOMPLETE": "P1",         # 正式 v3 时间模型缺字段（v3.0.2 §11）
     # ---- P2：改进项，不单独阻断交付 ----
     "EVIDENCE_HASH_UNVERIFIED": "P2",      # 无法校验原始版本（无本地文件 / 无 hash）
     "EVIDENCE_IMPORTANCE_MISMATCH": "P2",  # manifest importance 与 Claim materiality 不一致
     "EVIDENCE_STORE_SKIPPED": "P2",        # v2 兼容模式：只做引用完整性，不做证据校验
     "TIME_MODEL_LEGACY": "P2",             # 旧时间模型：只有 research_date，没有 as_of
+}
+
+# 跨产物一致性（报告 ↔ Claim Ledger ↔ manifest.evidence_refs，v3.0.2 §6）
+REPORT_CLAIM_CODES: Dict[str, str] = {
+    # ---- P0：报告与 Ledger 直接冲突，禁止交付 ----
+    "REPORT_CLAIM_UNKNOWN": "P0",           # 报告引用了不存在的 Claim
+    "REPORT_PENDING_CLAIM_ASSERTED": "P0",  # status=pending 的 Claim 被当成确定性事实
+    "REPORT_CLAIM_LEVEL_MISMATCH": "P0",    # 报告声明的 level 与 Ledger 不一致
+    "REPORT_UNCONFIRMED_AS_FACT": "P0",     # 未确认等级被写成 fact / confirmed_*
+    # ---- P1：重要缺陷，严格模式下禁止交付 ----
+    "REPORT_CLAIM_STATUS_MISMATCH": "P1",   # 报告声明的 status 与 Ledger 不一致
+    "REPORT_CRITICAL_CLAIM_MISSING": "P1",  # critical Claim 在报告中没有任何落点
 }
 
 MANIFEST_V3_CODES: Dict[str, str] = {
@@ -64,10 +85,13 @@ MANIFEST_V3_CODES: Dict[str, str] = {
     "CLAIM_UNCONFIRMED_SUPPORTED": "P1",
     "CANDIDATE_USED_AS_EVIDENCE": "P0",
     "CANDIDATE_PROMOTED_WITHOUT_DOCUMENT": "P1",
+    "EVIDENCE_EXCERPT_UNVERIFIED": "P1",
+    "TIME_MODEL_INCOMPLETE": "P1",
     "TIME_MODEL_LEGACY": "P2",
 }
 
-CODES: Dict[str, str] = {**EVIDENCE_CODES, **MANIFEST_V3_CODES}
+# 全部错误码（证据层 + manifest 层 + 跨产物层）
+CODES: Dict[str, str] = {**EVIDENCE_CODES, **MANIFEST_V3_CODES, **REPORT_CLAIM_CODES}
 
 
 def severity_of(code: str, default: str = "P1") -> str:

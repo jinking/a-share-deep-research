@@ -4,12 +4,23 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from typing import Any, Dict, Optional
 
-from .base import EvidenceModelError, as_jsonable, clean_str, is_sha256_hex, parse_date
+from .base import (
+    EvidenceModelError,
+    as_jsonable,
+    clean_str,
+    is_sha256_hex,
+    parse_datetime,
+)
+from .provenance import is_data_vendor_provider
 
 __all__ = ["SOURCE_TYPES", "PRIMARY_SOURCE_TYPES", "SourceDocument"]
+
+# 只到「日」的写法：这种 published_at 无法参与 datetime 级比较
+_DATE_ONLY_RE = re.compile(r"^\d{4}-?\d{2}-?\d{2}$")
 
 # 一手来源：可用于支撑确认级 Claim
 PRIMARY_SOURCE_TYPES = frozenset(
@@ -62,6 +73,10 @@ class SourceDocument:
     sections: list = field(default_factory=list)
     migration_status: Optional[str] = None
     note: Optional[str] = None
+    # 以下为 v3.0.2 §8 溯源字段：Provider ≠ Source
+    provider: Optional[str] = None
+    upstream_source_type: Optional[str] = None
+    upstream_document_id: Optional[str] = None
 
     # ---- 派生属性 ----
 
@@ -70,8 +85,22 @@ class SourceDocument:
         return self.source_type in PRIMARY_SOURCE_TYPES
 
     @property
+    def is_data_vendor(self) -> bool:
+        """是否来自取数服务商（Provider），而非一手来源本身。"""
+        return is_data_vendor_provider(self.provider)
+
+    @property
+    def has_declared_upstream(self) -> bool:
+        """是否显式声明了上游官方原件。"""
+        return bool(clean_str(self.upstream_source_type) or clean_str(self.upstream_document_id))
+
+    @property
     def independence_key(self) -> str:
-        """来源独立性判断键：同一上游转载共享同一个 source_group。"""
+        """来源独立性判断键：同一上游转载共享同一个 source_group。
+
+        声明了 `upstream_document_id` 时以该 Document 为准（由
+        `core.evidence.independence` 在能看到全量文档时做传递解析）。
+        """
         return self.source_group or self.document_id
 
     @property
@@ -81,7 +110,25 @@ class SourceDocument:
 
     @property
     def published_date(self):
-        return parse_date(self.published_at)
+        """发布日（date）。即使 published_at 带时间，也只取日期部分。"""
+        dt = parse_datetime(self.published_at)
+        return dt.date() if dt else None
+
+    @property
+    def published_datetime(self):
+        """带时间精度的发布时间（v3.0.2 §12）。
+
+        只在 `published_at` **确实写了时间**时返回 datetime；只写到「日」时返回 None，
+        表示「只知道到日」—— 于是时效比较只能退化为 day-level，而不是拿 00:00 冒充
+        真实发布时间去比较（那会凭空制造「晚于 as_of」或「早于 as_of」的假结论）。
+        """
+        text = clean_str(self.published_at)
+        if not text:
+            return None
+        normalized = text.replace("/", "-").replace(".", "-")
+        if _DATE_ONLY_RE.match(normalized):
+            return None
+        return parse_datetime(normalized)
 
     # ---- 序列化 ----
 
@@ -115,9 +162,27 @@ class SourceDocument:
         if self.sha256 is not None and not is_sha256_hex(self.sha256):
             raise EvidenceModelError(f"sha256 不是 64 位十六进制: {self.sha256!r}")
         if self.published_at is not None and self.published_date is None:
-            raise EvidenceModelError(f"published_at 无法解析为日期: {self.published_at!r}")
+            raise EvidenceModelError(
+                f"published_at 无法解析为日期: {self.published_at!r}；"
+                "允许 YYYY-MM-DD 或 YYYY-MM-DDTHH:MM:SS+08:00（v3.0.2 §12）"
+            )
         if self.page_count is not None and int(self.page_count) <= 0:
             raise EvidenceModelError(f"page_count 必须为正整数: {self.page_count!r}")
+
+        upstream_type = clean_str(self.upstream_source_type)
+        if upstream_type and upstream_type not in SOURCE_TYPES:
+            raise EvidenceModelError(
+                f"upstream_source_type 非法: {upstream_type!r}；允许值: {sorted(SOURCE_TYPES)}"
+            )
+
+        # Provider ≠ Source（v3.0.2 §8）：取数服务商不得自称一手来源。
+        # 只有显式声明了上游官方原件，才允许把 source_type 写成一手来源类型。
+        if self.is_data_vendor and self.is_primary and not self.has_declared_upstream:
+            raise EvidenceModelError(
+                f"Provider 不是 Source：provider={self.provider!r} 是数据服务商，"
+                f"不能自称一手来源 source_type={self.source_type!r}；"
+                "请改为 data_vendor，或声明 upstream_source_type / upstream_document_id 指向官方原件"
+            )
 
     def describe(self) -> str:
         bits = [f"{self.document_id}", self.source_type, self.title]
