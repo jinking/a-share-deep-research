@@ -527,3 +527,47 @@ PDF 产出的**最低合格线 = 内嵌图像数 > 0**（报告含 ECharts 时�
 | `scripts/stamp_report.py` | **生成时间盖章器**：四处时间戳统一刷新为 `YYYY-MM-DD HH:MM:SS`，幂等；`--check` 校验、`--rename` 同步文件名 |
 | `scripts/html_to_pdf.py` | **HTML 研报 → PDF**（可选交付）：无头浏览器打印，引擎 `chrome-headless-shell` → Chrome/Edge → Playwright 自动降级；打印样式只注入临时副本；导出后校验页数/内嵌图像数 |
 
+
+## 实战坑位清单（第 3–4 标的华电新能/风华高科新增，2026-09-17）
+
+写证据构建脚本（build_claims/build_evidence）时，以下坑已实测咬人两次以上，**照抄结构、不要凭记忆重写**：
+
+1. **promote_plan.json 结构**：必须是 `{"promotions":[{"candidate_id","document":{...},"links":[{claim_id,page,section,evidence_text,support_type,note}]}]}`；且 candidates.jsonl 要先用 `build_evidence.py add-candidate` CLI 逐条注册（线索层），再 promote。自造 `{"documents":[...]}` 会被拒。
+2. **Document.source_type 封闭枚举**：只允许 annual_report / interim_report / quarterly_report / company_announcement / company_ir / data_vendor / exchange_filing / broker_report 等（见 promote 脚本报错信息）。分红/减值/解禁/发电量等一律 `company_announcement`，IR 记录表用 `company_ir`，行情导出用 `data_vendor`。
+3. **manifest_version 必须是整数 3**（写 "3.0" 会被判 -1 → 全链降级 FAIL）。
+4. **vendor 文档**：local_file 相对 evidence/ 目录解析（写 `../raw/kline.txt`）；`page_count` 必须为正整数（文本文件没有页标记，直接写 1）。
+5. **锚点预检批量做**：写生成器前用一个 chk 循环把全部锚点在对应 textlayer 里 grep 一遍（54 个锚点一次 30 秒）；PDF 换行断词（如「领\n先」「600\n万千瓦」）在预检时就要换安全锚点，否则 promote 阶段逐条返工。
+6. **manifest/claims 生成器里避免 `%` 格式串拼中文长句**（含 % 的中文文本必须转义或用 f-string，两次踩坑）。
+7. **Edit 工具偶发「报成功但没落地」**：改完生成器必须 `grep -c` 复核关键行再重跑。
+8. **kline.txt 是降序排列**（最新日期在文件头）；报告注入前要 reverse。
+
+## 优化工具链（2026-09-17 落地，三标的实测后固化）
+
+写完 build_claims/build_evidence 生成器之后、promote 之前：
+
+    python3 scripts/precheck_anchors.py research_<code>/evidence
+
+用与 promote 重算**字节级相同**的口径（NFKC+去空白子串）预检 plan 里全部摘录，
+MISS 时输出断词诊断（最长可命中前缀 + 断点原文形态）。负样本已验证：臆造摘录必 FAIL。
+注意：摘录跨页（或裁剪时带入 `<<<PAGE N>>>` 标记）会走全文匹配，标 CROSS、page 不核对。
+
+报告生成 + JS 冒烟之后，交付收尾一条命令：
+
+    python3 scripts/finish_report.py 报告.html \
+        --manifest research_<code>/research_manifest.json \
+        --evidence-dir research_<code>/evidence
+
+自动串联：指纹盖章 → stamp_report --rename → 文件名派生 generated_at 回填 manifest
+→ validate_report 完整 → --claim-only → validate_evidence --fail-on P0,P1,P2。
+守卫：文件名已带 `_YYYYMMDD_HHMMSS` 且与 manifest.generated_at 一致 → 跳过盖章直接验收
+（重跑不漂移时间戳）。**正式流程只首跑一次**；重跑仅用于纯验收。
+
+新标的研究从 assets/templates/ 复制骨架起步（4 件套，全部含坑位注释与落盘复核）：
+
+    build_claims_template.py     # category 封闭枚举 / 落盘复核
+    build_evidence_template.py   # promotions 结构 / source_type 枚举 / add-candidate CLI
+    build_manifest_template.py   # manifest_version 整数 3 / 三时点 / 数学自检
+    _harness_template.js         # setOption 次数 + 数据点数断言
+
+时序：复制模板改内容 → 跑生成器 → **precheck_anchors 全 PASS** → promote →
+证据层验收 → 报告生成 → JS 冒烟 → **finish_report.py**。
